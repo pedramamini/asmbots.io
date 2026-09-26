@@ -14,5 +14,8 @@
   "dependencies": {
     "@asmbots/asm": "workspace:*",
     "@asmbots/engine": "workspace:*"
+  },
+  "devDependencies": {
+    "@asmbots/protocol": "workspace:*"
   }
 }

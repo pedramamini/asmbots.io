@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Battle, eventHash, HashSink, pmarsPoints, resultHash } from '@asmbots/engine'
+import { WEIGHT_CLASSES } from '@asmbots/protocol'
 import { playInWorker } from '../../../scripts/golden'
 import {
   diffGoldens,
@@ -18,6 +19,8 @@ import { fighter, ROSTER } from '../src/roster'
 
 const TEXT = readFileSync(join(import.meta.dir, '..', 'goldens', 'results.json'), 'utf8')
 const RESULTS = parseGoldens(JSON.parse(TEXT))
+
+const [LIGHTWEIGHT] = WEIGHT_CLASSES
 
 const SHOWCASE = ROSTER.filter((e) => e.tier === 'showcase').map((e) => e.slug)
 
@@ -67,9 +70,13 @@ describe('GOLDEN_MATCHUPS', () => {
     expect(new Set(GOLDEN_MATCHUPS.map((m) => m.name)).size).toBe(GOLDEN_MATCHUPS.length)
   })
 
-  it('plays every bot but the test bots', () => {
+  // The goldens are lightweight: a heavier bot is pinned by the record lines of its header, which
+  // test/fighters.test.ts fights, so a new heavier bot leaves every golden as it was.
+  it('plays every lightweight bot but the test bots', () => {
     const played = new Set(GOLDEN_MATCHUPS.flatMap((m) => m.bots))
-    const fighters = ROSTER.filter((e) => e.tier !== 'test').map((e) => e.slug)
+    const fighters = ROSTER.filter(
+      (e) => e.tier !== 'test' && fighter(e.slug).bytes.length <= LIGHTWEIGHT.max,
+    ).map((e) => e.slug)
     expect([...played].sort()).toEqual([...fighters].sort())
   })
 

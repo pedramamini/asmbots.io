@@ -43,8 +43,9 @@ const SHOWCASE = ROSTER.filter((e) => e.tier === 'showcase').map((e) => e.slug)
  * Every pair of showcase bots, in roster order, at seeds 1..5. Then, at seeds 1..3, three 4-bot
  * melees and one 8-bot melee: the solid bots of the imp, dwarf, paper, and scanner families; the
  * gate and the decoy, with the imp the gate kills and the scanner the decoy's noise is for; four
- * showcase fighters; and the eight showcase bots. So each bot has goldens except the test bots,
- * which `test/test-bots.test.ts` pins instead.
+ * showcase fighters; and the eight showcase bots. So each lightweight bot has goldens except the
+ * test bots, which `test/test-bots.test.ts` pins instead. A heavier bot has none: the record lines
+ * of its header pin it (`test/fighters.test.ts`), so adding one moves no golden.
  */
 export const GOLDEN_MATCHUPS: readonly GoldenMatchup[] = [
   ...SHOWCASE.flatMap((a, i) => SHOWCASE.slice(i + 1).map((b) => matchup([a, b], PAIR_SEEDS))),

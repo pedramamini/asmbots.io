@@ -34,7 +34,7 @@
     },
     "apps/cli": {
       "name": "@asmbots/cli",
-      "version": "0.0.0",
+      "version": "0.1.0",
       "bin": {
         "asmbots": "./src/main.ts",
       },
@@ -110,6 +110,9 @@
       "dependencies": {
         "@asmbots/asm": "workspace:*",
         "@asmbots/engine": "workspace:*",
+      },
+      "devDependencies": {
+        "@asmbots/protocol": "workspace:*",
       },
     },
     "packages/codec": {

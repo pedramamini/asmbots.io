@@ -98,6 +98,16 @@ export const ROSTER: readonly RosterEntry[] = [
     blurb: 'Covers 2 KB around itself with mov noise, then bombs as an unrolled dwarf.',
   },
   {
+    slug: 'bastion',
+    file: 'roster/bastion.asm',
+    name: 'Bastion',
+    author: 'ASM Bots',
+    family: 'dwarf',
+    tier: 'solid',
+    blurb:
+      'A middleweight dwarf, 128 bombs a pass between two fields of fake code: beats dwarf 8-2, imp 9-0-1, scanner 8-2; loses to paper 0-10.',
+  },
+  {
     slug: 'stone',
     file: 'roster/stone.asm',
     name: 'Stone',
@@ -123,6 +133,16 @@ export const ROSTER: readonly RosterEntry[] = [
     family: 'paper',
     tier: 'solid',
     blurb: 'Starts each copy on a jmp $ pad first, then writes the copy over the pad.',
+  },
+  {
+    slug: 'twins',
+    file: 'roster/twins.asm',
+    name: 'Twins',
+    author: 'ASM Bots',
+    family: 'paper',
+    tier: 'solid',
+    blurb:
+      'Middleweight paper whose copies take turns with a dense and a wide burst: beats dwarf 9-0-1, imp 9-0-1, scanner 10-0; ties paper 8 of 10.',
   },
   {
     slug: 'scanner',

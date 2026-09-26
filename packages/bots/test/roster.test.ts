@@ -12,10 +12,22 @@ import {
   tokenize,
 } from '@asmbots/asm'
 import * as byName from '@asmbots/bots'
+import {
+  MAX_BOT_BYTES_ALL,
+  WEIGHT_CLASSES,
+  type WeightClassSlug,
+  weightClassOf,
+} from '@asmbots/protocol'
 import { loadRoster, ROSTER, ROSTER_FAMILIES, ROSTER_TIERS } from '../src/roster'
 
 const PACKAGE = join(import.meta.dir, '..')
 const ROSTER_DIR = join(PACKAGE, 'roster')
+
+/**
+ * The weight classes the roster has fighters for, lightest first. A class joins once it has two
+ * fighters; when every class has, this is all of `WEIGHT_CLASSES`.
+ */
+const FILLED_CLASSES: readonly WeightClassSlug[] = WEIGHT_CLASSES.slice(0, 2).map((c) => c.slug)
 
 const bots = loadRoster()
 
@@ -143,6 +155,23 @@ describe('roster: entries', () => {
       .map((f) => `roster/${f}`)
     expect(files.sort()).toEqual(ROSTER.map((e) => e.file).sort())
   })
+
+  it(`keeps every bot at ${MAX_BOT_BYTES_ALL} bytes or under, the top of super-heavy`, () => {
+    expect(MAX_BOT_BYTES).toBe(MAX_BOT_BYTES_ALL)
+    for (const e of ROSTER) {
+      expect({ slug: e.slug, fits: botOf(e.slug).assembled.bytes.length <= MAX_BOT_BYTES_ALL })
+        .toEqual({ slug: e.slug, fits: true })
+    }
+  })
+
+  for (const slug of FILLED_CLASSES) {
+    it(`has two or more fighters in the ${slug} class`, () => {
+      const fighters = ROSTER.filter(
+        (e) => e.tier !== 'test' && weightClassOf(botOf(e.slug).assembled.bytes.length)?.slug === slug,
+      )
+      expect(fighters.length).toBeGreaterThanOrEqual(2)
+    })
+  }
 
   it('loads each bot from its file, once', () => {
     expect([...bots.keys()]).toEqual(ROSTER.map((e) => e.slug))

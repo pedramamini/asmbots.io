@@ -3,6 +3,7 @@
  * replay file carries. The arena loads this module only to write a replay: its bots come prebuilt
  * (`images.ts`).
  */
+import bastion from '../roster/bastion.asm' with { type: 'text' }
 import decoy from '../roster/decoy.asm' with { type: 'text' }
 import dwarf from '../roster/dwarf.asm' with { type: 'text' }
 import dwarfWide from '../roster/dwarf-wide.asm' with { type: 'text' }
@@ -24,6 +25,7 @@ import repCopy from '../roster/test/rep-copy.asm' with { type: 'text' }
 import spin from '../roster/test/spin.asm' with { type: 'text' }
 import splStorm from '../roster/test/spl-storm.asm' with { type: 'text' }
 import stackWalk from '../roster/test/stack-walk.asm' with { type: 'text' }
+import twins from '../roster/twins.asm' with { type: 'text' }
 import vampire from '../roster/vampire.asm' with { type: 'text' }
 
 const SOURCES: Readonly<Record<string, string>> = {
@@ -33,9 +35,11 @@ const SOURCES: Readonly<Record<string, string>> = {
   'dwarf-wide': dwarfWide,
   gate,
   decoy,
+  bastion,
   stone,
   paper,
   silk,
+  twins,
   scanner,
   hybrid,
   vampire,

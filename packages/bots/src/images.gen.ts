@@ -54,6 +54,14 @@ export const ROSTER_IMAGE_DATA: Readonly<Record<string, RosterImageData>> = {
     version: '',
     bytes: '6AAAW4PrA7ihAI2/APy5AALzq41/NbkAAvOrMcCNf/y5/A+JBYlF/IlF+IlF9IPvEOLw6+g=',
   },
+  bastion: {
+    name: 'Bastion',
+    author: 'ASM Bots',
+    strategy: 'An unrolled bomber between two fields of fake code',
+    version: '',
+    bytes:
+      '60ChzKHMocyhzKHMocyhzKHMocyhzKHMocyhzKHMocyhzKHMocyhzKHMocyhzKHMocyhzKHMocyhzKHMocyhzKHM6AAAW4PrRTHAjX+Aja0A/7l+AIlFfIlFeIlFdIlFcIlFbIlFaIlFZIlFYIlFXIlFWIlFVIlFUIlFTIlFSIlFRIlFQIlFPIlFOIlFNIlFMIlFLIlFKIlFJIlFIIlFHIlFGIlFFIlFEIlFDIlFCIlFBIkFiUX8iUX4iUX0iUXwiUXsiUXoiUXkiUXgiUXciUXYiUXUiUXQiUXMiUXIiUXEiUXAiUW8iUW4iUW0iUWwiUWsiUWoiUWkiUWgiUWciUWYiUWUiUWQiUWMiUWIiUWEiUWAiUZ8iUZ4iUZ0iUZwiUZsiUZoiUZkiUZgiUZciUZYiUZUiUZQiUZMiUZIiUZEiUZAiUY8iUY4iUY0iUYwiUYsiUYoiUYkiUYgiUYciUYYiUYUiUYQiUYMiUYIiUYEiUYAiUb8iUb4iUb0iUbwiUbsiUboiUbkiUbgiUbciUbYiUbUiUbQiUbMiUbIiUbEiUbAiUa8iUa4iUa0iUawiUasiUaoiUakiUagiUaciUaYiUaUiUaQiUaMiUaIiUaEiUaAge8AAoHtAALiA+lq/ulx/qHMocyhzKHMocyhzKHMocyhzKHMocyhzKHMocyhzKHMocyhzKHMocyhzKHMocyhzKHMocyhzKHMocyhzKHMocw=',
+  },
   stone: {
     name: 'Stone',
     author: 'ASM Bots',
@@ -75,6 +83,14 @@ export const ROSTER_IMAGE_DATA: Readonly<Record<string, RosterImageData>> = {
     strategy: 'Start each copy first, then write it',
     version: '',
     bytes: '6AAAW4PrA4nYhuCJxf2BxTQSx0YA6/5ixY13Ko1+KrkWAPOlx4UaCQAA6+I=',
+  },
+  twins: {
+    name: 'Twins',
+    author: 'ASM Bots',
+    strategy: 'Paper whose copies take turns: a dense burst, then a wide one',
+    version: '',
+    bytes:
+      '6AAAW4PrA4nahvKBwjQSid6J17kGAfOlgHX/AWLCjb0OBzHA9ocLAgF0A+nCAIlFfIlFeIlFdIlFcIlFbIlFaIlFZIlFYIlFXIlFWIlFVIlFUIlFTIlFSIlFRIlFQIlFPIlFOIlFNIlFMIlFLIlFKIlFJIlFIIlFHIlFGIlFFIlFEIlFDIlFCIlFBIkFiUX8iUX4iUX0iUXwiUXsiUXoiUXkiUXgiUXciUXYiUXUiUXQiUXMiUXIiUXEiUXAiUW8iUW4iUW0iUWwiUWsiUWoiUWkiUWgiUWciUWYiUWUiUWQiUWMiUWIiUWEiUWA6Rv/iYVwBImFUASJhTAEiYUQBImF8AOJhdADiYWwA4mFkAOJhXADiYVQA4mFMAOJhRADiYXwAomF0AKJhbACiYWQAomFcAKJhVACiYUwAomFEAKJhfABiYXQAYmFsAGJhZABiYVwAYmFUAGJhTABiYUQAYmF8ACJhdAAiYWwAImFkACJRXCJRVCJRTCJRRCJRfCJRdCJRbCJRZCJhXD/iYVQ/4mFMP+JhRD/iYXw/omF0P6JhbD+iYWQ/omFcP6JhVD+iYUw/omFEP6JhfD9iYXQ/YmFsP2JhZD9iYVw/YmFUP2JhTD9iYUQ/YmF8PyJhdD8iYWw/ImFkPyJhXD8iYVQ/ImFMPyJhRD8iYXw+4mF0PuJhbD7iYWQ++kA/gA=',
   },
   scanner: {
     name: 'Scanner',
