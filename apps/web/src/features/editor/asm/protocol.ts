@@ -15,7 +15,10 @@ export interface AsmRequest {
 export interface AsmResult {
   /** The source, as it was assembled. */
   readonly source: string
-  /** The assemble at the hills' size cap (`MAX_BOT_BYTES`): its errors, bytes, and listing. */
+  /**
+   * The assemble at the absolute size cap (`MAX_BOT_BYTES`, 4,096 bytes: the top of super-heavy,
+   * not any one hill's cap): its errors, bytes, and listing.
+   */
   readonly assembled: Assembled
   /** The linter's warnings. */
   readonly warnings: readonly Diag[]

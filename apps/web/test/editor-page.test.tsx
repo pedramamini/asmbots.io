@@ -171,7 +171,7 @@ describe('the editor page', () => {
     await renderEditor()
     const view = await editorView()
     expect(view.state.doc.toString()).toBe(BLANK)
-    await waitFor(() => expect(sizeChip()).toBe('2 / 4096 B'))
+    await waitFor(() => expect(sizeChip()).toBe('2 B · light'))
     expect(toolbar().getByText('new')).toBeTruthy()
     expect(toolbar().getByTitle("the bot's %name").textContent).toBe('untitled')
     expect(screen.getByText('no problems: the bot assembles clean.')).toBeTruthy()
@@ -181,12 +181,12 @@ describe('the editor page', () => {
   it('lists an error at its line and column, and a click puts the cursor there', async () => {
     await renderEditor()
     const view = await editorView()
-    await waitFor(() => expect(sizeChip()).toBe('2 / 4096 B'))
+    await waitFor(() => expect(sizeChip()).toBe('2 B · light'))
     type(view, 'next:   mov     [bx], 0\n')
     await waitFor(() =>
       expect(problemRows()).toEqual(['error6:17operation size not specifiedsize-not-specified']),
     )
-    expect(sizeChip()).toBe('— / 4096 B')
+    expect(sizeChip()).toBe('— B')
     expect(view.dom.querySelector('.cm-lintRange-error')?.textContent).toBe('[bx]')
     fireEvent.click(within(screen.getByRole('list', { name: 'problems' })).getByRole('button'))
     const line = view.state.doc.line(6)
@@ -215,7 +215,7 @@ describe('the editor page', () => {
   it('saves a new bot, moves it to its address, and keeps each save as a version', async () => {
     const { router } = await renderEditor()
     const view = await editorView()
-    await waitFor(() => expect(sizeChip()).toBe('2 / 4096 B'))
+    await waitFor(() => expect(sizeChip()).toBe('2 B · light'))
     act(() => view.dispatch({ selection: { anchor: 5 } }))
     fireEvent.click(toolbar().getByRole('button', { name: 'save' }))
     await waitFor(() => expect(router.state.location.pathname).toMatch(/^\/editor\/[0-9a-f-]{36}$/))

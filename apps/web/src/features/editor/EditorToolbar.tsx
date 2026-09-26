@@ -1,4 +1,5 @@
 import { MAX_BOT_BYTES } from '@asmbots/asm'
+import { weightClassOf } from '@asmbots/protocol'
 import { Button, Chip, type ChipVariant, cx, IconButton, Input, Menu, Toggle } from '@asmbots/ui'
 import {
   AlignLeft,
@@ -20,6 +21,8 @@ import { EDITOR_ABOUT } from '../../app/intros/editor'
 import { useRouteAbout } from '../../app/slots'
 import { type CatalogBot, rosterCatalog } from '../arena/setup/bots'
 import type { SharedBot } from '../arena/setup/url'
+import { count } from '../hills/links'
+import { WEIGHT_SHORT, weightBounds } from '../hills/WeightChip'
 import type { AsmResult } from './asm/protocol'
 import {
   FIXED_PANELS,
@@ -264,21 +267,51 @@ function SaveChip({ state }: { state: SaveState }) {
   }
 }
 
-/** The size against the cap: `142 / 512 B`, warn from 90% (the linter's), danger past it. */
-function SizeChip({ result, pending }: { result: AsmResult | null; pending: boolean }) {
+/**
+ * The size and its weight class: `142 B · light`. Warn within 10% under the class's upper bound
+ * (the next byte moves it up a class), danger only past the absolute cap.
+ */
+export function sizeReading(result: Pick<AsmResult, 'size'> | null): {
+  variant: ChipVariant
+  text: string
+  title: string
+} {
   const cap = MAX_BOT_BYTES
   const size = result?.size ?? null
+  const weight = size === null ? null : weightClassOf(size)
   const variant: ChipVariant =
-    size === null ? 'neutral' : size > cap ? 'danger' : size * 10 >= cap * 9 ? 'warn' : 'neutral'
-  const text = `${result === null ? '…' : (size ?? '—')} / ${cap} B`
+    size === null
+      ? 'neutral'
+      : size > cap
+        ? 'danger'
+        : weight !== null && size * 10 >= weight.max * 9
+          ? 'warn'
+          : 'neutral'
+  const text =
+    result === null
+      ? '… B'
+      : size === null
+        ? '— B'
+        : weight === null
+          ? `${count(size)} B${size > cap ? ' · over' : ''}`
+          : `${count(size)} B · ${WEIGHT_SHORT[weight.slug]}`
   const title =
     result === null
       ? 'assembling'
       : size === null
         ? 'the size shows once the errors are fixed'
         : size > cap
-          ? `${size - cap} bytes over the cap`
-          : `${cap - size} bytes to spare`
+          ? `${count(size - cap)} bytes over the ${count(cap)}-byte cap: trim it`
+          : weight === null
+            ? 'an empty bot'
+            : variant === 'warn'
+              ? `${count(weight.max - size)} bytes under the ${weight.name} limit; past ${count(weight.max)} it is ${nextClass(weight.max)}`
+              : weightBounds(weight)
+  return { variant, text, title }
+}
+
+function SizeChip({ result, pending }: { result: AsmResult | null; pending: boolean }) {
+  const { variant, text, title } = sizeReading(result)
   return (
     <Chip
       variant={variant}
@@ -289,6 +322,12 @@ function SizeChip({ result, pending }: { result: AsmResult | null; pending: bool
       {text}
     </Chip>
   )
+}
+
+/** What a bot one byte past `max` is: `a middleweight`, or `too big for any hill`. */
+function nextClass(max: number): string {
+  const next = weightClassOf(max + 1)
+  return next === null ? 'too big for any hill' : `a ${next.name}`
 }
 
 /** The test's record, `W 7 · T 2 · L 1`, and `watch`; dimmed once the text has changed. */

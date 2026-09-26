@@ -84,7 +84,7 @@ test('saves a bot in the account: v1, the same bytes again, v2, and the bot page
   await expect(pick).toBeHidden()
 
   const toolbar = page.getByRole('toolbar', { name: 'editor' })
-  await expect(toolbar.getByLabel(/^size /)).toHaveText('2 / 512 B')
+  await expect(toolbar.getByLabel(/^size /)).toHaveText('2 B · light')
   await toolbar.getByRole('button', { name: 'save' }).click()
   await expect(page.getByText(/^saved .+: v1 in your account\.$/)).toBeVisible()
   await expect(page).toHaveURL(/\/editor\/[0-9a-f-]{36}$/)

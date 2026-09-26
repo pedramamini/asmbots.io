@@ -47,7 +47,7 @@ async function typeBot(page: Page, text: string) {
   await content(page).locator('.cm-line').first().click()
   await page.keyboard.press('ControlOrMeta+a')
   await page.keyboard.press('Delete')
-  await expect(sizeChip(page)).toHaveText('— / 512 B')
+  await expect(sizeChip(page)).toHaveText('— B')
   // As one input, so auto-indent and bracket closing leave the text as written.
   await page.keyboard.insertText(text)
 }
@@ -55,7 +55,7 @@ async function typeBot(page: Page, text: string) {
 test('the dwarf typed in assembles clean, and its size shows', async ({ page }) => {
   const errors = watch(page)
   await typeBot(page, DWARF)
-  await expect(sizeChip(page)).toHaveText('23 / 512 B')
+  await expect(sizeChip(page)).toHaveText('23 B · light')
   await expect(toolbar(page).getByTitle("the bot's %name")).toHaveText('Dwarf')
   await expect(problems(page)).toContainText('no problems: the bot assembles clean.')
   await expect(page.locator('.cm-lint-marker')).toHaveCount(0)
@@ -67,7 +67,7 @@ test('the dwarf typed in assembles clean, and its size shows', async ({ page }) 
 test('mov [bx], 0 shows the size error at its column', async ({ page }) => {
   const errors = watch(page)
   await typeBot(page, DWARF)
-  await expect(sizeChip(page)).toHaveText('23 / 512 B')
+  await expect(sizeChip(page)).toHaveText('23 B · light')
   await page.locator('.cm-line', { hasText: 'mov     word [di], 0' }).click()
   await page.keyboard.press('End')
   // Enter keeps the line's indentation: the new line starts in column 9.
@@ -80,7 +80,7 @@ test('mov [bx], 0 shows the size error at its column', async ({ page }) => {
   await expect(row).toContainText('size-not-specified')
   await expect(page.locator('.cm-lintRange-error')).toHaveText('[bx]')
   await expect(page.locator('.cm-gutter-lint .cm-lint-marker-error')).toHaveCount(1)
-  await expect(sizeChip(page)).toHaveText('— / 512 B')
+  await expect(sizeChip(page)).toHaveText('— B')
   // A click on the problem puts the cursor on it.
   await page.locator('.cm-line').first().click()
   await row.click()
@@ -109,13 +109,13 @@ test('format lays the source out once, and again changes nothing', async ({ page
     '',
   ].join('\n')
   await typeBot(page, messy)
-  await expect(sizeChip(page)).toHaveText('21 / 512 B')
+  await expect(sizeChip(page)).toHaveText('21 B · light')
   await toolbar(page).getByRole('button', { name: 'format' }).click()
   await expect.poll(() => editorText(page)).toContain('START:  call    .HERE')
   const once = await editorText(page)
   expect(once).toContain('        mov     word [di], 0')
   expect(once).not.toBe(messy.replace(/\n$/, ''))
-  await expect(sizeChip(page)).toHaveText('21 / 512 B')
+  await expect(sizeChip(page)).toHaveText('21 B · light')
   await toolbar(page).getByRole('button', { name: 'format' }).click()
   await expect(page.getByText('already formatted.')).toBeVisible()
   expect(await editorText(page)).toBe(once)
@@ -125,7 +125,7 @@ test('format lays the source out once, and again changes nothing', async ({ page
 test('test vs imp shows the record, and watch opens the arena as tested', async ({ page }) => {
   const errors = watch(page)
   await typeBot(page, DWARF)
-  await expect(sizeChip(page)).toHaveText('23 / 512 B')
+  await expect(sizeChip(page)).toHaveText('23 B · light')
   await toolbar(page).getByRole('button', { name: 'test vs ▾' }).click()
   await page.getByRole('menuitem', { name: 'imp', exact: true }).click()
   const record = toolbar(page).getByRole('status', { name: /vs Imp/ })
@@ -161,7 +161,7 @@ test('write, lint, format, test vs imp, and save in this browser: the bot is in 
       '',
     ].join('\n'),
   )
-  await expect(sizeChip(page)).toHaveText(/^\d+ \/ 512 B$/)
+  await expect(sizeChip(page)).toHaveText(/^\d+ B · light$/)
 
   // lint: its warnings show, the toggle hides them, and one goes once its cause does.
   await expect(problems(page)).toContainText('no `%strategy`')
@@ -234,7 +234,7 @@ test('a first visit: the templates over the new bot, the coach mark over the hel
   await expect(page.locator('.cm-editor')).toHaveClass(/cm-focused/)
   // A template starts the bot, and the panel goes.
   await panel.getByRole('button', { name: 'dwarf' }).click()
-  await expect(sizeChip(page)).toHaveText('23 / 512 B')
+  await expect(sizeChip(page)).toHaveText('23 B · light')
   await expect(panel).toBeHidden()
   // got it: the tip never shows again.
   await tip.getByRole('button', { name: 'got it' }).click()
