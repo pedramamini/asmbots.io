@@ -35,8 +35,9 @@ export function litCells(word: string, cols: number): boolean[][] {
   )
 }
 
-/** Pedram's GitHub bio, https://github.com/pedramamini: what the unlit cells spell for anyone who decodes them. */
-const BIO = 'Repeat cyber security founder, investor, and advisor. Vibing on @RunMaestro.'
+/** A byline, then Pedram's GitHub bio (https://github.com/pedramamini): what the unlit cells spell for anyone who decodes them. */
+const BIO =
+  'Built by Pedram Amini... Repeat cyber security founder, investor, and advisor. Vibing on @RunMaestro.'
 
 /** The bio as bytes, `00` in place of each space and at the end, so the words read as C strings. */
 const BIO_BYTES = [...BIO.replaceAll(' ', '\0'), '\0'].map((char) =>

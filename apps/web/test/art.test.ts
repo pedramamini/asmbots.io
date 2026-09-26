@@ -121,8 +121,8 @@ describe('bandBytes', () => {
       .filter((cell) => !cell.on)
       .map((cell) => String.fromCharCode(Number.parseInt(cell.byte, 16)))
       .join('')
-    expect(text.startsWith('Repeat\0cyber\0security\0founder,')).toBe(true)
-    expect(text).toContain('@RunMaestro.\0Repeat\0')
+    expect(text.startsWith('Built\0by\0Pedram\0Amini...\0Repeat\0cyber\0')).toBe(true)
+    expect(text).toContain('@RunMaestro.\0Built\0by\0')
   })
 })
 
