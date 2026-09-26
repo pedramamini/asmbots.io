@@ -136,12 +136,23 @@ describe('GET /api/hills/:slug/og.svg and og.png', () => {
   it('draws the hill: its name, rules, and standings, king first', async () => {
     const svg = await svgOf('/api/hills/main/og.svg')
     expect(svg).toContain('>main</text>')
-    expect(svg).toContain('2 of 32 places · 10 rounds · 80k cycles · 512 B')
+    expect(svg).toContain('2 of 32 places · 10 rounds · 80k cycles · lightweight · 1–512 B')
     const kingAt = svg.indexOf('>#1</text>')
     expect(kingAt).toBeGreaterThan(0)
     expect(svg.indexOf('>#2</text>')).toBeGreaterThan(kingAt)
     await pngOf('/api/hills/main/og.png')
     expect((await get('/api/hills/nope/og.png')).status).toBe(404)
+  })
+
+  it("names the hill's weight class, and a band that is no class by its bytes", () => {
+    const base = SEED_HILLS[0]?.config as Hill['config']
+    const card = (config: Partial<Hill['config']>) =>
+      hillCard({ name: 'x', size: 8, rounds: 1, config: { ...base, ...config } } as Hill, [], 'h')
+    expect(card({ minBotBytes: 513, maxBotBytes: 1024 })).toContain(
+      '1 round · 80k cycles · middleweight · 513–1,024 B',
+    )
+    expect(card({ maxBotBytes: 4096 })).toContain('80k cycles · open weight · 1–4,096 B')
+    expect(card({ maxBotBytes: 256 })).toContain('80k cycles · 1–256 B<')
   })
 
   it('says so when nobody holds the hill', async () => {

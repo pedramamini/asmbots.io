@@ -1,9 +1,9 @@
 /**
  * Picking a version of one of my account's bots, for what takes one (a hill's `submit`, a
  * tournament's `enter`): my bots that have a version, the first to start with, then the versions
- * of the bot picked, newest first, with its size against a cap.
+ * of the bot picked, newest first, with its size against a size band.
  */
-import type { BotVersion, MyBot } from '@asmbots/protocol'
+import { type BotVersion, type MyBot, weightClassOf } from '@asmbots/protocol'
 import { Select } from '@asmbots/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
@@ -48,20 +48,44 @@ export function useVersionPick(): VersionPick {
   }
 }
 
+/** The sizes a hill or a tournament takes: its `minBotBytes ?? 1` to its `maxBotBytes`. */
+export interface Band {
+  readonly min: number
+  readonly max: number
+}
+
+/** The band of a hill's or a tournament's battle config. */
+export function bandOf(config: { minBotBytes?: number | undefined; maxBotBytes: number }): Band {
+  return { min: config.minBotBytes ?? 1, max: config.maxBotBytes }
+}
+
+/** Whether a bot of `size` bytes is in `band`. */
+export const fits = (size: number, band: Band) => size >= band.min && size <= band.max
+
+/**
+ * Why a bot of `size` bytes is not one `taker` takes, or null when it is:
+ * `300 B is lightweight; this hill takes 513 to 1,024.`
+ */
+export function misfit(size: number, band: Band, taker: string): string | null {
+  if (fits(size, band)) return null
+  const weight = weightClassOf(size)?.name ?? 'past every class'
+  return `${count(size)} B is ${weight}; ${taker} takes ${count(band.min)} to ${count(band.max)}.`
+}
+
 export interface VersionFieldsProps {
   pick: VersionPick & { readonly picked: MyBot }
-  /** The most bytes the version may be. */
-  cap: number
-  /** What follows the size when the version is over the cap: `: over the tiny hill's cap.` */
-  over: string
+  /** The sizes the version may be. */
+  band: Band
+  /** What takes the version, as the misfit line names it: `this hill`. */
+  taker: string
   /** A pick changed. */
   onChange?: (() => void) | undefined
 }
 
-/** The bot and version selects, and the version's size against `cap`. */
-export function VersionFields({ pick, cap, over, onChange }: VersionFieldsProps) {
+/** The bot and version selects, and the version's size against `band`. */
+export function VersionFields({ pick, band, taker, onChange }: VersionFieldsProps) {
   const { bots, picked, versions, version } = pick
-  const tooBig = version !== undefined && version.size > cap
+  const why = version === undefined ? null : misfit(version.size, band, taker)
   return (
     <>
       <div className="grid grid-cols-[5rem_1fr] items-center gap-2">
@@ -97,8 +121,8 @@ export function VersionFields({ pick, cap, over, onChange }: VersionFieldsProps)
         </Select>
       </div>
       {version !== undefined && (
-        <p className={tooBig ? 'text-danger' : 'text-muted'}>
-          {count(version.size)} / {count(cap)} B{tooBig ? over : ''}
+        <p className={why === null ? 'text-muted' : 'text-danger'}>
+          {why ?? `${count(version.size)} / ${count(band.max)} B`}
         </p>
       )}
     </>

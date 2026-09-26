@@ -20,10 +20,11 @@ import { ChallengeMenu } from './ChallengeMenu'
 import { HillFeed } from './HillFeed'
 import { HillStandingsTable } from './HillStandingsTable'
 import { KingCard } from './KingCard'
-import { rules } from './links'
 import { MatchesTable } from './MatchesTable'
+import { bandWeight, rules } from './rules'
 import { SubmissionPanel } from './SubmissionPanel'
 import { SubmitButton, useSubmitAction } from './SubmitModal'
+import { WeightChip } from './WeightChip'
 
 /** The recent matches a hill page lists. */
 const RECENT = 20
@@ -94,6 +95,7 @@ export function HillPage({ slug, submission = null, live, createArenaClient }: H
     )
   }
   const detail = hill.data
+  const weight = detail === undefined ? null : bandWeight(detail.hill.config)
   const follow = (id: string | null) =>
     void navigate({
       to: '/hills/$slug',
@@ -108,7 +110,8 @@ export function HillPage({ slug, submission = null, live, createArenaClient }: H
         title={detail?.hill.name ?? slug}
         status={readStatus(detail, hill.error, (d) => rules(d.hill.rounds, d.hill.config))}
         actions={
-          <div className="flex gap-1">
+          <div className="flex items-center gap-1">
+            {weight !== null && <WeightChip weight={weight} />}
             <ShareMenu {...hillShare(slug, matches.data?.matches ?? [], window.location.origin)} />
             <SubmitButton
               hill={detail?.hill}

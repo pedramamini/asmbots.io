@@ -1,9 +1,10 @@
 /**
- * A hill's share card (PRODUCT_SPEC §10): its name and rules over its standings, king first: the
- * rank, each bot's identicon (the king card's: its version id), name, owner, and score.
+ * A hill's share card (PRODUCT_SPEC §10): its name and rules, its weight class among them, over its
+ * standings, king first: the rank, each bot's identicon (the king card's: its version id), name,
+ * owner, and score.
  */
 import type { Hill, HillStanding } from '@asmbots/protocol'
-import { CARD_WIDTH } from '@asmbots/protocol'
+import { CARD_WIDTH, classOfRange } from '@asmbots/protocol'
 import {
   brand,
   card,
@@ -32,11 +33,15 @@ const RIGHT = CARD_WIDTH - MARGIN
 /** The card of `hill` and its standings; `host` signs it. */
 export function hillCard(hill: Hill, standings: readonly HillStanding[], host: string): string {
   const n = standings.length
+  const min = hill.config.minBotBytes ?? 1
+  const weight = classOfRange(min, hill.config.maxBotBytes)
+  const band = `${count(min)}–${count(hill.config.maxBotBytes)} B`
   const rules = [
     `${n} of ${plural(hill.size, 'place')}`,
     plural(hill.rounds, 'round'),
     `${short(hill.config.maxCycles)} cycles`,
-    `${count(hill.config.maxBotBytes)} B`,
+    ...(weight === null ? [] : [weight.name]),
+    band,
   ].join(' · ')
   const rows = standings.slice(0, HILL_ROWS).map((s, i) => {
     const y = TABLE_Y + i * ROW_STEP

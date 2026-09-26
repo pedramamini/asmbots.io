@@ -4,17 +4,12 @@
  * for the version picked. A signed-out reader gets `sign in to enter`.
  */
 import type { BotLabel, Tournament } from '@asmbots/protocol'
-import { Button, EmptyState, Modal, Skeleton, useToast } from '@asmbots/ui'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { Button } from '@asmbots/ui'
 import { LogIn } from 'lucide-react'
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useMe } from '../../api/queries'
-import { enterTournament } from '../../api/writes'
-import { LoadFailure } from '../../app/LoadFailure'
-import { useLinkAction } from '../../app/link-action'
 import { SignInButton } from '../account/AccountSlot'
-import { useVersionPick, VersionFields } from '../account/VersionPicker'
-import { takesEntries, utcTime } from './entry'
+import { takesEntries } from './entry'
 
 export interface EnterModalProps {
   open: boolean
@@ -24,87 +19,16 @@ export interface EnterModalProps {
   onClose: () => void
 }
 
-/** The dialog. Its reads mount with it, so each opening reads my bots again. */
-export function EnterModal(props: EnterModalProps) {
-  return props.open ? <EnterDialog {...props} /> : null
-}
+/** The dialog: its own chunk, loaded on the first `enter`. */
+const EnterDialog = lazy(() => import('./EnterDialog').then((m) => ({ default: m.EnterDialog })))
 
-function EnterDialog({ open, tournament: t, mine, onClose }: EnterModalProps) {
-  const { toast } = useToast()
-  const link = useLinkAction()
-  const client = useQueryClient()
-  const pick = useVersionPick()
-  const { mine: bots, picked, version } = pick
-  const cap = t.config.battle.maxBotBytes
-  const over = version !== undefined && version.size > cap
-  const enter = useMutation({
-    mutationFn: (versionId: string) => enterTournament(t.id, versionId),
-    onSuccess: ({ replaced }) => {
-      const what = `${picked?.bot.name} v${version?.version}`
-      toast(replaced === null ? `entered ${what} in ${t.name}.` : `${what} is your entry now.`, {
-        variant: 'accent',
-      })
-      void client.invalidateQueries({ queryKey: ['tournaments'] })
-      onClose()
-    },
-  })
-  const close = () => {
-    enter.reset()
-    onClose()
-  }
-  const ready = version !== undefined && !over && !enter.isPending
-  return (
-    <Modal
-      open={open}
-      onClose={close}
-      title={`enter ${t.name}`}
-      actions={
-        <>
-          <Button variant="ghost" onClick={close}>
-            cancel
-          </Button>
-          <Button
-            variant="primary"
-            icon={LogIn}
-            disabled={!ready}
-            onClick={() => version && enter.mutate(version.id)}
-          >
-            {enter.isPending ? 'entering…' : 'enter'}
-          </Button>
-        </>
-      }
-    >
-      {bots.isPending ? (
-        <Skeleton rows={3} />
-      ) : bots.error !== null ? (
-        <LoadFailure read={bots} what="your bots" />
-      ) : picked === undefined ? (
-        <EmptyState action={link('open the editor', '/editor')}>
-          no bots in your account yet: the editor&rsquo;s save, signed in, keeps one there.
-        </EmptyState>
-      ) : (
-        <div className="flex flex-col gap-3 text-data">
-          <VersionFields
-            pick={{ ...pick, picked }}
-            cap={cap}
-            over={`: over ${t.name}'s cap.`}
-            onChange={() => enter.reset()}
-          />
-          <p className="text-muted">
-            {mine === null
-              ? 'one entry each: enter again before the deadline to swap it.'
-              : `your entry is ${mine.name} v${mine.version}: this one takes its place.`}{' '}
-            entries close {utcTime(t.entryClosesAt ?? '')}.
-          </p>
-          {enter.error !== null && (
-            <p role="alert" className="text-danger">
-              {enter.error.message}
-            </p>
-          )}
-        </div>
-      )}
-    </Modal>
-  )
+/** The dialog, while it is open. */
+export function EnterModal(props: EnterModalProps) {
+  return props.open ? (
+    <Suspense fallback={null}>
+      <EnterDialog {...props} />
+    </Suspense>
+  ) : null
 }
 
 export interface EnterButtonProps {

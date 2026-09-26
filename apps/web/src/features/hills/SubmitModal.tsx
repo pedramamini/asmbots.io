@@ -12,7 +12,7 @@ import { submitToHill } from '../../api/writes'
 import { LoadFailure } from '../../app/LoadFailure'
 import { useLinkAction } from '../../app/link-action'
 import { SignInButton, signIn } from '../account/AccountSlot'
-import { useVersionPick, VersionFields } from '../account/VersionPicker'
+import { bandOf, fits, useVersionPick, VersionFields } from '../account/VersionPicker'
 import { count, plural } from './links'
 
 export interface SubmitModalProps {
@@ -38,8 +38,8 @@ function SubmitDialog({ open, hill, entrants, onClose, onSubmitted }: SubmitModa
   const link = useLinkAction()
   const pick = useVersionPick()
   const { mine, picked, version } = pick
-  const cap = hill.config.maxBotBytes
-  const over = version !== undefined && version.size > cap
+  const band = bandOf(hill.config)
+  const outside = version !== undefined && !fits(version.size, band)
   const submit = useMutation({
     mutationFn: (versionId: string) => submitToHill(hill.slug, versionId),
     onSuccess: ({ submissionId }) => {
@@ -53,7 +53,7 @@ function SubmitDialog({ open, hill, entrants, onClose, onSubmitted }: SubmitModa
     submit.reset()
     onClose()
   }
-  const ready = version !== undefined && !over && !submit.isPending
+  const ready = version !== undefined && !outside && !submit.isPending
   return (
     <Modal
       open={open}
@@ -87,8 +87,8 @@ function SubmitDialog({ open, hill, entrants, onClose, onSubmitted }: SubmitModa
         <div className="flex flex-col gap-3 text-data">
           <VersionFields
             pick={{ ...pick, picked }}
-            cap={cap}
-            over={`: over the ${hill.name} hill's cap.`}
+            band={band}
+            taker="this hill"
             onChange={() => submit.reset()}
           />
           <p className="text-muted">

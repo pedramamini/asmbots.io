@@ -7,7 +7,9 @@ import { HILLS_ABOUT } from '../../app/intros/hills'
 import { LoadFailure, readStatus } from '../../app/LoadFailure'
 import { useLinkAction } from '../../app/link-action'
 import { PageIntro } from '../../app/PageIntro'
-import { BotLink, CELL_LINK, count, rules } from './links'
+import { BotLink, CELL_LINK, count } from './links'
+import { bandWeight, hillOrder, rules } from './rules'
+import { WeightChip } from './WeightChip'
 
 const COLUMNS: TableColumn<HillSummary>[] = [
   {
@@ -20,6 +22,20 @@ const COLUMNS: TableColumn<HillSummary>[] = [
     ),
     sortValue: ({ hill }) => hill.name,
     className: 'w-28',
+  },
+  {
+    id: 'class',
+    header: 'class',
+    cell: ({ hill }) => {
+      const weight = bandWeight(hill.config)
+      return weight === null ? (
+        <span className="text-muted">–</span>
+      ) : (
+        <WeightChip weight={weight} />
+      )
+    },
+    sortValue: ({ hill }) => hillOrder(hill),
+    className: 'w-20',
   },
   {
     id: 'rules',
@@ -70,9 +86,13 @@ function bestColumn(best: ReadonlyMap<string, HillBest> | null): TableColumn<Hil
   }
 }
 
+/** The hills in their list order (`hillOrder`), the server's order within a class. */
+const byClass = (hills: readonly HillSummary[]) =>
+  [...hills].sort((a, b) => hillOrder(a.hill) - hillOrder(b.hill))
+
 /**
- * `/hills` (PRODUCT_SPEC §5): each hill, its rules, how full it is, its king, and, signed in, the
- * reader's best place there.
+ * `/hills` (PRODUCT_SPEC §5): each hill, lightest class first, its rules, how full it is, its king,
+ * and, signed in, the reader's best place there.
  */
 export function HillsPage() {
   const read = useHills()
@@ -97,7 +117,7 @@ export function HillsPage() {
           <Table
             aria-label="hills"
             columns={handle === null ? COLUMNS : [...COLUMNS, bestColumn(best)]}
-            rows={data?.hills ?? []}
+            rows={data === undefined ? [] : byClass(data.hills)}
             rowKey={({ hill }) => hill.id}
             empty={
               data === undefined ? (

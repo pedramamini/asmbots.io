@@ -12,8 +12,9 @@ import { HomePage, lastChampionship, nextChampionship } from '../src/app/HomePag
 import { BotPage } from '../src/features/bots/BotPage'
 import { HillPage } from '../src/features/hills/HillPage'
 import { HillsPage } from '../src/features/hills/HillsPage'
-import { longAgo, rules } from '../src/features/hills/links'
+import { longAgo } from '../src/features/hills/links'
 import { matchScore, matchTitle, matchWinner } from '../src/features/hills/MatchesTable'
+import { hillOrder, rules } from '../src/features/hills/rules'
 import { ProfilePage } from '../src/features/profile/ProfilePage'
 import { answer, hang, refuse, renderAt, useApiServer, WithQueries } from './api-server'
 import {
@@ -116,8 +117,33 @@ describe('apiGet', () => {
 
 describe('the words for records', () => {
   it('says a hill’s rules in one line', () => {
-    expect(rules(10, CONFIG)).toBe('10 rounds · 100k cycles · 512 B')
-    expect(rules(3, { ...CONFIG, maxCycles: 1500 })).toBe('3 rounds · 1,500 cycles · 512 B')
+    expect(rules(10, CONFIG)).toBe('10 rounds · 100k cycles · lightweight · 1–512 B')
+    expect(rules(3, { ...CONFIG, maxCycles: 1500 })).toBe(
+      '3 rounds · 1,500 cycles · lightweight · 1–512 B',
+    )
+    expect(rules(2, { ...CONFIG, minBotBytes: 513, maxBotBytes: 1024 })).toBe(
+      '2 rounds · 100k cycles · middleweight · 513–1,024 B',
+    )
+    expect(rules(2, { ...CONFIG, maxBotBytes: 4096 })).toContain('· open weight · 1–4,096 B')
+    // A band that is no class says only its bytes.
+    expect(rules(2, { ...CONFIG, maxBotBytes: 256 })).toBe('2 rounds · 100k cycles · 1–256 B')
+  })
+
+  it('orders hills by class, lightest first, open weight, then the classless and the melee', () => {
+    const hill = (maxBotBytes: number, minBotBytes = 1, scoring = 'duel') => ({
+      config: { ...CONFIG, minBotBytes, maxBotBytes },
+      scoring,
+    })
+    const order = [
+      hill(512),
+      hill(1024, 513),
+      hill(2048, 1025),
+      hill(4096, 2049),
+      hill(4096),
+      hill(256),
+      hill(512, 1, 'melee'),
+    ].map(hillOrder)
+    expect(order).toEqual([0, 1, 2, 3, 4, 5, 6])
   })
 
   it('says how long ago a first sighting was, in its largest whole unit', () => {
@@ -165,12 +191,43 @@ describe('/hills', () => {
     const table = await screen.findByRole('table', { name: 'hills' })
     await waitFor(() => expect(cells(table)).toHaveLength(2))
     expect(cells(table)).toEqual([
-      ['main', '10 rounds · 100k cycles · 512 B', '3 / 32', 'Paper', '321'],
-      ['tiny', '10 rounds · 50k cycles · 256 B', '0 / 16', 'none', ''],
+      [
+        'main',
+        'light',
+        '10 rounds · 100k cycles · lightweight · 1–512 B',
+        '3 / 32',
+        'Paper',
+        '321',
+      ],
+      ['tiny', '–', '10 rounds · 50k cycles · 1–256 B', '0 / 16', 'none', ''],
     ])
     expect(screen.getByRole('region', { name: 'hills' }).textContent).toContain('2 hills')
     fireEvent.click(within(table).getByText('tiny'))
     await waitFor(() => expect(router.state.location.pathname).toBe('/hills/tiny'))
+  })
+
+  it('lists the hills lightest class first, a hill of no class after the classes', async () => {
+    const [main, tiny] = HILLS.hills
+    if (main === undefined || tiny === undefined) throw new Error('fixture')
+    const middle = {
+      ...main,
+      hill: {
+        ...main.hill,
+        id: 'hill-middle',
+        slug: 'middleweight',
+        name: 'middleweight',
+        config: { ...CONFIG, minBotBytes: 513, maxBotBytes: 1024 },
+      },
+    }
+    server.use(answer('/hills', { hills: [tiny, middle, main] }))
+    await renderAt('/hills', HillsPage)
+    const table = await screen.findByRole('table', { name: 'hills' })
+    await waitFor(() => expect(cells(table)).toHaveLength(3))
+    expect(cells(table).map((row) => row.slice(0, 2))).toEqual([
+      ['main', 'light'],
+      ['middleweight', 'middle'],
+      ['tiny', '–'],
+    ])
   })
 
   it('says what went wrong when the read fails, and reads it again on retry', async () => {
@@ -228,6 +285,10 @@ describe('/hills/$slug', () => {
     // With no %author, the owner is the author.
     expect(cells(standings)[2]?.[2]).toBe('system')
     expect(screen.getByText(/3 of 32 places taken/)).toBeTruthy()
+    // The header names the class, in its rules and in a chip.
+    const hill = screen.getByRole('region', { name: 'main' })
+    expect(within(hill).getByText('10 rounds · 100k cycles · lightweight · 1–512 B')).toBeTruthy()
+    expect(hill.querySelector('[data-weight="lightweight"]')?.textContent).toBe('light')
 
     // The king's card: its reign in submissions, and its age.
     const king = screen.getByRole('region', { name: 'king' })

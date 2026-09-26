@@ -22,6 +22,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { HttpResponse, http } from 'msw'
 import { useDom, window } from '../../../packages/ui/test/dom'
 import { SUBMISSION_POLL_MS, submissionQuery } from '../src/api/queries'
+import { bandOf, misfit } from '../src/features/account/VersionPicker'
 import { parseRefs, sharedBots } from '../src/features/arena/setup/url'
 import { hillArenaConfig } from '../src/features/hills/challenge'
 import { feedItems, HillFeed, rankDelta } from '../src/features/hills/HillFeed'
@@ -398,7 +399,7 @@ describe('submit', () => {
     const send = within(dialog).getByRole('button', { name: 'submit' })
     // v2, the latest, is over the hill's 512 bytes.
     await waitFor(() =>
-      expect(dialog.textContent).toContain("600 / 512 B: over the main hill's cap."),
+      expect(dialog.textContent).toContain('600 B is middleweight; this hill takes 1 to 512.'),
     )
     expect(send.hasAttribute('disabled')).toBe(true)
     expect(dialog.textContent).toContain(
@@ -415,6 +416,42 @@ describe('submit', () => {
     expect(await screen.findByText('submitted Loop v1 to the main hill.')).toBeTruthy()
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(await screen.findByRole('region', { name: 'submission' })).toBeTruthy()
+  })
+
+  it('says why a size is not one a band takes, and nothing when it is', () => {
+    const middle = bandOf({ minBotBytes: 513, maxBotBytes: 1024 })
+    expect(bandOf({ maxBotBytes: 512 })).toEqual({ min: 1, max: 512 })
+    expect(misfit(513, middle, 'this hill')).toBeNull()
+    expect(misfit(1024, middle, 'this hill')).toBeNull()
+    expect(misfit(300, middle, 'this tournament')).toBe(
+      '300 B is lightweight; this tournament takes 513 to 1,024.',
+    )
+    expect(misfit(1500, middle, 'this hill')).toBe(
+      '1,500 B is heavyweight; this hill takes 513 to 1,024.',
+    )
+    expect(misfit(5000, middle, 'this hill')).toBe(
+      '5,000 B is past every class; this hill takes 513 to 1,024.',
+    )
+  })
+
+  it('holds a version under the hill’s floor back, and says which class it is', async () => {
+    signedIn(true)
+    const middle = { ...MAIN, config: { ...MAIN.config, minBotBytes: 513, maxBotBytes: 1024 } }
+    server.use(answer('/hills/main', { ...MAIN_DETAIL, hill: middle }))
+    await renderAt('/hills/main', Page, '/hills/$slug')
+    const submit = await screen.findByRole('button', { name: 'submit' })
+    await waitFor(() => expect(submit.hasAttribute('disabled')).toBe(false))
+    fireEvent.click(submit)
+    const dialog = await screen.findByRole('dialog', { name: 'submit to main' })
+    const send = within(dialog).getByRole('button', { name: 'submit' })
+    // v2, 600 bytes, is a middleweight.
+    await waitFor(() => expect(dialog.textContent).toContain('600 / 1,024 B'))
+    await waitFor(() => expect(send.hasAttribute('disabled')).toBe(false))
+    const versions = within(dialog).getByRole('combobox', { name: 'version' })
+    await waitFor(() => expect(within(versions).getAllByRole('option')).toHaveLength(2))
+    fireEvent.change(versions, { target: { value: '1' } })
+    expect(dialog.textContent).toContain('40 B is lightweight; this hill takes 513 to 1,024.')
+    expect(send.hasAttribute('disabled')).toBe(true)
   })
 
   it('shows the server’s refusal in the dialog', async () => {

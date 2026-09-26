@@ -1,5 +1,5 @@
 /** Links from a table cell to a bot and to a user, and the words the server's records read as. */
-import type { BotLabel, ReplayConfig } from '@asmbots/protocol'
+import type { BotLabel } from '@asmbots/protocol'
 import { Link } from '@tanstack/react-router'
 
 /**
@@ -40,11 +40,6 @@ export function plural(n: number, word: string): string {
 /** `100k`, `50k`, `1,500`. */
 export function short(n: number): string {
   return n >= 10_000 && n % 1000 === 0 ? `${n / 1000}k` : count(n)
-}
-
-/** A hill's rules in one line: `10 rounds · 100k cycles · 512 B`. */
-export function rules(rounds: number, config: ReplayConfig): string {
-  return `${rounds} rounds · ${short(config.maxCycles)} cycles · ${count(config.maxBotBytes)} B`
 }
 
 /** The day of an ISO time: `2026-09-24`. */
