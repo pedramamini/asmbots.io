@@ -264,3 +264,62 @@ describe('the bot limit', () => {
     expect((await send(jar, '/api/bots', { method: 'POST', body })).status).toBe(201)
   })
 })
+
+describe('bot lists by weight class', () => {
+  /** A middleweight: 600 bytes. */
+  const WIDE = '%name "Wide"\nstart: jmp start\n        times 598 db 0x90\n'
+
+  it('carries each bot’s latest size, and `?class=` keeps that class by the latest version', async () => {
+    const { jar, saved } = await withBot('classer', SPIN, 'public')
+    const light = saved.bot.id
+    const made = await send(jar, '/api/bots', {
+      method: 'POST',
+      body: { name: 'Wide', source: WIDE, visibility: 'public' },
+    })
+    const wide = parse(SavedBot, await made.json(), 'the bot')
+    expect(wide.version.size).toBe(600)
+
+    const mine = await myBots(jar)
+    expect(mine.map((m) => [m.bot.id, m.bot.size])).toEqual([
+      [wide.bot.id, 600],
+      [light, saved.version.size],
+    ])
+    for (const m of mine) expect(m.bot.size).toBe(m.latest?.size)
+    const profile = parse(
+      UserDetail,
+      await (await send(new Jar(), '/api/users/classer')).json(),
+      '',
+    )
+    expect(profile.bots.map((b) => b.size)).toEqual([600, saved.version.size])
+
+    const mineOf = async (cls: string) => {
+      const res = await send(jar, `/api/me/bots?class=${cls}`)
+      return parse(MyBotList, await res.json(), 'my bots').bots.map((m) => m.bot.id)
+    }
+    const profileOf = async (cls: string) => {
+      const res = await send(new Jar(), `/api/users/classer?class=${cls}`)
+      return parse(UserDetail, await res.json(), 'the user').bots.map((b) => b.id)
+    }
+    expect(await mineOf('middleweight')).toEqual([wide.bot.id])
+    expect(await mineOf('lightweight')).toEqual([light])
+    expect(await mineOf('heavyweight')).toEqual([])
+    expect(await profileOf('middleweight')).toEqual([wide.bot.id])
+    expect(await profileOf('super-heavy')).toEqual([])
+
+    // The latest version decides: the light bot grows into a middleweight.
+    expect((await addVersion(jar, light, WIDE)).status).toBe(201)
+    expect((await profileOf('middleweight')).sort()).toEqual([light, wide.bot.id].sort())
+    expect(await mineOf('lightweight')).toEqual([])
+  })
+
+  it('is 400 for an unknown class, naming the classes', async () => {
+    const { jar } = await withBot('bad-classer')
+    for (const path of ['/api/me/bots?class=open', '/api/users/bad-classer?class=Heavyweight']) {
+      const error = await errorOf(await send(jar, path))
+      expect(error.status).toBe(400)
+      expect(error.message).toBe(
+        'the class must be one of lightweight, middleweight, heavyweight, super-heavy',
+      )
+    }
+  })
+})

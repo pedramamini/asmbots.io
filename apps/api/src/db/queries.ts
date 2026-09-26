@@ -32,6 +32,7 @@ import {
   type TournamentConfig,
   type TournamentSummary,
   type User,
+  type WeightClass,
 } from '@asmbots/protocol'
 import { plannedMatches } from '@asmbots/tourney'
 
@@ -414,16 +415,32 @@ export async function getBot(db: D1Database, id: string): Promise<Bot | null> {
   return row && toBot(row)
 }
 
-/** An owner's bots, newest change first; `publicOnly` for anyone but the owner. */
+/** `v`, a `bot_versions` row, is its bot's latest version. */
+const IS_LATEST_VERSION =
+  'v.version = (SELECT MAX(version) FROM bot_versions WHERE bot_id = v.bot_id)'
+
+/**
+ * An owner's bots, newest change first, each with its latest version's `size`; `publicOnly` for
+ * anyone but the owner. `band` keeps only the bots whose latest version is `min..max` bytes (a
+ * weight class); a bot with no version is in no band.
+ */
 export async function listBotsByOwner(
   db: D1Database,
   ownerId: string,
   publicOnly: boolean,
+  band: Pick<WeightClass, 'min' | 'max'> | null = null,
 ): Promise<Bot[]> {
-  const sql = `SELECT * FROM bots WHERE owner_id = ? AND deleted_at IS NULL
-    ${publicOnly ? "AND visibility = 'public'" : ''} ORDER BY updated_at DESC`
-  const { results } = await db.prepare(sql).bind(ownerId).all<BotRow>()
-  return results.map(toBot)
+  const sql = `SELECT b.*, v.size FROM bots b
+    LEFT JOIN bot_versions v ON v.bot_id = b.id AND ${IS_LATEST_VERSION}
+    WHERE b.owner_id = ? AND b.deleted_at IS NULL
+    ${publicOnly ? "AND b.visibility = 'public'" : ''}
+    ${band === null ? '' : 'AND v.size BETWEEN ? AND ?'} ORDER BY b.updated_at DESC`
+  const binds = band === null ? [ownerId] : [ownerId, band.min, band.max]
+  const { results } = await db
+    .prepare(sql)
+    .bind(...binds)
+    .all<BotRow & { size: number | null }>()
+  return results.map((row) => (row.size === null ? toBot(row) : { ...toBot(row), size: row.size }))
 }
 
 /** The public bots the sitemap lists: each one's id and last change, the latest first. */
@@ -450,15 +467,21 @@ export async function countBots(db: D1Database, ownerId: string): Promise<number
   return row?.n ?? 0
 }
 
-/** An owner's bots, each with its latest version (no source), the latest change first. */
-export async function listMyBots(db: D1Database, ownerId: string): Promise<MyBot[]> {
+/**
+ * An owner's bots, each with its latest version (no source), the latest change first; `band` as
+ * `listBotsByOwner` takes it.
+ */
+export async function listMyBots(
+  db: D1Database,
+  ownerId: string,
+  band: Pick<WeightClass, 'min' | 'max'> | null = null,
+): Promise<MyBot[]> {
   const [bots, { results }] = await Promise.all([
-    listBotsByOwner(db, ownerId, false),
+    listBotsByOwner(db, ownerId, false, band),
     db
       .prepare(
         `SELECT v.* FROM bot_versions v JOIN bots b ON b.id = v.bot_id
-         WHERE b.owner_id = ? AND b.deleted_at IS NULL
-         AND v.version = (SELECT MAX(version) FROM bot_versions WHERE bot_id = v.bot_id)`,
+         WHERE b.owner_id = ? AND b.deleted_at IS NULL AND ${IS_LATEST_VERSION}`,
       )
       .bind(ownerId)
       .all<BotVersionRow>(),

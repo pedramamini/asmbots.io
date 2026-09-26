@@ -29,7 +29,7 @@ import {
 } from '../db/queries'
 import type { AppEnv } from '../env'
 import { errorResponse, log } from '../middleware'
-import { idParam, wholeParam } from '../params'
+import { classParam, idParam, wholeParam } from '../params'
 
 function meBody(row: UserRow): Me {
   return { user: toUser(row), onboarded: row.onboarded_at !== null }
@@ -47,6 +47,7 @@ async function gone(c: Context<AppEnv>): Promise<Response> {
  * 409 when someone else has it. The first one marks the user onboarded. The avatar is GitHub's,
  * refreshed at each sign-in.
  * `GET /api/me/bots`: the signed-in user's bots, private ones too, each with its latest version.
+ * `?class=` (a weight class slug) keeps only the bots whose latest version is in that class.
  * `GET /api/me/audit?limit=`: the signed-in user's changes (`AUDIT_ACTIONS`), newest first; `limit`
  * is 1..100, 50 when left out.
  * `DELETE /api/me`: deletes the account (`deleteAccount`) and ends every session it has. 204.
@@ -64,7 +65,8 @@ export const me = new Hono<AppEnv>()
     return row === null ? gone(c) : c.json(meBody(row))
   })
   .get('/bots', requireUser, async (c) => {
-    const bots = await listMyBots(c.env.DB, c.get('session')?.userId ?? '')
+    const band = classParam(c.req.query('class'))
+    const bots = await listMyBots(c.env.DB, c.get('session')?.userId ?? '', band)
     return c.json({ bots } satisfies MyBotList)
   })
   .get('/audit', requireUser, async (c) => {

@@ -63,6 +63,8 @@ export const Bot = z.object({
   visibility: Visibility,
   createdAt: Timestamp,
   updatedAt: Timestamp,
+  /** Its latest version's size in bytes, where a bot list gives it; none before its first version. */
+  size: z.optional(whole('size', 1, 0x10000)),
 })
 export type Bot = z.output<typeof Bot>
 
