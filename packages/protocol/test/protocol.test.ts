@@ -175,6 +175,30 @@ describe('replays', () => {
     )
   })
 
+  it('keep the keys made before minBotBytes when the floor is 1', async () => {
+    const config = { maxCycles: 200, seed: 7, maxBotBytes: 512 }
+    const build = (extra: { minBotBytes?: number }) =>
+      buildReplay({
+        bots: [LOOP, DAT],
+        config: { ...config, ...extra },
+        rounds: 2,
+        match: runMatch([LOOP, DAT], { ...config, ...extra }, 2),
+        createdAt: new Date(0),
+      })
+    // Pinned before minBotBytes existed.
+    const pinned = '855cf2fd5d5b90b1023ce52ec1389ca00ec42913bf50d4dec6baa0ff4f6043af'
+    const plain = await build({})
+    expect(plain.config).not.toHaveProperty('minBotBytes')
+    expect(plain.result.key).toBe('5866799e08bc3939')
+    expect(await replayKey(plain)).toBe(pinned)
+    expect(await replayKey(await build({ minBotBytes: 1 }))).toBe(pinned)
+    const floored = await build({ minBotBytes: 2 })
+    expect(floored.config.minBotBytes).toBe(2)
+    expect(await replayKey(floored)).not.toBe(pinned)
+    expect(replayConfig(plain).minBotBytes).toBe(1)
+    expect(replayConfig(floored).minBotBytes).toBe(2)
+  })
+
   it('say what is wrong with one they do not accept', async () => {
     const replay = await duel()
     const [loop, dat] = replay.bots as [ReplayType['bots'][0], ReplayType['bots'][0]]

@@ -63,6 +63,8 @@ export const ReplayConfig = z.object({
   maxCycles: whole('maxCycles', 1, MAX_REPLAY_CYCLES),
   maxProcesses: whole('maxProcesses', 1, 0x10000),
   minSpacing: whole('minSpacing', 0, UINT32),
+  /** Absent means 1, the engine default: configs made before weight classes carry none. */
+  minBotBytes: z.optional(whole('minBotBytes', 1, UINT32)),
   maxBotBytes: whole('maxBotBytes', 1, UINT32),
 })
 export type ReplayConfig = z.output<typeof ReplayConfig>
@@ -184,7 +186,8 @@ export function replayKey(replay: Replay): Promise<string> {
 
 /** The engine config of `replay`'s first round: its config and its seed. */
 export function replayConfig(replay: Replay): BattleConfig {
-  return { ...replay.config, seed: replay.seed }
+  const { minBotBytes = DEFAULT_CONFIG.minBotBytes, ...rest } = replay.config
+  return { ...rest, minBotBytes, seed: replay.seed }
 }
 
 /** The bots of `replay` (or of a live match) as the engine loads them. */
@@ -250,12 +253,13 @@ export async function buildReplay({
       `buildReplay: the match has ${match.rounds.length} of its ${rounds} rounds`,
     )
   }
-  const { seed, ...rest } = { ...DEFAULT_CONFIG, ...defined(config) }
+  const { seed, minBotBytes, ...rest } = { ...DEFAULT_CONFIG, ...defined(config) }
   const last = match.rounds[match.rounds.length - 1]
   return {
     isa: ISA,
     createdAt: createdAt.toISOString(),
-    config: rest,
+    // A floor of 1 stays out, so a replay of a config without one keeps its old key.
+    config: minBotBytes > 1 ? { ...rest, minBotBytes } : rest,
     seed,
     rounds,
     bots: await Promise.all(

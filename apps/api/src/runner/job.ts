@@ -139,8 +139,8 @@ export class JobError extends Error {
 
 /** The engine config of matches under `config` placed from `seed`: the config's fields only. */
 export function battleOf(config: ReplayConfig, seed: number): BattleConfig {
-  const { coreSize, maxCycles, maxProcesses, minSpacing, maxBotBytes } = config
-  return { coreSize, maxCycles, maxProcesses, minSpacing, maxBotBytes, seed }
+  const { coreSize, maxCycles, maxProcesses, minSpacing, minBotBytes = 1, maxBotBytes } = config
+  return { coreSize, maxCycles, maxProcesses, minSpacing, minBotBytes, maxBotBytes, seed }
 }
 
 /** The D1 `matches` id of a job's match. */

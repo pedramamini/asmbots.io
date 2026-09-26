@@ -194,8 +194,9 @@ describe('tools/replay-format', () => {
       expect(bot.bytes).toBe(Buffer.from(bytes).toString('base64'))
       expect(bot.sha256).toBe(await sha256Hex(bytes))
     }
-    expect(replayConfig(replay)).toEqual({ ...DEFAULT_CONFIG, seed: 1 })
-    expect(runMatch(bots, { seed: 1 }, 1)).toEqual(replayMatch(replay))
+    // The example predates weight classes: it names the 512-byte cap of its day.
+    expect(replayConfig(replay)).toEqual({ ...DEFAULT_CONFIG, maxBotBytes: 512, seed: 1 })
+    expect(runMatch(bots, { seed: 1, maxBotBytes: 512 }, 1)).toEqual(replayMatch(replay))
     expect(mdx('tools/replay-format')).toContain(`\`${replayName(['Dwarf', 'Imp'], 1)}\``)
   })
 

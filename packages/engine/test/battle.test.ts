@@ -253,7 +253,8 @@ describe('config (ISA §5.5)', () => {
       maxCycles: 100_000,
       maxProcesses: 64,
       minSpacing: 1024,
-      maxBotBytes: 512,
+      minBotBytes: 1,
+      maxBotBytes: 4096,
       seed: 0,
     })
     const b = new Battle([bot(LOOP)])
@@ -283,6 +284,9 @@ describe('config (ISA §5.5)', () => {
       ['minSpacing', -1],
       ['minSpacing', 65537],
       ['minSpacing', 0.5],
+      ['minBotBytes', 0],
+      ['minBotBytes', 65537],
+      ['minBotBytes', 1.5],
       ['maxBotBytes', 0],
       ['maxBotBytes', 65537],
       ['seed', -1],
@@ -298,6 +302,12 @@ describe('config (ISA §5.5)', () => {
     }
   })
 
+  it('rejects a floor over the cap', () => {
+    const make = () => new Battle([bot(HLT)], { minBotBytes: 513, maxBotBytes: 512 })
+    expect(make).toThrow(RangeError)
+    expect(make).toThrow('Battle: minBotBytes 513 is over maxBotBytes 512')
+  })
+
   it('accepts the bounds', () => {
     const good: BattleConfigInput[] = [
       { maxCycles: 0 },
@@ -306,6 +316,8 @@ describe('config (ISA §5.5)', () => {
       { maxProcesses: 65536 },
       { minSpacing: 0 },
       { minSpacing: 65536 },
+      { minBotBytes: 1 },
+      { minBotBytes: 1, maxBotBytes: 1 },
       { maxBotBytes: 1 },
       { maxBotBytes: 65536 },
       { seed: 0 },
@@ -316,7 +328,7 @@ describe('config (ISA §5.5)', () => {
     }
   })
 
-  it(`takes 1 to ${MAX_BOTS} bots of 1 to maxBotBytes bytes each`, () => {
+  it(`takes 1 to ${MAX_BOTS} bots of minBotBytes to maxBotBytes bytes each`, () => {
     const tiny = bot(HLT)
     const many = (n: number) => Array.from({ length: n }, () => tiny)
     expect(() => new Battle([])).toThrow(RangeError)
@@ -324,9 +336,21 @@ describe('config (ISA §5.5)', () => {
     expect(() => new Battle(many(MAX_BOTS + 1), { minSpacing: 0 })).toThrow(RangeError)
     const sized = (n: number): LoadedBot => ({ name: `b${n}`, bytes: new Uint8Array(n) })
     expect(() => new Battle([sized(0)])).toThrow(RangeError)
-    expect(() => new Battle([tiny, sized(513)])).toThrow('bot 1 (b513) is 513 bytes, not 1..512')
-    expect(new Battle([sized(512)]).bots[0]?.size).toBe(512)
+    // The default cap is 4 KB, the top of every weight class.
+    expect(() => new Battle([tiny, sized(4097)])).toThrow(
+      'bot 1 (b4097) is 4097 bytes, not 1..4096',
+    )
+    expect(new Battle([sized(4096)]).bots[0]?.size).toBe(4096)
     expect(new Battle([sized(513)], { maxBotBytes: 513 }).bots[0]?.size).toBe(513)
+    // A middleweight battle: the floor names both bounds.
+    const middle = { minBotBytes: 513, maxBotBytes: 1024 }
+    expect(() => new Battle([sized(600), sized(300)], middle)).toThrow(
+      'bot 1 (b300) is 300 bytes, not 513..1024',
+    )
+    expect(() => new Battle([sized(1025)], middle)).toThrow('is 1025 bytes, not 513..1024')
+    expect(new Battle([sized(513), sized(1024)], middle).bots.map((b) => b.size)).toEqual([
+      513, 1024,
+    ])
   })
 })
 

@@ -137,7 +137,8 @@ describe('matchHash', () => {
 
   it('is stable', () => {
     expect(matchHash(bots, CONFIG, 3)).toBe(matchHash([loop('a'), dat('b')], { ...CONFIG }, 3))
-    expect(matchHash(bots, CONFIG, 3)).toBe('7bf371de6361b90a')
+    // CONFIG leaves maxBotBytes out: this key moved when its default went from 512 to 4096.
+    expect(matchHash(bots, CONFIG, 3)).toBe('195e39d1a13e0b8f')
     expect(runMatch(bots, CONFIG, 3).key).toBe(matchHash(bots, CONFIG, 3))
   })
 
@@ -146,11 +147,29 @@ describe('matchHash', () => {
     expect(matchHash(bots, { seed: undefined }, 3)).toBe(matchHash(bots, { seed: 0 }, 3))
   })
 
+  it('keeps the keys made before minBotBytes when the floor is 1 or left out', () => {
+    // A config written out in full, as the API stores it. Pinned before minBotBytes existed.
+    const full = {
+      coreSize: 65536,
+      maxCycles: 100_000,
+      maxProcesses: 64,
+      minSpacing: 1024,
+      maxBotBytes: 512,
+      seed: 0,
+    }
+    const legacy = [bot('a', [0xeb, 0xfe]), bot('b', [0x00])]
+    expect(matchHash(legacy, full, 3)).toBe('bd6f255108456d28')
+    expect(matchHash(legacy, { ...full, minBotBytes: 1 }, 3)).toBe('bd6f255108456d28')
+    expect(matchHash(legacy, { ...full, minBotBytes: undefined }, 3)).toBe('bd6f255108456d28')
+    expect(matchHash(legacy, { ...full, minBotBytes: 2 }, 3)).not.toBe('bd6f255108456d28')
+  })
+
   it('changes with every input', () => {
     const base = matchHash(bots, CONFIG, 3)
     const others = [
       matchHash(bots, { ...CONFIG, seed: 8 }, 3),
       matchHash(bots, { ...CONFIG, maxCycles: 201 }, 3),
+      matchHash(bots, { ...CONFIG, minBotBytes: 2 }, 3),
       matchHash(bots, CONFIG, 4),
       matchHash([dat('b'), loop('a')], CONFIG, 3),
       matchHash([loop('x'), dat('b')], CONFIG, 3),

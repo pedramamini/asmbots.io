@@ -129,6 +129,7 @@ function resolveConfig(config: BattleConfigInput): BattleConfig {
     maxCycles: config.maxCycles ?? DEFAULT_CONFIG.maxCycles,
     maxProcesses: config.maxProcesses ?? DEFAULT_CONFIG.maxProcesses,
     minSpacing: config.minSpacing ?? DEFAULT_CONFIG.minSpacing,
+    minBotBytes: config.minBotBytes ?? DEFAULT_CONFIG.minBotBytes,
     maxBotBytes: config.maxBotBytes ?? DEFAULT_CONFIG.maxBotBytes,
     seed: config.seed ?? DEFAULT_CONFIG.seed,
   }
@@ -138,7 +139,13 @@ function resolveConfig(config: BattleConfigInput): BattleConfig {
   checkInteger('maxCycles', c.maxCycles, 0, 0xffffffff)
   checkInteger('maxProcesses', c.maxProcesses, 1, 0x10000)
   checkInteger('minSpacing', c.minSpacing, 0, CORE_SIZE)
+  checkInteger('minBotBytes', c.minBotBytes, 1, CORE_SIZE)
   checkInteger('maxBotBytes', c.maxBotBytes, 1, CORE_SIZE)
+  if (c.minBotBytes > c.maxBotBytes) {
+    throw new RangeError(
+      `Battle: minBotBytes ${c.minBotBytes} is over maxBotBytes ${c.maxBotBytes}`,
+    )
+  }
   checkInteger('seed', c.seed, 0, 0xffffffff)
   return Object.freeze(c)
 }
@@ -183,14 +190,16 @@ export class Battle {
     events: EventSink = new NullSink(),
   ) {
     this.config = resolveConfig(config)
-    const { maxBotBytes, maxProcesses, minSpacing, seed } = this.config
+    const { minBotBytes, maxBotBytes, maxProcesses, minSpacing, seed } = this.config
     if (bots.length < 1 || bots.length > MAX_BOTS) {
       throw new RangeError(`Battle: a battle holds 1..${MAX_BOTS} bots, got ${bots.length}`)
     }
     bots.forEach((b, i) => {
       const n = b.bytes.length
-      if (n < 1 || n > maxBotBytes) {
-        throw new RangeError(`Battle: bot ${i} (${b.name}) is ${n} bytes, not 1..${maxBotBytes}`)
+      if (n < minBotBytes || n > maxBotBytes) {
+        throw new RangeError(
+          `Battle: bot ${i} (${b.name}) is ${n} bytes, not ${minBotBytes}..${maxBotBytes}`,
+        )
       }
     })
     this.prng = new Pcg32(seed)

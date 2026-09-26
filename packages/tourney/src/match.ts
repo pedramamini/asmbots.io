@@ -92,6 +92,7 @@ function resolve(config: BattleConfigInput): BattleConfig {
     maxCycles: config.maxCycles ?? DEFAULT_CONFIG.maxCycles,
     maxProcesses: config.maxProcesses ?? DEFAULT_CONFIG.maxProcesses,
     minSpacing: config.minSpacing ?? DEFAULT_CONFIG.minSpacing,
+    minBotBytes: config.minBotBytes ?? DEFAULT_CONFIG.minBotBytes,
     maxBotBytes: config.maxBotBytes ?? DEFAULT_CONFIG.maxBotBytes,
     seed: config.seed ?? DEFAULT_CONFIG.seed,
   }
@@ -121,9 +122,12 @@ export function matchHash(
   rounds: number,
 ): string {
   const c = resolve(config)
+  const fields = [c.coreSize, c.maxCycles, c.maxProcesses, c.minSpacing, c.maxBotBytes, c.seed]
+  // A floor of 1 is no floor: leaving it out keeps every key made before the field existed.
+  if (c.minBotBytes > 1) fields.push(c.minBotBytes)
   const text = JSON.stringify([
     'x16c-match/1',
-    [c.coreSize, c.maxCycles, c.maxProcesses, c.minSpacing, c.maxBotBytes, c.seed],
+    fields,
     rounds,
     bots.map((b) => [b.name, hex(b.bytes)]),
   ])

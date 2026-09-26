@@ -31,6 +31,8 @@ export interface BattleConfig {
   readonly maxProcesses: number
   /** The fewest free bytes allowed between two bot images. */
   readonly minSpacing: number
+  /** The smallest bot image, in bytes: a weight class's floor. 1 by default. */
+  readonly minBotBytes: number
   /** The largest bot image, in bytes. */
   readonly maxBotBytes: number
   /** A uint32 that seeds the placement PRNG, PCG32 stream 0. */
@@ -46,7 +48,8 @@ export const DEFAULT_CONFIG: BattleConfig = Object.freeze({
   maxCycles: 100_000,
   maxProcesses: 64,
   minSpacing: 1024,
-  maxBotBytes: 512,
+  minBotBytes: 1,
+  maxBotBytes: 4096,
   seed: 0,
 })
 

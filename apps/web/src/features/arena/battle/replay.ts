@@ -143,11 +143,12 @@ function protocol(value: unknown): Replay {
 
 /** A local replay as the protocol has it: the seed out of the config, the match as its result. */
 export function fromLocal({ createdAt, config, rounds, bots, match }: LocalReplay): Replay {
-  const { seed, ...rest } = config
+  const { seed, minBotBytes, ...rest } = config
   return protocol({
     isa: ISA,
     createdAt,
-    config: rest,
+    // As `buildReplay` writes it: a floor of 1 stays out, so the key is the one it always was.
+    config: minBotBytes > 1 ? { ...rest, minBotBytes } : rest,
     seed,
     rounds,
     bots,
@@ -246,6 +247,8 @@ export function parseConfig(value: unknown): BattleConfig {
     maxCycles: integer(c.maxCycles, 'maxCycles', 1, CYCLES.max),
     maxProcesses: integer(c.maxProcesses, 'maxProcesses', 1, PROCS.max),
     minSpacing: integer(c.minSpacing, 'minSpacing', 0, UINT32),
+    // Replays made before weight classes carry no floor: 1, the engine default.
+    minBotBytes: c.minBotBytes === undefined ? 1 : integer(c.minBotBytes, 'minBotBytes', 1, UINT32),
     maxBotBytes: integer(c.maxBotBytes, 'maxBotBytes', 1, UINT32),
     seed: integer(c.seed, 'the seed', 0, UINT32),
   }
