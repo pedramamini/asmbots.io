@@ -1,25 +1,32 @@
 /**
  * A bot's or a hill's weight class as a chip: `middle`, and on hover its full name and bounds,
- * `middleweight · 513 to 1,024 bytes`. Its own module, with only `weight.ts` behind it: the editor
- * and the arena take it, and the arena has no budget left.
+ * `middleweight · 513 to 1,024 bytes`, and the bot lists' weight filter. Its own module, with only
+ * `weight.ts` behind it: the arena takes it, and the arena has no budget left.
  */
-import type { WeightClass } from '@asmbots/protocol'
+import { type WeightClass, type WeightClassSlug, weightClassOf } from '@asmbots/protocol'
 import { Chip, type ChipProps, Tooltip } from '@asmbots/ui'
+import { WEIGHT_SHORT, weightBounds } from './weight-names'
 
-/** A class's short name, as a chip and a filter option read it. */
-export const WEIGHT_SHORT: Readonly<Record<WeightClass['slug'], string>> = {
-  lightweight: 'light',
-  middleweight: 'middle',
-  heavyweight: 'heavy',
-  'super-heavy': 'super',
-  open: 'open',
-}
+export { WEIGHT_SHORT, weightBounds }
 
-const bytes = (n: number) => n.toLocaleString('en-US')
+/** A bot list's weight filter: every bot, or one class's. */
+export type WeightFilter = 'all' | WeightClassSlug
 
-/** A class's name and bounds: `middleweight · 513 to 1,024 bytes`. */
-export function weightBounds(weight: WeightClass): string {
-  return `${weight.name} · ${bytes(weight.min)} to ${bytes(weight.max)} bytes`
+/**
+ * The weight filter's options, as a `Segmented` takes them: `all`, then the classes, lightest first.
+ * A literal, so a chunk that does not filter (the editor) drops it.
+ */
+export const WEIGHT_FILTERS = [
+  { value: 'all', label: 'all' },
+  { value: 'lightweight', label: 'light' },
+  { value: 'middleweight', label: 'middle' },
+  { value: 'heavyweight', label: 'heavy' },
+  { value: 'super-heavy', label: 'super' },
+] as const satisfies readonly { value: WeightFilter; label: string }[]
+
+/** Whether a bot of `size` bytes passes `filter`. A bot with no size (it does not assemble) is in `all` only. */
+export function inWeight(size: number | null | undefined, filter: WeightFilter): boolean {
+  return filter === 'all' || (size != null && weightClassOf(size)?.slug === filter)
 }
 
 export interface WeightChipProps extends Omit<ChipProps, 'children'> {

@@ -22,7 +22,7 @@ import { useRouteAbout } from '../../app/slots'
 import { type CatalogBot, rosterCatalog } from '../arena/setup/bots'
 import type { SharedBot } from '../arena/setup/url'
 import { count } from '../hills/links'
-import { WEIGHT_SHORT, weightBounds } from '../hills/WeightChip'
+import { WEIGHT_SHORT, weightBounds } from '../hills/weight-names'
 import type { AsmResult } from './asm/protocol'
 import {
   FIXED_PANELS,

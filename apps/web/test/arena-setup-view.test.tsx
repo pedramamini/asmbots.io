@@ -230,6 +230,51 @@ describe('arena setup', () => {
     ).toBeGreaterThan(10)
   })
 
+  it('filters the cards by weight class, with the search, and names the class on each', async () => {
+    await renderArena()
+    const cardNames = () =>
+      within(screen.getByRole('list', { name: 'bots to add' }))
+        .getAllByRole('listitem')
+        .map((card) => card.getAttribute('aria-label'))
+    const weight = within(screen.getByRole('radiogroup', { name: 'weight class' }))
+    expect(weight.getAllByRole('radio').map((pill) => pill.textContent)).toEqual([
+      'all',
+      'light',
+      'middle',
+      'heavy',
+      'super',
+    ])
+    expect(
+      screen.getByRole('listitem', { name: 'Dwarf' }).querySelector('[data-weight]')?.textContent,
+    ).toBe('light')
+    fireEvent.click(weight.getByRole('radio', { name: 'heavy' }))
+    expect(cardNames().sort()).toEqual(['Hydra', 'Mender'])
+    const mender = screen.getByRole('listitem', { name: 'Mender' })
+    expect(mender.textContent).toContain('1443 B')
+    expect(mender.querySelector('[data-weight]')?.textContent).toBe('heavy')
+    fireEvent.click(weight.getByRole('radio', { name: 'super' }))
+    expect(cardNames().sort()).toEqual(['Citadel', 'Swarm'])
+    fireEvent.change(screen.getByRole('textbox', { name: 'search bots' }), {
+      target: { value: 'imp' },
+    })
+    expect(screen.getByText('no super roster bot matches "imp".')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'clear the filters' }))
+    expect(weight.getByRole('radio', { name: 'all' }).getAttribute('aria-checked')).toBe('true')
+    expect(cardNames().length).toBeGreaterThan(10)
+  })
+
+  it('says a pick of more than one class fights as open weight', async () => {
+    await renderArena('/arena?b=roster:imp,roster:dwarf')
+    const bots = screen.getByRole('region', { name: 'bots' })
+    expect(within(bots).queryByText('open weight: sizes mix')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'add Citadel' }))
+    expect(picked()).toEqual(['Imp', 'Dwarf', 'Citadel'])
+    expect(within(bots).getByText('open weight: sizes mix')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'remove Imp' }))
+    fireEvent.click(screen.getByRole('button', { name: 'remove Dwarf' }))
+    expect(within(bots).queryByText('open weight: sizes mix')).toBeNull()
+  })
+
   it('applies a preset, and lights its chip while the values are its own', async () => {
     const { router } = await renderArena('/arena?b=roster:imp,roster:dwarf')
     const hill = screen.getByRole('radio', { name: 'hill rules' })

@@ -1,4 +1,5 @@
 import type { Diag } from '@asmbots/asm'
+import { weightClassOf } from '@asmbots/protocol'
 import {
   Button,
   Chip,
@@ -33,6 +34,13 @@ import { PageIntro } from '../../app/PageIntro'
 import { useRouteStat } from '../../app/slots'
 import { type LocalBot, useLocalBotActions, useLocalBots } from '../../store/local-bots'
 import { useSettings } from '../../store/settings'
+import {
+  inWeight,
+  WEIGHT_FILTERS,
+  WEIGHT_SHORT,
+  WeightChip,
+  type WeightFilter,
+} from '../hills/WeightChip'
 import { loadAssembly, useAssemble } from './setup/assembler'
 import type { BotFile } from './setup/assembly'
 import {
@@ -125,6 +133,7 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
   const { save } = useLocalBotActions()
   const [source, setSource] = useState<Source>('roster')
   const [query, setQuery] = useState('')
+  const [weight, setWeight] = useState<WeightFilter>('all')
   const [problems, setProblems] = useState<{ title: string; list: Problem[] } | null>(null)
   const [dragDepth, setDragDepth] = useState(0)
   const picker = useRef<HTMLInputElement>(null)
@@ -152,19 +161,29 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
         : localBots.data.map((bot) => localCatalog(bot, assemble)),
     [localBots.data, assemble],
   )
-  // The bots the picker lists, which `random fill` draws from.
-  const listed =
-    source === 'roster'
-      ? rosterCatalog().filter((bot) => matchesQuery(bot, query))
-      : source === 'mine'
-        ? (mine ?? []).filter((bot) => matchesQuery(bot, query))
-        : []
+  // The bots the picker lists, which `random fill` draws from: the search's, in the weight class.
+  const listed = (
+    source === 'roster' ? rosterCatalog() : source === 'mine' ? (mine ?? []) : []
+  ).filter((bot) => matchesQuery(bot, query) && inWeight(bot.assembled.bytes.length, weight))
   const status = fightStatus(selection, spec)
   const full = spec.bots.length >= MAX_ARENA_BOTS
   // The tour's step: the roster until two bots are in, then the fight button.
   const tourStep =
     tour === undefined ? null : selection.length >= MIN_ARENA_BOTS ? 'fight' : 'roster'
-  const clearSearch = { label: 'clear the search', onClick: () => setQuery('') }
+  const clearSearch = {
+    label: weight === 'all' ? 'clear the search' : 'clear the filters',
+    onClick: () => {
+      setQuery('')
+      setWeight('all')
+    },
+  }
+  // What an empty list names: `heavy roster bot matches "x"`, for the class and the search in force.
+  const kind = weight === 'all' ? '' : `${WEIGHT_SHORT[weight]} `
+  const matching = query === '' ? '' : ` matches "${query}"`
+  // Bots of more than one class fight as open weight: said, so a 4 KB bot against a 15 B imp is no
+  // surprise.
+  const mixed =
+    new Set(sizesOf(selection).flatMap((size) => weightClassOf(size)?.slug ?? [])).size > 1
 
   useRouteStat(
     `${selection.length} ${selection.length === 1 ? 'bot' : 'bots'} · ${
@@ -364,6 +383,14 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
           }
         >
           <div className="flex flex-col gap-3">
+            {source !== 'paste' && (
+              <Segmented<WeightFilter>
+                label="weight class"
+                options={WEIGHT_FILTERS}
+                value={weight}
+                onValueChange={setWeight}
+              />
+            )}
             {source === 'roster' && (
               <BotGrid
                 bots={listed}
@@ -372,7 +399,9 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
                 onAdd={(bot) => add([bot.ref])}
                 onErrors={showErrors}
                 empty={
-                  <EmptyState action={clearSearch}>no roster bot matches "{query}".</EmptyState>
+                  <EmptyState action={clearSearch}>
+                    no {kind}roster bot{matching}.
+                  </EmptyState>
                 }
                 coach={
                   tour !== undefined &&
@@ -385,7 +414,7 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
                 bots={localBots.data}
                 catalog={mine}
                 listed={listed}
-                query={query}
+                empty={`none of my ${kind}bots${matching}.`}
                 picked={spec.bots}
                 full={full}
                 onAdd={(bot) => add([bot.ref])}
@@ -437,6 +466,7 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
               onErrors={showErrors}
               onStart={() => add(STARTERS)}
             />
+            {mixed && <p className="mt-2 text-data text-muted">open weight: sizes mix</p>}
           </Panel>
           <Panel title="config" status={spec.config.preset ?? 'custom'}>
             <ConfigForm
@@ -556,7 +586,7 @@ function BotGrid({
 }
 
 /**
- * A bot in the picker: its identicon, name, author, size, and tier (a roster bot) or `local`, and
+ * A bot in the picker: its identicon, name, author, size and weight class, and tier (a roster bot) or `local`, and
  * `+`. A bot already picked shows how often; a bot that does not assemble shows `errors`.
  */
 function BotCard({
@@ -576,6 +606,7 @@ function BotCard({
 }) {
   const { bytes } = bot.assembled
   const broken = errorsOf(bot).length > 0
+  const weight = broken ? null : weightClassOf(bytes.length)
   const blurb = bot.roster?.blurb ?? bot.assembled.strategy
   return (
     <li
@@ -588,8 +619,11 @@ function BotCard({
           <span className="truncate text-bright">{bot.name}</span>
           {count > 0 && <Chip variant="accent">×{count}</Chip>}
         </p>
-        <p className="truncate text-data text-muted">
-          {bot.author || 'anonymous'} · {broken ? '—' : `${bytes.length} B`}
+        <p className="flex min-w-0 items-center gap-2 text-data text-muted">
+          <span className="truncate">
+            {bot.author || 'anonymous'} · {broken ? '—' : `${bytes.length} B`}
+          </span>
+          {weight !== null && <WeightChip weight={weight} />}
         </p>
         {blurb !== '' && (
           // Two lines: a card is wide enough for most blurbs whole, and the hover holds the rest.
@@ -633,7 +667,7 @@ function MineGrid({
   bots,
   catalog,
   listed,
-  query,
+  empty,
   write,
   clearSearch,
   ...grid
@@ -641,9 +675,10 @@ function MineGrid({
   bots: readonly LocalBot[] | undefined
   /** The bots, assembled: null while the assembler loads. */
   catalog: readonly CatalogBot[] | null
-  /** The ones that match the search. */
+  /** The ones that match the search and the weight class. */
   listed: readonly CatalogBot[]
-  query: string
+  /** What shows when none does. */
+  empty: string
   /** The empty store's way on: the editor. */
   write: EmptyStateAction
   clearSearch: EmptyStateAction
@@ -657,7 +692,7 @@ function MineGrid({
     <BotGrid
       {...grid}
       bots={listed}
-      empty={<EmptyState action={clearSearch}>none of my bots matches "{query}".</EmptyState>}
+      empty={<EmptyState action={clearSearch}>{empty}</EmptyState>}
     />
   )
 }
