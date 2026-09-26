@@ -212,6 +212,20 @@ describe('POST /api/tournaments', () => {
     expect(audit.entries[0]).toMatchObject({ action: 'tournament.create', target: t.id })
   })
 
+  it('takes a bot at the floor, and a melee of bots up to middleweight', async () => {
+    const owner = await user('floor-maker')
+    const loop = await botOf(owner, 'Loop', LOOP)
+    const floor = loaded(LOOP).bytes.length
+    const battle = { ...CONFIG, minBotBytes: floor, maxBotBytes: 1024 }
+    const listed = ['roster-dwarf-v1', loop]
+    const t = await made(
+      owner,
+      invite(listed, { kind: 'melee', config: { rounds: 3, seed: 1, battle } }),
+    )
+    expect(t.config.battle).toMatchObject({ minBotBytes: floor, maxBotBytes: 1024 })
+    expect((await detail(t.id)).entrants.map((e) => e.versionId)).toEqual(listed)
+  })
+
   it('refuses a tournament it would not run, and makes none', async () => {
     const owner = await user('refused')
     const other = await user('other')
@@ -243,6 +257,22 @@ describe('POST /api/tournaments', () => {
       expect.stringMatching(/^Dwarf v1 is \d+ bytes, over 8$/),
     ])
     const config = (change: object) => ({ rounds: 3, seed: 1, battle: { ...CONFIG, ...change } })
+    expect(await refusal(invite([dwarf, mine], { config: config({ minBotBytes: 8 }) }))).toEqual([
+      422,
+      expect.stringMatching(/^Loop v1 is \d bytes, under 8$/),
+    ])
+    expect(await refusal(invite([dwarf, mine], { config: config({ minBotBytes: 600 }) }))).toEqual([
+      422,
+      'the smallest bot, 600 bytes, is over the largest, 512',
+    ])
+    expect(await refusal(invite([dwarf, mine], { config: config({ maxBotBytes: 4097 }) }))).toEqual(
+      [422, 'a bot is 4,096 bytes at most'],
+    )
+    expect(
+      await refusal(
+        invite([dwarf, mine], { kind: 'melee', config: config({ maxBotBytes: 2048 }) }),
+      ),
+    ).toEqual([422, 'melee is for lightweight and middleweight bots'])
     expect(await refusal(invite([dwarf, mine], { config: { ...config({}), rounds: 11 } }))).toEqual(
       [422, 'a tournament plays 10 rounds a match at most'],
     )

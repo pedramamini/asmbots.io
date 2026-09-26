@@ -17,6 +17,7 @@ import {
   HILL_SEED,
   ISA,
   type MatchOutcome,
+  MELEE_MAX_BOT_BYTES,
   type Replay,
   type ReplayConfig,
   replayKey,
@@ -85,7 +86,7 @@ export const SEED_HILLS: readonly SeedHill[] = [
     description: 'eight bots in one core, 10 rounds: ranked by melee points.',
     size: 8,
     rounds: 10,
-    config: { ...DEFAULTS },
+    config: { ...DEFAULTS, maxBotBytes: 512 },
     scoring: 'melee',
   },
 ]
@@ -315,6 +316,9 @@ export async function buildSeed(
     })
   }
   for (const spec of hills) {
+    if (spec.scoring === 'melee' && spec.config.maxBotBytes > MELEE_MAX_BOT_BYTES) {
+      throw new Error(`the ${spec.slug} hill: melee is for lightweight and middleweight bots`)
+    }
     const hillId = `hill-${spec.slug}`
     statements.push(
       insert('hills', {

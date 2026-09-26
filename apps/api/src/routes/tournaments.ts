@@ -4,10 +4,13 @@ import {
   CreateTournament,
   EnterTournament,
   liveRoomName,
+  MAX_BOT_BYTES_ALL,
   MAX_REPLAY_ROUNDS,
   MAX_TOURNAMENT_ENTRANTS,
   MAX_VERIFIED_CYCLES,
+  MELEE_MAX_BOT_BYTES,
   parse,
+  type ReplayConfig,
   type Tournament,
   type TournamentDetail,
   type TournamentEntered,
@@ -90,9 +93,10 @@ const card = (format: CardFormat) => async (c: Context<AppEnv>) => {
 
 /**
  * Refuses (422) a config the server will not play: more rounds a match than a replay holds, more
- * cycles a round than it checks an upload for, or one the engine refuses.
+ * cycles a round than it checks an upload for, a size band past 4 KB or upside down, a melee of
+ * bots heavier than middleweight (8 of them do not fit in the core), or one the engine refuses.
  */
-function checkConfig({ rounds, battle }: CreateTournament['config']): void {
+function checkConfig(kind: TournamentKind, { rounds, battle }: CreateTournament['config']): void {
   if (rounds > MAX_REPLAY_ROUNDS) {
     throw unprocessable(`a tournament plays ${MAX_REPLAY_ROUNDS} rounds a match at most`)
   }
@@ -103,21 +107,32 @@ function checkConfig({ rounds, battle }: CreateTournament['config']): void {
   if (battle.coreSize !== CORE_SIZE) {
     throw unprocessable(`the core is ${CORE_SIZE} bytes in x16c v1, not ${battle.coreSize}`)
   }
-  if (battle.minSpacing > CORE_SIZE || battle.maxBotBytes > CORE_SIZE) {
-    throw unprocessable(`the spacing and the bot size are ${CORE_SIZE} bytes at most`)
+  if (battle.minSpacing > CORE_SIZE) {
+    throw unprocessable(`the spacing is ${CORE_SIZE} bytes at most`)
+  }
+  if (battle.maxBotBytes > MAX_BOT_BYTES_ALL) {
+    throw unprocessable(`a bot is ${MAX_BOT_BYTES_ALL.toLocaleString('en-US')} bytes at most`)
+  }
+  if ((battle.minBotBytes ?? 1) > battle.maxBotBytes) {
+    throw unprocessable(
+      `the smallest bot, ${battle.minBotBytes} bytes, is over the largest, ${battle.maxBotBytes}`,
+    )
+  }
+  if (kind === 'melee' && battle.maxBotBytes > MELEE_MAX_BOT_BYTES) {
+    throw unprocessable('melee is for lightweight and middleweight bots')
   }
 }
 
 /**
  * Refuses a version the signed-in user may not enter, as a hill submission does: one they may not
  * see (404), and one of another user's bots (403), unless `publicOk` and it is public. Refuses one
- * over `cap` bytes (422).
+ * outside the config's size band (422).
  */
 function checkVersion(
   id: string,
   version: SubmittedVersionRow | undefined,
   userId: string,
-  cap: number,
+  { minBotBytes = 1, maxBotBytes }: ReplayConfig,
   publicOk: boolean,
 ): SubmittedVersionRow {
   if (
@@ -134,9 +149,9 @@ function checkVersion(
         : `bot version ${id} is not yours`,
     })
   }
-  if (version.size > cap) {
-    throw unprocessable(`${version.name} v${version.version} is ${version.size} bytes, over ${cap}`)
-  }
+  const what = `${version.name} v${version.version} is ${version.size} bytes`
+  if (version.size > maxBotBytes) throw unprocessable(`${what}, over ${maxBotBytes}`)
+  if (version.size < minBotBytes) throw unprocessable(`${what}, under ${minBotBytes}`)
   return version
 }
 
@@ -145,16 +160,15 @@ function checkVersion(
  * tournament, `scheduled`, that they start (`/start`). `entrants` is an invite of 2..32 bot
  * versions (their own, or anyone's public ones; a melee takes 16), seeded in the list's order, or
  * open entry with a deadline within 30 days. Refused: a config the server does not play, a
- * version named twice (400), a version the user may not enter (404, 403), one over the config's
- * `maxBotBytes` (422). The tournament, its invited entries, and its `tournament.create` audit row
+ * version named twice (400), a version the user may not enter (404, 403), one outside the config's
+ * `minBotBytes..maxBotBytes` (422). The tournament, its invited entries, and its `tournament.create` audit row
  * go in one batch → 201 `{ tournament }`.
  */
 async function create(c: Context<AppEnv>): Promise<Response> {
   const body = parse(CreateTournament, await jsonBody(c), 'the request')
   const userId = viewerId(c) ?? ''
   const db = c.env.DB
-  checkConfig(body.config)
-  const cap = body.config.battle.maxBotBytes
+  checkConfig(body.kind, body.config)
   const most = MOST_ENTRANTS[body.kind]
   const now = Date.now()
   let closesAt: string | null = null
@@ -167,7 +181,7 @@ async function create(c: Context<AppEnv>): Promise<Response> {
     }
     if (invited.length > most) throw unprocessable(`a ${body.kind} takes ${most} bots at most`)
     const versions = await listSubmittedVersions(db, invited)
-    for (const id of invited) checkVersion(id, versions.get(id), userId, cap, true)
+    for (const id of invited) checkVersion(id, versions.get(id), userId, body.config.battle, true)
   } else {
     const at = Date.parse(body.entrants.closesAt)
     if (Number.isNaN(at)) {
@@ -241,13 +255,7 @@ async function enter(c: Context<AppEnv>): Promise<Response> {
     return errorResponse(c, 'conflict', `entry to ${name} closed at ${closesAt}`)
   }
   const versions = await listSubmittedVersions(db, [botVersionId])
-  checkVersion(
-    botVersionId,
-    versions.get(botVersionId),
-    userId,
-    tournament.config.battle.maxBotBytes,
-    false,
-  )
+  checkVersion(botVersionId, versions.get(botVersionId), userId, tournament.config.battle, false)
   const entries = await listTournamentEntries(db, id)
   const mine = entries.find((e) => e.user_id === userId)?.bot_version_id ?? null
   if (mine === botVersionId) {

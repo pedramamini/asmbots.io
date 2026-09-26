@@ -100,6 +100,7 @@ const HILLS: SeedHill[] = [
   duel('exit', 5),
   ...['q1', 'q2', 'q3'].map((slug) => duel(slug, 5)),
   duel('small', 5, { ...CONFIG, maxBotBytes: 4 }),
+  duel('floor', 5),
   { ...duel('crowd', 8), scoring: 'melee' },
 ]
 
@@ -494,6 +495,40 @@ describe('POST /api/hills/:slug/submit', () => {
       "SELECT COUNT(*) AS n FROM hill_submissions WHERE user_id = (SELECT id FROM users WHERE handle = 'refused')",
     ).first<{ n: number }>()) as { n: number }
     expect(n).toBe(0)
+  })
+
+  it("refuses a version under the hill's floor, and takes one at it", async () => {
+    const jar = await user('floored')
+    const { version: small } = await botOf(jar, 'Loop', LOOP)
+    // 513 bytes: a jump over the rest.
+    const WIDE = '%name "Wide"\nstart: jmp start\n        times 511 db 0x90\n'
+    const { version: wide } = await botOf(jar, 'Wide', WIDE)
+    expect(wide.size).toBe(513)
+    // The seed fights its hills' entries under a floor of 1; set the band after it.
+    const band = async (config: object) => {
+      await env.DB.prepare("UPDATE hills SET config_json = ? WHERE slug = 'floor'")
+        .bind(JSON.stringify({ ...CONFIG, ...config }))
+        .run()
+    }
+    const refusal = async (res: Response) => {
+      const { status, code, message } = await errorOf(res)
+      return [status, code, message]
+    }
+    await band({ minBotBytes: 513, maxBotBytes: 1024 })
+    expect(await refusal(await post(jar, 'floor', small.id))).toEqual([
+      422,
+      'unprocessable',
+      `Loop v1 is ${small.size} bytes, and the middleweight hill takes 513 to 1,024`,
+    ])
+    // A band that is no class goes by the hill's slug.
+    await band({ minBotBytes: 8, maxBotBytes: 512 })
+    expect(await refusal(await post(jar, 'floor', small.id))).toEqual([
+      422,
+      'unprocessable',
+      `Loop v1 is ${small.size} bytes, and the floor hill takes 8 to 512`,
+    ])
+    await band({ minBotBytes: 513, maxBotBytes: 1024 })
+    expect((await post(jar, 'floor', wide.id)).status).toBe(201)
   })
 
   it('refuses a version on the hill already', async () => {

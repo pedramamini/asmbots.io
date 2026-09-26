@@ -108,10 +108,11 @@ export async function setupTournament(env: Env, job: TournamentJob): Promise<Job
       `tournament ${id} has ${n} entrants, and a ${tournament.kind} takes 2..${most}`,
     )
   }
-  const big = entrants.find((e) => e.size > config.battle.maxBotBytes)
-  if (big !== undefined) {
+  const { minBotBytes = 1, maxBotBytes } = config.battle
+  const odd = entrants.find((e) => e.size > maxBotBytes || e.size < minBotBytes)
+  if (odd !== undefined) {
     throw new JobError(
-      `bot version ${big.version_id} is ${big.size} bytes, and tournament ${id} takes ${config.battle.maxBotBytes}`,
+      `bot version ${odd.version_id} is ${odd.size} bytes, and tournament ${id} takes ${minBotBytes}..${maxBotBytes}`,
     )
   }
   const bots = await loadBots(

@@ -55,6 +55,12 @@ export const WEIGHT_CLASSES = [
   },
 ] as const satisfies readonly (WeightClass & { slug: WeightClassSlug })[]
 
+/**
+ * The largest bot a melee takes: the top of middleweight, the heaviest class with `melee`. Eight
+ * bots past it, and their spacing, do not fit in the core.
+ */
+export const MELEE_MAX_BOT_BYTES = 1024
+
 /** Open weight: any bot from 1 byte to the absolute cap, every class mixed, duels only. */
 export const OPEN_WEIGHT = {
   slug: 'open',

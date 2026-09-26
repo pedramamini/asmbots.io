@@ -5,6 +5,7 @@ import { describe, expect, it } from 'bun:test'
 import {
   classOfRange,
   MAX_BOT_BYTES_ALL,
+  MELEE_MAX_BOT_BYTES,
   OPEN_WEIGHT,
   WEIGHT_CLASSES,
   weightClassOf,
@@ -42,6 +43,8 @@ describe('WEIGHT_CLASSES', () => {
       'middleweight',
     ])
     expect(OPEN_WEIGHT.melee).toBe(false)
+    const tops = WEIGHT_CLASSES.filter((c) => c.melee).map((c) => c.max)
+    expect(MELEE_MAX_BOT_BYTES).toBe(Math.max(...tops))
   })
 })
 

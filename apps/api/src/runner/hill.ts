@@ -208,9 +208,10 @@ export async function setupHill(env: Env, job: HillJob): Promise<JobSetup> {
     .first<VersionRow>()
   if (challenger === null) throw new JobError(`no bot version ${job.botVersionId}`)
   const config = JSON.parse(hill.config_json) as ReplayConfig
-  if (challenger.size > config.maxBotBytes) {
+  const floor = config.minBotBytes ?? 1
+  if (challenger.size > config.maxBotBytes || challenger.size < floor) {
     throw new JobError(
-      `bot version ${job.botVersionId} is ${challenger.size} bytes, and the ${hill.slug} hill takes ${config.maxBotBytes}`,
+      `bot version ${job.botVersionId} is ${challenger.size} bytes, and the ${hill.slug} hill takes ${floor}..${config.maxBotBytes}`,
     )
   }
   if (board.entries.some((e) => e.bot_version_id === job.botVersionId)) {

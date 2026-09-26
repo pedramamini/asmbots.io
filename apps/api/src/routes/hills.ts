@@ -1,4 +1,5 @@
 import {
+  classOfRange,
   type Hill,
   type HillDetail,
   type HillHistory,
@@ -72,8 +73,9 @@ function busy(c: Context<AppEnv>, hill: Hill, active: string): Response {
  * `POST /api/hills/:slug/submit` `{ botVersionId }`: the signed-in user challenges the hill with a
  * version of one of their bots. The bytes are the ones the server assembled when the version was
  * saved. Refused: a version that is not theirs (404 when they may not see it, else 403), a hill
- * that scores melees, a version over the hill's size (422), a version on the hill, bytes an entry
- * has (it would take that entry's place and age), and a second submission while one runs (409).
+ * that scores melees, a version over the hill's size or under its floor (422), a version on the
+ * hill, bytes an entry has (it would take that entry's place and age), and a second submission
+ * while one runs (409).
  * The submission row and its `hill.submit` audit row go in one batch; then its `Runner` starts, and
  * the answer is 201 `{ submissionId, liveRoom }`. A job the Runner refuses is marked failed: 409.
  */
@@ -107,6 +109,16 @@ async function submit(c: Context<AppEnv>): Promise<Response> {
       c,
       'unprocessable',
       `${what} is ${version.size} bytes, and the ${hill.slug} hill takes ${cap}`,
+    )
+  }
+  const floor = hill.config.minBotBytes ?? 1
+  if (version.size < floor) {
+    const name = classOfRange(floor, cap)?.name ?? hill.slug
+    const band = `${floor.toLocaleString('en-US')} to ${cap.toLocaleString('en-US')}`
+    return errorResponse(
+      c,
+      'unprocessable',
+      `${what} is ${version.size} bytes, and the ${name} hill takes ${band}`,
     )
   }
   const on = await findHillEntryOf(db, hill.id, version.id, version.bytes_sha256)

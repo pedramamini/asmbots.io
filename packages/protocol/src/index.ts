@@ -200,6 +200,7 @@ export {
 export {
   classOfRange,
   MAX_BOT_BYTES_ALL,
+  MELEE_MAX_BOT_BYTES,
   OPEN_WEIGHT,
   WEIGHT_CLASSES,
   type WeightClass,
