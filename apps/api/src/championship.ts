@@ -15,7 +15,10 @@ const DAY_MS = 24 * 60 * 60 * 1000
 /** The engine's defaults as a config: all but the seed. */
 const { seed: _, ...DEFAULTS } = DEFAULT_CONFIG
 
-/** The main hill's rules (the launch seed's `main`): 80,000 cycles a round, bots up to 512 bytes. */
+/**
+ * The lightweight rules of the launch seed's `main` hill: 80,000 cycles a round, bots of 1 to 512
+ * bytes. The championship stays lightweight; the heavier classes have hills of their own.
+ */
 export const CHAMPIONSHIP_RULES: ReplayConfig = { ...DEFAULTS, maxCycles: 80_000, maxBotBytes: 512 }
 
 /** Rounds a championship match, as the main hill's. */

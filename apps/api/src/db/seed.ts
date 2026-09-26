@@ -1,6 +1,7 @@
 /**
- * The launch seed (PRODUCT_SPEC §5), so the site is never empty: the three default hills, and a
- * `system` user whose roster bots stand on them as public bot versions.
+ * The launch seed (PRODUCT_SPEC §5), so the site is never empty: the three default hills, a duel
+ * hill per heavier weight class and open weight, and a `system` user whose roster bots stand on
+ * them as public bot versions, each bot on the hills it fits.
  *
  * `buildSeed` assembles each bot's source with `@asmbots/asm` and fights the hills with the engine
  * (a few seconds for the roster): the duel hills take the bots one challenge at a time
@@ -18,10 +19,13 @@ import {
   ISA,
   type MatchOutcome,
   MELEE_MAX_BOT_BYTES,
+  OPEN_WEIGHT,
   type Replay,
   type ReplayConfig,
   replayKey,
   sha256Hex,
+  WEIGHT_CLASSES,
+  type WeightClass,
 } from '@asmbots/protocol'
 import {
   createHill,
@@ -60,12 +64,44 @@ export interface SeedHill {
 /** The engine defaults as a hill's config: everything but the seed. */
 const { seed: _, ...DEFAULTS } = DEFAULT_CONFIG
 
-/** The hills of PRODUCT_SPEC §5, as `docs/tournaments/hills` gives their rules. */
+/** `n` with thousands separators: `4,096`. */
+const bytes = (n: number) => n.toLocaleString('en-US')
+
+/**
+ * The duel hill of the weight class `c`: its ladder, 10 rounds of 80,000 cycles, its bots `c.min`
+ * to `c.max` bytes and spaced `c.minSpacing` apart.
+ */
+function classHill(c: WeightClass, size: number, mixed = ''): SeedHill {
+  return {
+    slug: c.slug === OPEN_WEIGHT.slug ? 'open-weight' : c.slug,
+    name: c.name,
+    description: `the ${c.name} ladder: duels of 10 rounds, 80,000 cycles a round, bots of ${bytes(c.min)} to ${bytes(c.max)} bytes${mixed}.`,
+    size,
+    rounds: 10,
+    config: {
+      ...DEFAULTS,
+      maxCycles: 80_000,
+      minBotBytes: c.min,
+      maxBotBytes: c.max,
+      minSpacing: c.minSpacing,
+    },
+    scoring: 'duel',
+  }
+}
+
+const [, MIDDLEWEIGHT, HEAVYWEIGHT, SUPER_HEAVY] = WEIGHT_CLASSES
+
+/**
+ * The hills of PRODUCT_SPEC §5, as `docs/tournaments/hills` gives their rules, and a duel hill for
+ * each heavier weight class and open weight. `main` is the lightweight ladder. Each hill pins its
+ * `maxBotBytes`: the engine default is the 4 KB cap.
+ */
 export const SEED_HILLS: readonly SeedHill[] = [
   {
     slug: 'main',
     name: 'main',
-    description: 'the ladder: duels of 10 rounds, 80,000 cycles a round, bots up to 512 bytes.',
+    description:
+      'the lightweight ladder: duels of 10 rounds, 80,000 cycles a round, bots of 1 to 512 bytes.',
     size: 32,
     rounds: 10,
     config: { ...DEFAULTS, maxCycles: 80_000, maxBotBytes: 512 },
@@ -89,7 +125,15 @@ export const SEED_HILLS: readonly SeedHill[] = [
     config: { ...DEFAULTS, maxBotBytes: 512 },
     scoring: 'melee',
   },
+  classHill(MIDDLEWEIGHT, 16),
+  classHill(HEAVYWEIGHT, 16),
+  classHill(SUPER_HEAVY, 16),
+  classHill(OPEN_WEIGHT, 32, ', every class mixed'),
 ]
+
+/** Whether a bot of `size` bytes fits a hill of `config`: its floor to its cap. */
+export const fits = (size: number, { minBotBytes = 1, maxBotBytes }: ReplayConfig): boolean =>
+  size >= minBotBytes && size <= maxBotBytes
 
 /** Every seeded match's seed: the hills' (`HILL_SEED`). */
 export const SEED_MATCH_SEED = HILL_SEED
@@ -208,7 +252,7 @@ async function duelHill(spec: SeedHill, bots: readonly Made[], now: Date) {
   })
   let reign: number | null = null
   for (const made of bots) {
-    if (made.bot.bytes.length > spec.config.maxBotBytes) continue
+    if (!fits(made.bot.bytes.length, spec.config)) continue
     const result = hill(state, { id: made.versionId, bot: made.bot }, (entry) => {
       const defender = byId.get(entry.id)
       if (defender === undefined) throw new Error(`seed: no bot ${entry.id}`)
@@ -245,7 +289,7 @@ async function duelHill(spec: SeedHill, bots: readonly Made[], now: Date) {
 /** The melee hill `spec`: one melee of the bots marked for it, up to its size. */
 async function meleeHill(spec: SeedHill, bots: readonly Made[], now: Date) {
   const entrants = bots
-    .filter((m) => m.melee && m.bot.bytes.length <= spec.config.maxBotBytes)
+    .filter((m) => m.melee && fits(m.bot.bytes.length, spec.config))
     .slice(0, spec.size)
   if (entrants.length < 2) {
     return { standings: [], matches: [], ratings: new Map<string, Rating>() }

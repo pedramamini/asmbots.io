@@ -104,9 +104,17 @@ beforeAll(async () => {
 })
 
 describe('the seed', () => {
-  it('seeds 3 hills, with the roster bots on them', async () => {
+  it('seeds 7 hills, with the roster bots on them', async () => {
     const { hills } = await read<HillList>('/api/hills', HillList)
-    expect(hills.map((h) => h.hill.slug)).toEqual(['main', 'melee', 'tiny'])
+    expect(hills.map((h) => h.hill.slug)).toEqual([
+      'heavyweight',
+      'main',
+      'melee',
+      'middleweight',
+      'open-weight',
+      'super-heavy',
+      'tiny',
+    ])
     const main = hills.find((h) => h.hill.slug === 'main')
     expect(main).toMatchObject({ entrants: 3, hill: { size: 32, rounds: 10 } })
     expect(main?.hill.config.maxBotBytes).toBe(512)
@@ -114,8 +122,14 @@ describe('the seed', () => {
     expect(main?.king?.bot.owner).toBe('system')
     const tiny = hills.find((h) => h.hill.slug === 'tiny')
     expect(tiny?.hill.config).toMatchObject({ maxBotBytes: 256, maxCycles: 50_000 })
-    // The melee hill takes the bots marked for it only.
-    expect(hills.find((h) => h.hill.slug === 'melee')?.entrants).toBe(2)
+    // The melee hill takes the bots marked for it only, and stays lightweight.
+    const melee = hills.find((h) => h.hill.slug === 'melee')
+    expect(melee?.entrants).toBe(2)
+    expect(melee?.hill.config.maxBotBytes).toBe(512)
+    // The class hills take only their class: the three small bots fit open weight and no other.
+    const entrants = (slug: string) => hills.find((h) => h.hill.slug === slug)?.entrants
+    expect(['middleweight', 'heavyweight', 'super-heavy'].map(entrants)).toEqual([0, 0, 0])
+    expect(entrants('open-weight')).toBe(3)
   })
 
   it('stores each bot version’s bytes in R2 under its SHA-256', async () => {
@@ -242,16 +256,20 @@ describe('GET /api/bots/:id', () => {
     expect(detail.owner.handle).toBe('system')
     expect(detail.versions.map((v) => v.version)).toEqual([1])
     expect(detail.versions[0]?.source).toBeUndefined()
-    expect(detail.placements.map((p) => p.hill.slug).sort()).toEqual(['main', 'tiny'])
+    expect(detail.placements.map((p) => p.hill.slug).sort()).toEqual([
+      'main',
+      'open-weight',
+      'tiny',
+    ])
     // First seen: the day the seed made it.
     expect(detail.bot.createdAt).toBe(NOW.toISOString())
   })
 
   it("counts the bot's fights: each finished match of its versions, duels and melees", async () => {
-    // A duel with each other bot on main and on tiny.
-    expect((await read<BotDetail>('/api/bots/roster-dwarf', BotDetail)).fights).toBe(4)
+    // A duel with each other bot on main, on tiny, and on open weight.
+    expect((await read<BotDetail>('/api/bots/roster-dwarf', BotDetail)).fights).toBe(6)
     // Those, and the melee hill's one melee.
-    expect((await read<BotDetail>('/api/bots/roster-spin', BotDetail)).fights).toBe(5)
+    expect((await read<BotDetail>('/api/bots/roster-spin', BotDetail)).fights).toBe(7)
     expect((await read<BotDetail>('/api/bots/quiet', BotDetail)).fights).toBe(0)
     // A second version's matches count too, a match with both of them once, a duel with a deleted
     // version (its column null, as a melee's are) once, and an unfinished match not at all.
@@ -275,8 +293,8 @@ describe('GET /api/bots/:id', () => {
       ).bind(NOW.toISOString()),
     ])
     try {
-      expect((await read<BotDetail>('/api/bots/roster-dwarf', BotDetail)).fights).toBe(7)
-      expect((await read<BotDetail>('/api/bots/roster-spin', BotDetail)).fights).toBe(6)
+      expect((await read<BotDetail>('/api/bots/roster-dwarf', BotDetail)).fights).toBe(9)
+      expect((await read<BotDetail>('/api/bots/roster-spin', BotDetail)).fights).toBe(8)
     } finally {
       await env.DB.batch([
         env.DB.prepare(
@@ -337,6 +355,7 @@ describe('GET /api/users/:handle', () => {
     expect(system.hills.map((h) => [h.hill.slug, h.entry.rank])).toEqual([
       ['main', 1],
       ['melee', 1],
+      ['open-weight', 1],
       ['tiny', 1],
     ])
     const results = system.championships.map((r) => [r.tournament.slug, r.bot.name, r.wins])
