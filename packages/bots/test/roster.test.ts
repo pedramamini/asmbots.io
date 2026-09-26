@@ -27,7 +27,7 @@ const ROSTER_DIR = join(PACKAGE, 'roster')
  * The weight classes the roster has fighters for, lightest first. A class joins once it has two
  * fighters; when every class has, this is all of `WEIGHT_CLASSES`.
  */
-const FILLED_CLASSES: readonly WeightClassSlug[] = WEIGHT_CLASSES.slice(0, 2).map((c) => c.slug)
+const FILLED_CLASSES: readonly WeightClassSlug[] = WEIGHT_CLASSES.slice(0, 3).map((c) => c.slug)
 
 const bots = loadRoster()
 

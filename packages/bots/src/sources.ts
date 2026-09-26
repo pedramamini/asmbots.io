@@ -9,8 +9,10 @@ import dwarf from '../roster/dwarf.asm' with { type: 'text' }
 import dwarfWide from '../roster/dwarf-wide.asm' with { type: 'text' }
 import gate from '../roster/gate.asm' with { type: 'text' }
 import hybrid from '../roster/hybrid.asm' with { type: 'text' }
+import hydra from '../roster/hydra.asm' with { type: 'text' }
 import imp from '../roster/imp.asm' with { type: 'text' }
 import impRing from '../roster/imp-ring.asm' with { type: 'text' }
+import mender from '../roster/mender.asm' with { type: 'text' }
 import painterLcg from '../roster/painter-lcg.asm' with { type: 'text' }
 import painterSpiral from '../roster/painter-spiral.asm' with { type: 'text' }
 import paper from '../roster/paper.asm' with { type: 'text' }
@@ -36,12 +38,14 @@ const SOURCES: Readonly<Record<string, string>> = {
   gate,
   decoy,
   bastion,
+  mender,
   stone,
   paper,
   silk,
   twins,
   scanner,
   hybrid,
+  hydra,
   vampire,
   'painter-lcg': painterLcg,
   'painter-spiral': painterSpiral,

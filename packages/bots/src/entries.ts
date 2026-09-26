@@ -108,6 +108,16 @@ export const ROSTER: readonly RosterEntry[] = [
       'A middleweight dwarf, 128 bombs a pass between two fields of fake code: beats dwarf 8-2, imp 9-0-1, scanner 8-2; loses to paper 0-10.',
   },
   {
+    slug: 'mender',
+    file: 'roster/mender.asm',
+    name: 'Mender',
+    author: 'ASM Bots',
+    family: 'dwarf',
+    tier: 'solid',
+    blurb:
+      'A heavyweight bomber that mends its loop from a spare copy: beats dwarf 9-1, scanner 9-1; loses to bastion 3-7, paper 0-8-2, hybrid 0-8-2, twins 0-10.',
+  },
+  {
     slug: 'stone',
     file: 'roster/stone.asm',
     name: 'Stone',
@@ -161,6 +171,16 @@ export const ROSTER: readonly RosterEntry[] = [
     family: 'scanner',
     tier: 'solid',
     blurb: 'A scanner that turns to paper when bombs land in a guard 768 bytes over its body.',
+  },
+  {
+    slug: 'hydra',
+    file: 'roster/hydra.asm',
+    name: 'Hydra',
+    author: 'ASM Bots',
+    family: 'scanner',
+    tier: 'solid',
+    blurb:
+      'A heavyweight that scans a lap, bombs four laps, then walks as an imp ring: beats dwarf 10-0, scanner 10-0, bastion 8-2; loses to paper 0-9-1, hybrid 0-9-1, twins 0-10.',
   },
   {
     slug: 'vampire',
