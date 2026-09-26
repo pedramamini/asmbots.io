@@ -197,3 +197,12 @@ export {
   ShareLink,
   SOURCES_KEY,
 } from './share'
+export {
+  classOfRange,
+  MAX_BOT_BYTES_ALL,
+  OPEN_WEIGHT,
+  WEIGHT_CLASSES,
+  type WeightClass,
+  type WeightClassSlug,
+  weightClassOf,
+} from './weight'
