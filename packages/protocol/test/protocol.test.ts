@@ -199,6 +199,19 @@ describe('replays', () => {
     expect(replayConfig(floored).minBotBytes).toBe(2)
   })
 
+  it('read a config with a floor and one without, as made before weight classes', async () => {
+    const replay = await duel()
+    const json = (value: unknown) => JSON.parse(JSON.stringify(value))
+    expect(replay.config).not.toHaveProperty('minBotBytes')
+    expect(parseReplay(json(replay)).config).not.toHaveProperty('minBotBytes')
+    const floored = { ...replay, config: { ...replay.config, minBotBytes: 513, maxBotBytes: 1024 } }
+    expect(parseReplay(json(floored)).config.minBotBytes).toBe(513)
+    expect(replayConfig(parseReplay(json(floored))).minBotBytes).toBe(513)
+    expect(problem({ ...replay, config: { ...replay.config, minBotBytes: 0 } })).toBe(
+      'minBotBytes must be a whole number in 1..4,294,967,295',
+    )
+  })
+
   it('say what is wrong with one they do not accept', async () => {
     const replay = await duel()
     const [loop, dat] = replay.bots as [ReplayType['bots'][0], ReplayType['bots'][0]]

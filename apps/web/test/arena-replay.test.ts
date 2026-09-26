@@ -201,6 +201,21 @@ describe('replay links', () => {
     )
   })
 
+  it('read a local replay with no floor as floor 1, and keep a floor it has', async () => {
+    const { replay, match } = await duel()
+    const old = JSON.parse(JSON.stringify(local(replay, match)))
+    // Made before weight classes: no minBotBytes, and the key it always had.
+    expect(old.config).not.toHaveProperty('minBotBytes')
+    expect(readReplay(old).config).not.toHaveProperty('minBotBytes')
+    expect(replayConfig(readReplay(old)).minBotBytes).toBe(1)
+    expect(readReplay({ ...old, config: { ...old.config, minBotBytes: 1 } })).toEqual(replay)
+    const floored = readReplay({ ...old, config: { ...old.config, minBotBytes: 2 } })
+    expect(floored.config.minBotBytes).toBe(2)
+    expect(brokenBecause({ ...old, config: { ...old.config, minBotBytes: 0 } })).toBe(
+      'minBotBytes must be a whole number in 1..4,294,967,295',
+    )
+  })
+
   it('know when a bot’s bytes are not the bytes its SHA-256 names', async () => {
     const { replay } = await duel()
     expect(await bytesProblem(replay)).toBeNull()

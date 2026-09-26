@@ -53,7 +53,7 @@ export const REPLAY_KEY = 'r'
 
 /** The most source text a link may unpack to: 16 bots of 16 KB. */
 export const MAX_SHARED_TEXT = MAX_REPLAY_BOTS * 16 * 1024
-/** The longest replay fragment read: 16 bots at 512 B with their sources fit many times. */
+/** The longest replay fragment read: 16 bots at the 4 KB cap, base64, fit many times. */
 export const MAX_REPLAY_FRAGMENT = 1 << 20
 
 /** The fragment that carries `sources`, `src=…`; empty for none. */
