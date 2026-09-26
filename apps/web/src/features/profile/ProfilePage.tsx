@@ -1,6 +1,22 @@
-import type { Bot, ChampionshipResult, HillBest, UserDetail } from '@asmbots/protocol'
-import { EmptyState, Panel, PanelGrid, Skeleton, Stat, Table, type TableColumn } from '@asmbots/ui'
+import {
+  type Bot,
+  type ChampionshipResult,
+  type HillBest,
+  type UserDetail,
+  weightClassOf,
+} from '@asmbots/protocol'
+import {
+  EmptyState,
+  Panel,
+  PanelGrid,
+  Segmented,
+  Skeleton,
+  Stat,
+  Table,
+  type TableColumn,
+} from '@asmbots/ui'
 import { Link } from '@tanstack/react-router'
+import { useState } from 'react'
 import { isNotFound } from '../../api/client'
 import { useUser } from '../../api/queries'
 import { LoadFailure, readStatus } from '../../app/LoadFailure'
@@ -8,7 +24,14 @@ import { useLinkAction } from '../../app/link-action'
 import { Placeholder } from '../../app/Placeholder'
 import { Plate } from '../../art/Plate'
 import { preconnectAvatars } from '../account/avatars'
-import { BotLink, CELL_LINK, count, day } from '../hills/links'
+import { BotLink, CELL_LINK, count, day, plural } from '../hills/links'
+import {
+  inWeight,
+  WEIGHT_FILTERS,
+  WEIGHT_SHORT,
+  WeightChip,
+  type WeightFilter,
+} from '../hills/WeightChip'
 
 const COLUMNS: TableColumn<Bot>[] = [
   {
@@ -20,6 +43,23 @@ const COLUMNS: TableColumn<Bot>[] = [
       </Link>
     ),
     sortValue: (b) => b.name,
+  },
+  {
+    id: 'size',
+    header: 'size',
+    cell: (b) => (b.size === undefined ? '–' : `${count(b.size)} B`),
+    align: 'right',
+    sortValue: (b) => b.size ?? 0,
+    className: 'w-20',
+  },
+  {
+    id: 'class',
+    header: 'class',
+    cell: (b) => {
+      const weight = b.size === undefined ? null : weightClassOf(b.size)
+      return weight === null ? '' : <WeightChip weight={weight} />
+    },
+    className: 'w-20',
   },
   { id: 'visibility', header: 'shown to', cell: (b) => b.visibility, className: 'w-24' },
   {
@@ -120,6 +160,9 @@ export function ProfilePage({ handle }: { handle: string }) {
   const read = useUser(handle)
   const { data, error } = read
   const link = useLinkAction()
+  // The bots' weight filter, client-side: a profile's list is short.
+  const [weight, setWeight] = useState<WeightFilter>('all')
+  const bots = data?.bots.filter((b) => inWeight(b.size, weight)) ?? []
   if (isNotFound(error)) {
     return (
       <Placeholder title="profile" status={handle}>
@@ -164,21 +207,37 @@ export function ProfilePage({ handle }: { handle: string }) {
       <Panel
         className="col-span-12 xl:col-span-8"
         title="bots"
-        status={readStatus(
-          data,
-          error,
-          (d) => `${d.bots.length} ${d.bots.length === 1 ? 'bot' : 'bots'}`,
+        status={readStatus(data, error, (d) =>
+          weight === 'all'
+            ? plural(d.bots.length, 'bot')
+            : `${bots.length} of ${plural(d.bots.length, 'bot')}`,
         )}
+        actions={
+          data !== undefined &&
+          data.bots.length > 0 && (
+            <Segmented<WeightFilter>
+              label="weight class"
+              options={WEIGHT_FILTERS}
+              value={weight}
+              onValueChange={setWeight}
+            />
+          )
+        }
       >
         <Table
           aria-label="bots"
           columns={COLUMNS}
-          rows={data?.bots ?? []}
+          rows={bots}
           rowKey={(b) => b.id}
           empty={
-            loading ?? (
+            loading ??
+            (weight !== 'all' && (data?.bots.length ?? 0) > 0 ? (
+              <EmptyState action={{ label: 'show every class', onClick: () => setWeight('all') }}>
+                no {WEIGHT_SHORT[weight]} bots.
+              </EmptyState>
+            ) : (
               <EmptyState action={link('write a bot', '/editor')}>no public bots yet.</EmptyState>
-            )
+            ))
           }
         />
       </Panel>

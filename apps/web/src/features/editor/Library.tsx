@@ -1,10 +1,11 @@
 import type { MyBot } from '@asmbots/protocol'
-import { cx, EmptyState, type EmptyStateAction, IconButton, Panel } from '@asmbots/ui'
+import { cx, EmptyState, type EmptyStateAction, IconButton, Panel, Segmented } from '@asmbots/ui'
 import { GitFork, Plus } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { type ReactNode, useState } from 'react'
 import { LoadFailure, type RetryableRead } from '../../app/LoadFailure'
 import type { LocalBot } from '../../store/local-bots'
 import { type CatalogBot, rosterCatalog } from '../arena/setup/bots'
+import { inWeight, WEIGHT_FILTERS, WEIGHT_SHORT, type WeightFilter } from '../hills/WeightChip'
 import { type DocTarget, docKey, parseDocKey, SCRATCH } from './doc'
 
 export interface LibraryProps {
@@ -33,7 +34,9 @@ export interface LibraryProps {
 /**
  * The bot library (PRODUCT_SPEC §3, `b`): my bots, which open to edit; when signed in, my bots in
  * the account (`mine (cloud)`), which open in their local copy; the roster, which opens read-only
- * and forks into my bots; and the documents opened lately.
+ * and forks into my bots; and the documents opened lately. A weight filter narrows the account's
+ * bots and the roster to one class; this browser's bots have no size until they assemble, so it
+ * leaves them be.
  */
 export function Library({
   current,
@@ -48,6 +51,8 @@ export function Library({
   className,
 }: LibraryProps) {
   const cloudError = cloudRead?.error != null
+  const [weight, setWeight] = useState<WeightFilter>('all')
+  const showAll = { label: 'show every class', onClick: () => setWeight('all') }
   // An empty list's one way on: save the bot open here, or start one.
   const first: EmptyStateAction =
     onSave === undefined
@@ -58,6 +63,8 @@ export function Library({
     (bot) => docKey({ kind: 'local', id: bot.id }) === current,
   )?.cloudId
   const roster = rosterCatalog()
+  const rosterShown = roster.filter((bot) => inWeight(bot.assembled.bytes.length, weight))
+  const cloudShown = cloud?.filter((mine) => inWeight(mine.latest?.size, weight))
   const names = new Map<string, string>([
     [docKey(SCRATCH), 'new bot'],
     ...(local ?? []).map((bot): [string, string] => [
@@ -75,6 +82,13 @@ export function Library({
       className={cx('min-h-0 overflow-hidden', className)}
     >
       <div className="-mx-2 flex h-full min-h-0 flex-col gap-3 overflow-y-auto px-2">
+        <Segmented<WeightFilter>
+          label="weight class"
+          options={WEIGHT_FILTERS}
+          value={weight}
+          onValueChange={setWeight}
+          className="flex-wrap"
+        />
         {lately.length > 0 && (
           <Section title="recent">
             <Rows>
@@ -135,9 +149,13 @@ export function Library({
               <EmptyState dense action={first}>
                 none in your account yet: a save, signed in, keeps it there too.
               </EmptyState>
+            ) : weight !== 'all' && cloudShown?.length === 0 ? (
+              <EmptyState dense action={showAll}>
+                no {WEIGHT_SHORT[weight]} bots in your account.
+              </EmptyState>
             ) : (
               <Rows>
-                {cloud.map((mine) => (
+                {(cloudShown ?? []).map((mine) => (
                   <Row
                     key={mine.bot.id}
                     current={mine.bot.id === currentCloud}
@@ -155,27 +173,33 @@ export function Library({
           </Section>
         )}
         <Section title="roster">
-          <Rows>
-            {roster.map((bot) => (
-              <Row
-                key={docKey(bot.ref)}
-                current={docKey(bot.ref) === current}
-                onOpen={() => onOpen(bot.ref)}
-                action={
-                  <IconButton
-                    icon={GitFork}
-                    label={`fork ${bot.name}`}
-                    size="sm"
-                    tooltip="right"
-                    onClick={() => onFork(bot)}
-                  />
-                }
-              >
-                <span className="text-muted">{bot.roster?.tier === 'test' ? 'test · ' : ''}</span>
-                {bot.name}
-              </Row>
-            ))}
-          </Rows>
+          {weight !== 'all' && rosterShown.length === 0 ? (
+            <EmptyState dense action={showAll}>
+              no {WEIGHT_SHORT[weight]} roster bots.
+            </EmptyState>
+          ) : (
+            <Rows>
+              {rosterShown.map((bot) => (
+                <Row
+                  key={docKey(bot.ref)}
+                  current={docKey(bot.ref) === current}
+                  onOpen={() => onOpen(bot.ref)}
+                  action={
+                    <IconButton
+                      icon={GitFork}
+                      label={`fork ${bot.name}`}
+                      size="sm"
+                      tooltip="right"
+                      onClick={() => onFork(bot)}
+                    />
+                  }
+                >
+                  <span className="text-muted">{bot.roster?.tier === 'test' ? 'test · ' : ''}</span>
+                  {bot.name}
+                </Row>
+              ))}
+            </Rows>
+          )}
         </Section>
       </div>
     </Panel>

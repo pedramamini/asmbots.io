@@ -297,7 +297,7 @@ describe('/u/$handle', () => {
       'joined 2026-09-24',
     )
     const bots = screen.getByRole('table', { name: 'bots' })
-    expect(cells(bots)).toEqual([['Dwarf', 'public', '2026-09-24']])
+    expect(cells(bots)).toEqual([['Dwarf', '23 B', 'light', 'public', '2026-09-24']])
     expect(within(bots).getByRole('link', { name: 'Dwarf' }).getAttribute('href')).toBe(
       '/bots/roster-dwarf',
     )
@@ -311,6 +311,38 @@ describe('/u/$handle', () => {
     expect(within(cups).getByRole('link', { name: 'Weekly 8' }).getAttribute('href')).toBe(
       '/tournaments/t8',
     )
+  })
+
+  it('shows each bot’s size and class, and filters them by class', async () => {
+    const bot = (id: string, name: string, size?: number) => ({
+      ...DWARF_DETAIL.bot,
+      id,
+      name,
+      ...(size !== undefined && { size }),
+    })
+    server.use(
+      answer('/users/system', {
+        ...SYSTEM,
+        bots: [bot('a', 'Dwarf', 23), bot('b', 'Fort', 1500), bot('c', 'Blank')],
+      }),
+    )
+    await renderAt('/u/system', () => <ProfilePage handle="system" />)
+    const panel = await screen.findByRole('region', { name: 'bots' })
+    const bots = within(panel).getByRole('table', { name: 'bots' })
+    await waitFor(() => expect(cells(bots)).toHaveLength(3))
+    expect(cells(bots).map((row) => row.slice(0, 3))).toEqual([
+      ['Dwarf', '23 B', 'light'],
+      ['Fort', '1,500 B', 'heavy'],
+      ['Blank', '–', ''],
+    ])
+    const weight = within(panel).getByRole('radiogroup', { name: 'weight class' })
+    fireEvent.click(within(weight).getByRole('radio', { name: 'heavy' }))
+    expect(cells(bots).map((row) => row[0])).toEqual(['Fort'])
+    expect(panel.textContent).toContain('1 of 3 bots')
+    fireEvent.click(within(weight).getByRole('radio', { name: 'super' }))
+    expect(within(bots).getByText('no super bots.')).toBeTruthy()
+    fireEvent.click(within(bots).getByRole('button', { name: 'show every class' }))
+    expect(cells(bots)).toHaveLength(3)
   })
 
   it('says so when there is no such user', async () => {
@@ -356,7 +388,7 @@ describe('/u/$handle', () => {
     expect((await screen.findByRole('heading', { level: 1 })).textContent).toBe('system')
     expect(screen.queryByText(/could not load/)).toBeNull()
     expect(cells(screen.getByRole('table', { name: 'bots' }))).toEqual([
-      ['Dwarf', 'public', '2026-09-24'],
+      ['Dwarf', '23 B', 'light', 'public', '2026-09-24'],
     ])
   })
 })

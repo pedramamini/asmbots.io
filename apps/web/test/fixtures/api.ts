@@ -155,7 +155,7 @@ export const DWARF_DETAIL: BotDetail = {
 
 export const SYSTEM: UserDetail = {
   user: { id: 'system', handle: 'system', avatarUrl: null, createdAt: T },
-  bots: [DWARF_DETAIL.bot],
+  bots: [{ ...DWARF_DETAIL.bot, size: 23 }],
   hills: [{ hill: { slug: 'main', name: 'main' }, entry: entry(DWARF, 2, 145), bot: DWARF }],
   championships: [
     {

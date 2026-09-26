@@ -260,6 +260,47 @@ describe('the library', () => {
     fireEvent.click(rows[0] as HTMLElement)
     expect(onOpenCloud.mock.calls[0]?.[0].bot.id).toBe('c7')
   })
+
+  it('filters my account bots and the roster by weight class, and leaves this browser’s be', () => {
+    const cloud: MyBot[] = [
+      { bot: cloudBot('c7', 'Spin'), latest: cloudVersion('c7', 3) },
+      { bot: cloudBot('c8', 'Fort'), latest: { ...cloudVersion('c8', 1), size: 1500 } },
+      { bot: cloudBot('c9', 'Draft'), latest: null },
+    ]
+    const local = [{ id: 'l1', name: 'Mine', source: SPIN, updatedAt: 0 }]
+    render(
+      <Library
+        current="scratch"
+        local={local}
+        cloud={cloud}
+        recent={[]}
+        onOpen={() => {}}
+        onFork={() => {}}
+        onOpenCloud={() => {}}
+      />,
+    )
+    const names = (region: string) =>
+      within(screen.getByRole('region', { name: region }))
+        .queryAllByRole('listitem')
+        .map((row) => row.querySelector('button')?.textContent)
+    const weight = screen.getByRole('radiogroup', { name: 'weight class' })
+    const allRoster = names('roster').length
+    expect(names('mine (cloud)')).toEqual(['Spin · v3', 'Fort · v1', 'Draft'])
+
+    fireEvent.click(within(weight).getByRole('radio', { name: 'heavy' }))
+    expect(names('mine (cloud)')).toEqual(['Fort · v1'])
+    expect(names('my bots')).toEqual(['Mine'])
+    const heavy = names('roster')
+    expect(heavy.length).toBeGreaterThan(0)
+    expect(heavy.length).toBeLessThan(allRoster)
+
+    fireEvent.click(within(weight).getByRole('radio', { name: 'super' }))
+    const mine = screen.getByRole('region', { name: 'mine (cloud)' })
+    expect(within(mine).getByText('no super bots in your account.')).toBeTruthy()
+    fireEvent.click(within(mine).getByRole('button', { name: 'show every class' }))
+    expect(names('mine (cloud)')).toHaveLength(3)
+    expect(names('roster')).toHaveLength(allRoster)
+  })
 })
 
 describe('versions', () => {
