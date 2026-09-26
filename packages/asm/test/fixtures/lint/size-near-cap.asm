@@ -1,4 +1,4 @@
-; size-near-cap: 90% of the 512-byte limit or more.
+; size-near-cap: 90% of the lightweight limit of 512 bytes or more.
 %name     "Big"
 %strategy "Four hundred and sixty-one bytes."
 

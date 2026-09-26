@@ -487,19 +487,19 @@ describe('assemble: metadata and limits', () => {
   })
 
   it('rejects a bot over the size limit, at the line that crosses it', () => {
-    const over = run('nop\ntimes 600 nop\nnop')
+    const over = run('nop\ntimes 4200 nop\nnop')
     expect(over.diagnostics).toEqual([
       {
         severity: 'error',
         line: 2,
         col: 1,
-        len: 13,
-        message: 'the bot is 602 bytes, 90 over the limit of 512',
+        len: 14,
+        message: 'the bot is 4202 bytes, 106 over the limit of 4096',
         code: 'size-over-cap',
       },
     ])
     expect(over.bytes).toHaveLength(0)
-    expect(run('times 512 nop').bytes).toHaveLength(512)
+    expect(run('times 4096 nop').bytes).toHaveLength(4096)
     expect(run('times 101 nop', { maxBytes: 100 }).diagnostics.map((d) => d.message)).toEqual([
       'the bot is 101 bytes, 1 over the limit of 100',
     ])
@@ -509,7 +509,7 @@ describe('assemble: metadata and limits', () => {
   it('stops laying out past the 64 KB core', () => {
     const { diagnostics } = run('nop\ntimes 60000 resw 60000\ntimes 65535 jmp $')
     expect(diagnostics.map((d) => [where(d), d.message])).toEqual([
-      ['2:1+22 size-over-cap', 'the bot is more than 65536 bytes, over the limit of 512'],
+      ['2:1+22 size-over-cap', 'the bot is more than 65536 bytes, over the limit of 4096'],
     ])
   })
 

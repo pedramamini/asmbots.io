@@ -762,8 +762,10 @@ function printHelp(command?: string): void {
   Options:
     --listing       Print instruction listing table
     --bin <file>    Write binary output (default: stdout)
-    --max-bytes <N> Fail if binary exceeds N bytes
-    --help          Show this help
+    --max-bytes <N> Fail if binary exceeds N bytes (default 4096). The weight
+                    classes top out at 512 (lightweight), 1024 (middleweight),
+                    2048 (heavyweight), and 4096 (super-heavy)
+    --help         Show this help
     --json          Output JSON (not yet implemented)
 
   Exit codes:

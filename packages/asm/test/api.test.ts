@@ -43,7 +43,7 @@ describe('api: exports', () => {
       'tokenize',
     ])
     expect(byName.assemble).toBe(assemble)
-    expect(byName.MAX_BOT_BYTES).toBe(512)
+    expect(byName.MAX_BOT_BYTES).toBe(4096)
   })
 
   it('lists each diagnostic code once', () => {

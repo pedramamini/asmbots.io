@@ -144,15 +144,41 @@ describe('lint: uninitialized-di', () => {
 })
 
 describe('lint: size-near-cap', () => {
+  const size = (n: number) => `times ${n - 2} nop\njmp $`
+
   it('warns from 90% of the limit up to the limit, at the line that gets there', () => {
-    const size = (n: number) => `times ${n - 2} nop\njmp $`
-    expect(places(size(460))).toEqual([])
-    expect(places(size(461))).toEqual(['4:1+5 size-near-cap'])
-    expect(places(size(512))).toEqual(['3:1+13 size-near-cap'])
-    expect(places(size(513))).toEqual([])
-    expect(warnings(bot(size(461)))[0]?.message).toBe(
+    const cap = { maxBytes: 512 }
+    expect(places(size(460), cap)).toEqual([])
+    expect(places(size(461), cap)).toEqual(['4:1+5 size-near-cap'])
+    expect(places(size(512), cap)).toEqual(['3:1+13 size-near-cap'])
+    expect(places(size(513), cap)).toEqual([])
+    expect(warnings(bot(size(461)), cap)[0]?.message).toBe(
       'the bot is 461 bytes, 90% of the limit of 512 (51 left); it reaches 90% on this line',
     )
+  })
+
+  it('with no limit given, warns within 10% under the top of each weight class', () => {
+    for (const top of [512, 1024, 2048, 4096]) {
+      const from = Math.ceil((top * 9) / 10)
+      expect(places(size(from - 1))).toEqual([])
+      expect(places(size(from))).toEqual(['4:1+5 size-near-cap'])
+      expect(places(size(top))).toEqual([`3:1+${`times ${top - 2} nop`.length} size-near-cap`])
+    }
+    expect(places(size(513))).toEqual([])
+    expect(places(size(1025))).toEqual([])
+    const light = warnings(bot(size(470)))[0]
+    expect(light?.message).toBe(
+      'the bot is 470 bytes, 42 under the lightweight limit of 512; it reaches 90% on this line',
+    )
+    expect(light?.fix).toEndWith('; past 512 bytes it is a middleweight')
+    expect(warnings(bot(size(2000)))[0]?.message).toBe(
+      'the bot is 2000 bytes, 48 under the heavyweight limit of 2048; it reaches 90% on this line',
+    )
+    const heaviest = warnings(bot(size(4096)))[0]
+    expect(heaviest?.message).toBe(
+      'the bot is 4096 bytes, 0 under the super-heavy limit of 4096; it reaches 90% on this line',
+    )
+    expect(heaviest?.fix).toEndWith('less data')
   })
 
   it('reads the limit from the options', () => {

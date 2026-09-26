@@ -14,7 +14,7 @@ flowchart LR
 
 | Export | Does |
 |---|---|
-| `assemble(source, { maxBytes })` | Assembles a bot and returns an `Assembled` (see [Output](#output)). Bad source never throws: each problem is a diagnostic. `maxBytes` is the size limit, `MAX_BOT_BYTES` (512) when not given. |
+| `assemble(source, { maxBytes })` | Assembles a bot and returns an `Assembled` (see [Output](#output)). Bad source never throws: each problem is a diagnostic. `maxBytes` is the size limit, `MAX_BOT_BYTES` (4096, the top of the heaviest weight class) when not given. |
 | `assembleOrThrow(source, { maxBytes, file })` | For the CLI and scripts: the `Assembled`, or an `AssembleError`. Its `message` has one `formatDiag` line per error, with `file` before each, and its `diagnostics` has all of them. |
 | `lint(source, assembled, { maxBytes })` | Warnings about a bot that assembles but may not do what its author means (see [Linter](#linter)). Give it the options that `assemble` got. It does not repeat the assembler's errors, so show both. |
 | `formatSource(source)` | The canonical layout (see [Formatter](#formatter)). It never changes what the source assembles to. |
@@ -146,11 +146,11 @@ Each example is a whole bot after a `%name` and a `%strategy` line are added at 
 | `circular-equ` | error | assembler | `a equ a` | An `equ` defined in terms of itself. |
 | `missing-name` | error | assembler | `nop` | No `%name` line. |
 | `no-convergence` | error | assembler | `a: add bx, 131 - (b - a)`<br>`b:` | Instruction sizes that still change after 16 passes. |
-| `size-over-cap` | error | assembler | `times 600 nop` | A bot bigger than `maxBytes`. |
+| `size-over-cap` | error | assembler | `times 4100 nop` | A bot bigger than `maxBytes`. |
 | `absolute-address` | warning | lint | `mov ax, [0x0100]` | A memory operand with no register: a fixed place in the core, not in the bot (ISA §6.4). |
 | `unreachable` | warning | lint | `ret`<br>`nop` | Code after a `jmp`, `ret`, `hlt`, `int3`, or DAT, with no label before it. |
 | `dat-in-code` | warning | lint | `nop`<br>`dat` | DAT that code falls into: `dat`, or the zeros of `resb`, `resw`, and `align`. |
-| `size-near-cap` | warning | lint | `times 470 nop` | A bot of 90% of `maxBytes` or more. |
+| `size-near-cap` | warning | lint | `times 470 nop` | A bot of 90% of `maxBytes` or more, or with no `maxBytes`, of the top of its weight class. |
 | `no-strategy` | warning | lint | `nop` | No `%strategy`, or an empty one. |
 | `hlt-in-code` | warning | lint | `hlt` | A `hlt` that the bot runs. |
 | `uninitialized-di` | warning | lint | `movsb` | A string instruction that uses di before any line sets di. |
@@ -280,7 +280,7 @@ The round trip is exact for any byte string, not only for defined instructions: 
 - `dat-in-code`: `dat`, or the zeros of `resb`, `resw`, and `align`, after an instruction that falls through. An `align` counts only when the listing shows padding, so a bot with errors gets no `align` warning.
 - `hlt-in-code`: the first instruction, a `hlt` that code falls into, and a `hlt` under a label that a jump, call, loop, or `spl` names. A bomb template after a `jmp` gets no warning.
 - `uninitialized-di`: works in source order, not in execution order. `mov`, `lea`, `pop`, the ALU instructions, the shifts, `inc`, `dec`, `neg`, and `not` set di when di is the first operand, and `xchg` sets di on either side. `cmp`, `test`, `push`, and `[di]` only read di.
-- `size-near-cap`: only for a bot without errors, on the listing line where the bot reaches 90% (`size * 10 >= maxBytes * 9`).
+- `size-near-cap`: only for a bot without errors, on the listing line where the bot reaches 90% (`size * 10 >= maxBytes * 9`). With no `maxBytes`, the limit is the top of the bot's weight class (512, 1024, 2048, or 4096), and the warning names it: `the bot is 470 bytes, 42 under the lightweight limit of 512`.
 - `no-strategy`: on the `%name` line (or 1:1 without one), or on the text of an empty `%strategy`.
 
 `lint` does not read `; lint: allow <code>` comments. A caller that allows a warning drops it.

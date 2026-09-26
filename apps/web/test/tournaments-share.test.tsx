@@ -274,7 +274,7 @@ describe('a tournament link', () => {
     unseeded.seeding = 'given'
     expect(reason(fragmentOf(unseeded))).toMatch(/^match \d+ is not of its bots$/)
     const giant = linkJson(meleeCup())
-    ;(giant.entrants as { bytes?: string }[])[0]!.bytes = toBase64Url(new Uint8Array(600))
+    ;(giant.entrants as { bytes?: string }[])[0]!.bytes = toBase64Url(new Uint8Array(INLINE_BYTES_UP_TO + 1))
     ;(giant.entrants as { source: string }[])[0]!.source = 'local'
     expect(reason(fragmentOf(giant))).toBe(`Dwarf's bytes must be 1..${INLINE_BYTES_UP_TO}`)
   })

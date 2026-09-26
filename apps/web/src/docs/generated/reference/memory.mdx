@@ -14,7 +14,7 @@ Beside the core is an ownership map: one byte per address, which bot wrote it la
 
 ## Placement
 
-A bot is at most 512 bytes. The loader puts each bot at a base address drawn from the battle's seed, at least 1,024 bytes from every other bot, wrapping included, and does not move or relocate it. The same seed and the same bots give the same places, so every battle can be run again.
+A bot is 1 to 4,096 bytes, in four weight classes (see [weight classes](/docs/tournaments/weight-classes)). The loader puts each bot at a base address drawn from the battle's seed, at least 1,024 bytes from every other bot, wrapping included, and does not move or relocate it. The same seed and the same bots give the same places, so every battle can be run again.
 
 Each bot starts with one process at its base, and may have up to 64 (the process cap). A battle ends when one bot or none is alive, or at 100,000 cycles (80,000 on the hills).
 

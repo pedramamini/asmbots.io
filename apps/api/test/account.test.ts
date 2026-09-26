@@ -144,7 +144,7 @@ describe('POST /api/bots/import', () => {
   it('refuses a bot that does not assemble or is over the size cap, and makes the rest', async () => {
     const jar = new Jar()
     await signIn(jar, 'mixed-bag')
-    const big = `%name "Huge"\nstart:\n${'  nop\n'.repeat(600)}  jmp start\n`
+    const big = `%name "Huge"\nstart:\n${'  nop\n'.repeat(4200)}  jmp start\n`
     const res = await send(jar, '/api/bots/import', {
       method: 'POST',
       body: {

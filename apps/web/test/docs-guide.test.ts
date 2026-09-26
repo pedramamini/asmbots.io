@@ -265,7 +265,7 @@ describe('tools/cli', () => {
     // The test runs at the repository root, the one place `golden` finds its script.
     expect(run('golden').code).toBe(0)
     expect(run('asm', '--help').text).toContain('(not yet implemented)')
-    expect(MAX_BOT_BYTES).toBe(512)
+    expect(MAX_BOT_BYTES).toBe(4096)
   })
 })
 

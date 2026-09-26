@@ -21,12 +21,14 @@ import { parse } from './parser'
  * - `uninitialized-di`: a string instruction that uses di (`movs`, `cmps`, `stos`, `scas`) before
  *   any line in the source sets di. Heuristic: source order, not execution order.
  * - `size-near-cap`: a bot of 90% of the size limit or more, at the line where it gets there.
+ *   With no `opts.maxBytes`, the limit is the top of the bot's weight class: 512, 1024, 2048, or
+ *   4096.
  * - `no-strategy`: no `%strategy`, or an empty one.
  *
  * @throws RangeError when `opts.maxBytes` is not an integer in 0..65536.
  */
 export function lint(source: string, assembled: Assembled, opts: AssembleOptions = {}): Diag[] {
-  const maxBytes = maxBytesOf(opts)
+  const maxBytes = opts.maxBytes === undefined ? undefined : maxBytesOf(opts)
   const tokens = tokenize(source)
   const { lines } = parse(tokens)
   const texts = source.split(/\r\n|\r|\n/)
@@ -245,20 +247,43 @@ function uninitializedDi(lines: readonly Line[]): Diag[] {
   return out
 }
 
-function sizeNearCap(lines: readonly Line[], assembled: Assembled, maxBytes: number): Diag[] {
+/**
+ * The top of each weight class, lightest first, and the class a bot past it is in. The classes are
+ * `WEIGHT_CLASSES` in `packages/protocol/src/weight.ts`; this package does not import it.
+ */
+const CLASS_LIMITS = [
+  { max: 512, name: 'lightweight', next: 'middleweight' },
+  { max: 1024, name: 'middleweight', next: 'heavyweight' },
+  { max: 2048, name: 'heavyweight', next: 'super-heavy' },
+  { max: 4096, name: 'super-heavy', next: undefined },
+] as const
+
+/** Near the limit `maxBytes`, or with none, near the top of the bot's weight class. */
+function sizeNearCap(
+  lines: readonly Line[],
+  assembled: Assembled,
+  maxBytes: number | undefined,
+): Diag[] {
   const size = assembled.bytes.length
+  const weight = maxBytes === undefined ? CLASS_LIMITS.find((c) => size <= c.max) : undefined
+  const limit = maxBytes ?? weight?.max
   // A bot with errors has no bytes, and a bot over the limit is not near it.
-  if (size === 0 || size > maxBytes || size * 10 < maxBytes * 9) return []
-  const cross = assembled.listing.find((l) => (l.address + l.bytes.length) * 10 >= maxBytes * 9)
+  if (size === 0 || limit === undefined || size > limit || size * 10 < limit * 9) return []
+  const cross = assembled.listing.find((l) => (l.address + l.bytes.length) * 10 >= limit * 9)
   const line = cross === undefined ? undefined : lines[cross.lineNo - 1]
-  const percent = Math.floor((size * 100) / maxBytes)
+  const percent = Math.floor((size * 100) / limit)
+  const near =
+    weight === undefined
+      ? `${percent}% of the limit of ${limit} (${limit - size} left)`
+      : `${limit - size} under the ${weight.name} limit of ${limit}`
+  const past = weight?.next === undefined ? '' : `; past ${limit} bytes it is a ${weight.next}`
   return [
     warning(
       line?.line ?? 1,
       line ?? { col: 1, len: 0 },
       'size-near-cap',
-      `the bot is ${size} bytes, ${percent}% of the limit of ${maxBytes} (${maxBytes - size} left); it reaches 90% on this line`,
-      'keep room for changes: rel8 jumps, `inc` and `dec` for small steps, fewer `times` repeats, less data',
+      `the bot is ${size} bytes, ${near}; it reaches 90% on this line`,
+      `keep room for changes: rel8 jumps, \`inc\` and \`dec\` for small steps, fewer \`times\` repeats, less data${past}`,
     ),
   ]
 }

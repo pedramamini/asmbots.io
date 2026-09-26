@@ -253,10 +253,10 @@ b:
 **error**, from the assembler. A bot bigger than `maxBytes`.
 
 ```asm fragment
-times 600 nop
+times 4100 nop
 ```
 
-> the bot is 600 bytes, 88 over the limit of 512
+> the bot is 4100 bytes, 4 over the limit of 4096
 
 ## Warnings
 
@@ -302,15 +302,15 @@ dat
 
 ### size-near-cap
 
-**warning**, from the lint. A bot of 90% of `maxBytes` or more.
+**warning**, from the lint. A bot of 90% of `maxBytes` or more, or with no `maxBytes`, of the top of its weight class.
 
 ```asm fragment
 times 470 nop
 ```
 
-> the bot is 470 bytes, 91% of the limit of 512 (42 left); it reaches 90% on this line
+> the bot is 470 bytes, 42 under the lightweight limit of 512; it reaches 90% on this line
 
-**Fix:** keep room for changes: rel8 jumps, `inc` and `dec` for small steps, fewer `times` repeats, less data
+**Fix:** keep room for changes: rel8 jumps, `inc` and `dec` for small steps, fewer `times` repeats, less data; past 512 bytes it is a middleweight
 
 ### no-strategy
 

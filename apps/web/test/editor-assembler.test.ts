@@ -49,15 +49,15 @@ describe('assembleSource', () => {
   })
 
   it('measures a bot past the cap, whose only error is the cap', () => {
-    const result = assembleSource(bot('        times 600 nop\n'))
+    const result = assembleSource(bot('        times 4200 nop\n'))
     expect(resultErrors(result).map((d) => d.code)).toEqual(['size-over-cap'])
     expect(result.assembled.bytes.length).toBe(0)
-    expect(result.size).toBe(600)
+    expect(result.size).toBe(4200)
     expect(result.size).toBeGreaterThan(MAX_BOT_BYTES)
   })
 
   it('does not measure past the cap when there is another error too', () => {
-    const result = assembleSource(bot('        times 600 nop\n        jmp nowhere\n'))
+    const result = assembleSource(bot('        times 4200 nop\n        jmp nowhere\n'))
     expect(
       resultErrors(result)
         .map((d) => d.code)

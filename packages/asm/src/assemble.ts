@@ -28,8 +28,11 @@ import { BYTE_REGISTERS } from './keywords'
 import { type Token, tokenize } from './lexer'
 import { parse } from './parser'
 
-/** ISA §5.5 `maxBotBytes`: the size limit when the caller sets none. */
-export const MAX_BOT_BYTES = 512
+/**
+ * ISA §5.5 `maxBotBytes`: the size limit when the caller sets none, the top of the heaviest weight
+ * class. `MAX_BOT_BYTES_ALL` in `packages/protocol/src/weight.ts`; this package does not import it.
+ */
+export const MAX_BOT_BYTES = 4096
 
 /** Layout passes before the assembler gives up on sizes that keep changing (ARCHITECTURE §4). */
 const MAX_PASSES = 16
@@ -41,7 +44,7 @@ const CORE_SIZE = 0x10000
 const MAX_COUNT = 0xffff
 
 export interface AssembleOptions {
-  /** The size limit in bytes, ISA §5.5 `maxBotBytes`: 0..65536, 512 when not given. */
+  /** The size limit in bytes, ISA §5.5 `maxBotBytes`: 0..65536, 4096 when not given. */
   maxBytes?: number
 }
 
@@ -179,7 +182,7 @@ export function assembleOrThrow(source: string, opts: AssembleOrThrowOptions = {
 }
 
 /**
- * The size limit of `opts`, 512 when not given.
+ * The size limit of `opts`, 4096 when not given.
  *
  * @throws RangeError when it is not an integer in 0..65536.
  */

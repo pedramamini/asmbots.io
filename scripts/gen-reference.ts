@@ -630,7 +630,7 @@ function memoryPage(): ReferencePage {
       '## Ownership',
       'Beside the core is an ownership map: one byte per address, which bot wrote it last. Loading a bot counts as its write. The arena colors the core by it. It has no effect on the battle: any process can read or write any address.',
       '## Placement',
-      `A bot is at most ${MAX_BOT_BYTES} bytes. The loader puts each bot at a base address drawn from the battle's seed, at least ${minSpacing.toLocaleString('en-US')} bytes from every other bot, wrapping included, and does not move or relocate it. The same seed and the same bots give the same places, so every battle can be run again.`,
+      `A bot is 1 to ${MAX_BOT_BYTES.toLocaleString('en-US')} bytes, in four weight classes (see [weight classes](/docs/tournaments/weight-classes)). The loader puts each bot at a base address drawn from the battle's seed, at least ${minSpacing.toLocaleString('en-US')} bytes from every other bot, wrapping included, and does not move or relocate it. The same seed and the same bots give the same places, so every battle can be run again.`,
       `Each bot starts with one process at its base, and may have up to ${maxProcesses} (the process cap). A battle ends when one bot or none is alive, or at ${maxCycles.toLocaleString('en-US')} cycles (80,000 on the hills).`,
       '## The stack',
       `sp starts at the base, so a ${link('push')} or ${link('call')} writes the word just under the bot, and the stack grows down into the core. That core belongs to nobody: an enemy bomb there changes what ${link('pop')} and ${link('ret')} read.`,
