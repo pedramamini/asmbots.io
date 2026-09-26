@@ -23,11 +23,8 @@ import { loadRoster, ROSTER, ROSTER_FAMILIES, ROSTER_TIERS } from '../src/roster
 const PACKAGE = join(import.meta.dir, '..')
 const ROSTER_DIR = join(PACKAGE, 'roster')
 
-/**
- * The weight classes the roster has fighters for, lightest first. A class joins once it has two
- * fighters; when every class has, this is all of `WEIGHT_CLASSES`.
- */
-const FILLED_CLASSES: readonly WeightClassSlug[] = WEIGHT_CLASSES.slice(0, 3).map((c) => c.slug)
+/** The weight classes the roster has fighters for, lightest first: every one of them. */
+const FILLED_CLASSES: readonly WeightClassSlug[] = WEIGHT_CLASSES.map((c) => c.slug)
 
 const bots = loadRoster()
 

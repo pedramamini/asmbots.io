@@ -4,6 +4,7 @@
  * (`images.ts`).
  */
 import bastion from '../roster/bastion.asm' with { type: 'text' }
+import citadel from '../roster/citadel.asm' with { type: 'text' }
 import decoy from '../roster/decoy.asm' with { type: 'text' }
 import dwarf from '../roster/dwarf.asm' with { type: 'text' }
 import dwarfWide from '../roster/dwarf-wide.asm' with { type: 'text' }
@@ -19,6 +20,7 @@ import paper from '../roster/paper.asm' with { type: 'text' }
 import scanner from '../roster/scanner.asm' with { type: 'text' }
 import silk from '../roster/silk.asm' with { type: 'text' }
 import stone from '../roster/stone.asm' with { type: 'text' }
+import swarm from '../roster/swarm.asm' with { type: 'text' }
 import count from '../roster/test/count.asm' with { type: 'text' }
 import divZero from '../roster/test/div-zero.asm' with { type: 'text' }
 import halt from '../roster/test/halt.asm' with { type: 'text' }
@@ -39,6 +41,8 @@ const SOURCES: Readonly<Record<string, string>> = {
   decoy,
   bastion,
   mender,
+  citadel,
+  swarm,
   stone,
   paper,
   silk,

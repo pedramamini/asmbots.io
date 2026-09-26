@@ -27,6 +27,19 @@ In x16c the classic families do not form the Redcode triangle. Over seeds 1..200
 | `solid` | Real fighters that fill out the roster. The golden melees play them. |
 | `test` | The test bots: family `test`, file `roster/test/<slug>.asm`. Every other bot is `roster/<slug>.asm`. |
 
+## Weight classes
+
+A hill can take bots of one size class (`packages/protocol/src/weight.ts`), and the roster carries two or more fighters in each: `test/roster.test.ts` checks it. The first 14 fighters and painters are lightweights. The six heavier ones:
+
+| Bot | Bytes | Class | Tactic |
+|---|---|---|---|
+| `bastion` | 548 | middleweight | A dwarf with 128 unrolled bombs a pass, between two fields of fake code |
+| `twins` | 524 | middleweight | Paper whose copies alternate a dense and a wide unrolled burst |
+| `hydra` | 1,288 | heavyweight | Scans a lap, bombs four laps, then walks as an imp ring |
+| `mender` | 1,443 | heavyweight | A bomber that mends its loop from a spare copy |
+| `citadel` | 2,138 | super-heavy | Three bomber cells, each rebuilding the next when it dies |
+| `swarm` | 2,334 | super-heavy | 64 bombers side by side, one process and one lane each |
+
 ## House style
 
 A roster bot reads like this one:
@@ -73,7 +86,7 @@ end:
    start:  hlt                             ; lint: allow hlt-in-code: dying at once is the whole bot
    ```
 
-8. **Small.** At most 512 bytes (`MAX_BOT_BYTES`).
+8. **Sized for its class.** 1 to 4,096 bytes (`MAX_BOT_BYTES`), and a bot over 512 bytes spends its size on work: two thirds or more of its bytes are code that runs or data it reads, and its header says why it is the size it is. See [Weight classes](#weight-classes).
 
 `test/roster.test.ts` checks each rule that a machine can check: the header comment of three or more sentences, the metadata against the entry, the formatter, the linter, the size, and zero assembler errors. It checks the Sketch bot above the same way. `test/fighters.test.ts` fights each bot with the helper in `test/fight.ts` (hill rules, 80,000 cycles, the bot order swapped every other seed) and checks that each record line in a header is the record it gets. `test/painters.test.ts` and `test/test-bots.test.ts` check what each painter and each test bot does, and `test/goldens.test.ts` checks the [goldens](../README.md#goldens).
 

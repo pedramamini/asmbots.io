@@ -118,6 +118,26 @@ export const ROSTER: readonly RosterEntry[] = [
       'A heavyweight bomber that mends its loop from a spare copy: beats dwarf 9-1, scanner 9-1; loses to bastion 3-7, paper 0-8-2, hybrid 0-8-2, twins 0-10.',
   },
   {
+    slug: 'citadel',
+    file: 'roster/citadel.asm',
+    name: 'Citadel',
+    author: 'ASM Bots',
+    family: 'dwarf',
+    tier: 'solid',
+    blurb:
+      'A super-heavy of three bombers that rebuild each other: beats dwarf 9-1, scanner 10-0, bastion 8-2, mender 10-0, hydra 7-3; loses to paper 0-5-5, hybrid 1-8-1, twins 1-7-2.',
+  },
+  {
+    slug: 'swarm',
+    file: 'roster/swarm.asm',
+    name: 'Swarm',
+    author: 'ASM Bots',
+    family: 'dwarf',
+    tier: 'solid',
+    blurb:
+      'A super-heavy of 64 bombers, one process and one lane each: beats dwarf 9-1, scanner 10-0, hybrid 9-0-1, bastion 7-3, mender 9-1, hydra 7-3; ties paper 10/10; splits twins 3-4-3.',
+  },
+  {
     slug: 'stone',
     file: 'roster/stone.asm',
     name: 'Stone',
