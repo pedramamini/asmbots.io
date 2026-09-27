@@ -202,6 +202,33 @@ describe('the settings account panel', () => {
     await waitFor(() => expect(account.textContent).toContain('signed in: octo-2'))
   })
 
+  it('shows the name on the profile until the user makes it anonymous', async () => {
+    signedIn(true)
+    const seen: unknown[] = []
+    const me = { ...onboarded, user: { ...onboarded.user, anonymous: false } }
+    server.use(
+      answer('/me', me),
+      answer('/me/bots', { bots: [] }),
+      answer('/me/tokens', { tokens: [] }),
+      answerPatch({ ...me, user: { ...me.user, anonymous: true } }, 200, seen),
+    )
+    renderWith(() => <SettingsPage />)
+    const account = await screen.findByRole('region', { name: 'account' })
+    const name = await within(account).findByRole('radiogroup', { name: 'name on your profile' })
+    const shown = within(name).getByRole('radio', { name: 'shown' })
+    expect(shown.getAttribute('aria-checked')).toBe('true')
+    fireEvent.click(within(name).getByRole('radio', { name: 'anonymous' }))
+    expect(
+      await screen.findByText('your profile is anonymous: only your handle shows.'),
+    ).toBeTruthy()
+    expect(seen).toEqual([{ anonymous: true }])
+    await waitFor(() =>
+      expect(
+        within(name).getByRole('radio', { name: 'anonymous' }).getAttribute('aria-checked'),
+      ).toBe('true'),
+    )
+  })
+
   it('deletes the account only after the handle is typed, and unlinks the local bots', async () => {
     signedIn(true)
     const local = await saveLocalBot({ name: 'Spin', source: 'jmp $' })

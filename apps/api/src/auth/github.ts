@@ -62,17 +62,26 @@ async function githubApi(path: string, token: string): Promise<Response> {
   })
 }
 
-/** The GitHub account behind `token`: its id, login, avatar, and primary verified email. */
-async function fetchGithubAccount(token: string): Promise<GithubProfile & { login: string }> {
+/** The GitHub account behind `token`: its id, login, name, avatar, and primary verified email. */
+async function fetchGithubAccount(token: string): Promise<GithubProfile> {
   const res = await githubApi('/user', token)
   if (!res.ok) throw new Error(`GitHub /user answered ${res.status}`)
-  const user = (await res.json()) as { id?: unknown; login?: unknown; avatar_url?: unknown }
+  const user = (await res.json()) as {
+    id?: unknown
+    login?: unknown
+    name?: unknown
+    avatar_url?: unknown
+  }
   if (typeof user.id !== 'number' || typeof user.login !== 'string') {
     throw new Error('GitHub /user has no id or login')
   }
   return {
     githubId: user.id,
     login: user.login,
+    name:
+      typeof user.name === 'string' && user.name.trim() !== ''
+        ? user.name.trim().slice(0, 255)
+        : null,
     avatarUrl: typeof user.avatar_url === 'string' ? user.avatar_url : null,
     email: await fetchPrimaryEmail(token),
   }
@@ -89,14 +98,14 @@ async function fetchPrimaryEmail(token: string): Promise<string | null> {
 }
 
 /** The account `fakeAuth` signs in for `login`: an id of its own, above any real GitHub id. */
-function fakeAccount(login: string): GithubProfile & { login: string } {
+function fakeAccount(login: string): GithubProfile {
   let hash = 0x811c9dc5
   for (const ch of login) hash = Math.imul(hash ^ (ch.codePointAt(0) ?? 0), 0x01000193) >>> 0
-  return { githubId: 2 ** 40 + hash, login, avatarUrl: null, email: null }
+  return { githubId: 2 ** 40 + hash, login, name: null, avatarUrl: null, email: null }
 }
 
 /** The user for a GitHub account, made on its first sign-in. */
-async function signInUser(db: D1Database, account: GithubProfile & { login: string }) {
+async function signInUser(db: D1Database, account: GithubProfile) {
   const known = await updateGithubUser(db, account)
   if (known) return known
   for (const handle of handleCandidates(account.login)) {
@@ -109,7 +118,7 @@ async function signInUser(db: D1Database, account: GithubProfile & { login: stri
 /** Signs `account` in: its user, a new session in place of any the browser had, then `back`. */
 async function finishSignIn(
   c: Context<AppEnv>,
-  account: GithubProfile & { login: string },
+  account: GithubProfile,
   back: string,
 ): Promise<Response> {
   const user = await signInUser(c.env.DB, account)

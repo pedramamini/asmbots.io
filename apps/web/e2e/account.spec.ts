@@ -58,7 +58,7 @@ test('signs in, picks a handle, imports two local bots, and shows them on the pr
   await page.getByRole('menuitem', { name: 'profile' }).click()
   await expect(page).toHaveURL(`${WORKER}/u/${handle}`)
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(handle)
-  const bots = page.getByRole('table', { name: 'bots' })
+  const bots = page.getByRole('list', { name: 'bots' })
   await expect(bots.getByRole('link', { name: 'spinner' })).toBeVisible()
   await expect(bots.getByRole('link', { name: 'napper' })).toBeVisible()
 
@@ -104,7 +104,7 @@ test('saves a bot in the account: v1, the same bytes again, v2, and the bot page
   await expect(cloud.getByRole('button')).toHaveText([/ · v2$/])
 
   await page.goto(`/u/${login}`)
-  await page.getByRole('table', { name: 'bots' }).getByRole('link').first().click()
+  await page.getByRole('list', { name: 'bots' }).getByRole('link').first().click()
   await expect(page).toHaveURL(/\/bots\//)
   await expect(page.getByRole('table', { name: 'versions' }).getByRole('row')).toHaveCount(3)
   await expect(page.getByRole('button', { name: 'fork' })).toBeEnabled()

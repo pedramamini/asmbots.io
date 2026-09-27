@@ -77,7 +77,7 @@ const PAGE_BUDGETS: readonly PageBudget[] = [
   { page: '/hills', route: 'src/routes/hills/index.tsx', kb: 180 },
   { page: '/hills/$slug', route: 'src/routes/hills/$slug.tsx', kb: 200 },
   { page: '/bots/$id', route: 'src/routes/bots/$id.tsx', kb: 195 },
-  { page: '/u/$handle', route: 'src/routes/u/$handle.tsx', kb: 180 },
+  { page: '/u/$handle', route: 'src/routes/u/$handle.tsx', kb: 190 },
   { page: '/docs', route: 'src/routes/docs/index.tsx', layout: 'src/routes/docs.tsx', kb: 180 },
   { page: '/docs/$', route: 'src/routes/docs/$.tsx', layout: 'src/routes/docs.tsx', kb: 190 },
   { page: '/stats', route: 'src/routes/stats.tsx', kb: 190 },

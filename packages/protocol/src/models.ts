@@ -47,11 +47,20 @@ export function isAllowedHandle(handle: string): boolean {
   return handleProblem(handle) === null
 }
 
+/**
+ * A user. `name` (the GitHub account's display name) and `github` (its login) are there when the
+ * account has them and the user shows who they are; an `anonymous` user's public records carry
+ * neither, and a null `avatarUrl` (PRODUCT_SPEC §6). `anonymous` is there when it is true, and
+ * always for the user themself (`GET /api/me`).
+ */
 export const User = z.object({
   id: Id,
   handle: Handle,
   avatarUrl: z.nullable(z.string()),
   createdAt: Timestamp,
+  name: z.optional(z.string().check(z.maxLength(255))),
+  github: z.optional(Handle),
+  anonymous: z.optional(z.boolean()),
 })
 export type User = z.output<typeof User>
 

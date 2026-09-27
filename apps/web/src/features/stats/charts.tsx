@@ -33,7 +33,7 @@ function barHeight(value: number, max: number): string {
 }
 
 /** Hairlines across a chart at a quarter, a half, and three quarters of its height. */
-function Gridlines() {
+export function Gridlines() {
   return (
     <>
       {[25, 50, 75].map((at) => (

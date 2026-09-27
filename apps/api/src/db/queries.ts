@@ -46,6 +46,11 @@ export interface UserRow {
   email: string | null
   /** When the user picked their handle; null until the first-sign-in dialog is done. */
   onboarded_at: string | null
+  /** The GitHub account's display name and login, as of the last sign-in. */
+  name: string | null
+  github_login: string | null
+  /** 1 when the user hides their name, login, and avatar (PRODUCT_SPEC §6). */
+  anonymous: number
 }
 
 export interface BotRow {
@@ -179,8 +184,21 @@ export interface BotLabelRow {
 const LABEL_COLUMNS = 'v.id AS version_id, v.bot_id, v.version, v.author, b.slug, b.name, u.handle'
 const LABEL_JOINS = 'JOIN bots b ON b.id = v.bot_id JOIN users u ON u.id = b.owner_id'
 
-export function toUser(row: UserRow): User {
-  return { id: row.id, handle: row.handle, avatarUrl: row.avatar_url, createdAt: row.created_at }
+/**
+ * The user as a record says it: an anonymous user's name, GitHub login, and avatar left out,
+ * except for `self` (the user reading themself), which also always says `anonymous`.
+ */
+export function toUser(row: UserRow, self = false): User {
+  const hidden = row.anonymous === 1 && !self
+  return {
+    id: row.id,
+    handle: row.handle,
+    avatarUrl: hidden ? null : row.avatar_url,
+    createdAt: row.created_at,
+    ...(hidden || row.name === null || row.name === '' ? {} : { name: row.name }),
+    ...(hidden || row.github_login === null ? {} : { github: row.github_login }),
+    ...(self || hidden ? { anonymous: row.anonymous === 1 } : {}),
+  }
 }
 
 export function toBot(row: BotRow): Bot {
@@ -343,6 +361,9 @@ export interface GithubProfile {
   githubId: number
   avatarUrl: string | null
   email: string | null
+  /** The account's display name, when it has one, and its login. */
+  name: string | null
+  login: string
 }
 
 /**
@@ -351,16 +372,26 @@ export interface GithubProfile {
  */
 export async function upsertGithubUser(
   db: D1Database,
-  { id, handle, githubId, avatarUrl, email }: GithubProfile & { id: string; handle: string },
+  {
+    id,
+    handle,
+    githubId,
+    avatarUrl,
+    email,
+    name,
+    login,
+  }: GithubProfile & { id: string; handle: string },
 ): Promise<UserRow> {
   const row = await db
     .prepare(
-      `INSERT INTO users (id, github_id, handle, avatar_url, email) VALUES (?, ?, ?, ?, ?)
+      `INSERT INTO users (id, github_id, handle, avatar_url, email, name, github_login)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT (github_id) DO UPDATE
-         SET avatar_url = excluded.avatar_url, email = excluded.email
+         SET avatar_url = excluded.avatar_url, email = excluded.email, name = excluded.name,
+           github_login = excluded.github_login
        RETURNING *`,
     )
-    .bind(id, githubId, handle, avatarUrl, email)
+    .bind(id, githubId, handle, avatarUrl, email, name, login)
     .first<UserRow>()
   if (row === null) throw new Error(`upserting github user ${githubId} returned no row`)
   return row
@@ -368,11 +399,14 @@ export async function upsertGithubUser(
 
 export async function updateGithubUser(
   db: D1Database,
-  { githubId, avatarUrl, email }: GithubProfile,
+  { githubId, avatarUrl, email, name, login }: GithubProfile,
 ): Promise<UserRow | null> {
   return db
-    .prepare('UPDATE users SET avatar_url = ?, email = ? WHERE github_id = ? RETURNING *')
-    .bind(avatarUrl, email, githubId)
+    .prepare(
+      `UPDATE users SET avatar_url = ?, email = ?, name = ?, github_login = ?
+       WHERE github_id = ? RETURNING *`,
+    )
+    .bind(avatarUrl, email, name, login, githubId)
     .first<UserRow>()
 }
 
@@ -404,6 +438,18 @@ export async function setUserHandle(
     }
     throw err
   }
+}
+
+/** Whether user `id` hides their name, GitHub login, and avatar. Null when the user is gone. */
+export async function setUserAnonymous(
+  db: D1Database,
+  id: string,
+  anonymous: boolean,
+): Promise<UserRow | null> {
+  return db
+    .prepare('UPDATE users SET anonymous = ? WHERE id = ? RETURNING *')
+    .bind(anonymous ? 1 : 0, id)
+    .first<UserRow>()
 }
 
 /** The bot `id`; null when there is none, or its owner deleted it. */
@@ -666,13 +712,14 @@ export async function listBotPlacements(db: D1Database, botId: string): Promise<
 export async function listUserHillBests(db: D1Database, userId: string): Promise<HillBest[]> {
   const { results } = await db
     .prepare(
-      `SELECT e.*, ${LABEL_COLUMNS}, h.slug AS hill_slug, h.name AS hill_name
+      `SELECT e.*, ${LABEL_COLUMNS}, h.slug AS hill_slug, h.name AS hill_name,
+         (SELECT COUNT(*) FROM hill_entries n WHERE n.hill_id = h.id) AS entrants
        FROM hill_entries e JOIN bot_versions v ON v.id = e.bot_version_id ${LABEL_JOINS}
        JOIN hills h ON h.id = e.hill_id
        WHERE b.owner_id = ? ORDER BY h.created_at, h.slug, e.rank`,
     )
     .bind(userId)
-    .all<HillEntryRow & BotLabelRow & { hill_slug: string; hill_name: string }>()
+    .all<HillEntryRow & BotLabelRow & { hill_slug: string; hill_name: string; entrants: number }>()
   const best = new Map<string, HillBest>()
   for (const row of results) {
     if (best.has(row.hill_id)) continue
@@ -680,6 +727,7 @@ export async function listUserHillBests(db: D1Database, userId: string): Promise
       hill: { slug: row.hill_slug, name: row.hill_name },
       entry: toHillEntry(row),
       bot: toBotLabel(row),
+      entrants: row.entrants,
     })
   }
   return [...best.values()]

@@ -34,7 +34,7 @@ import { closestFight, missedText, submissionStatus } from '../src/features/hill
 import { validateHillSearch } from '../src/features/hills/search'
 import { clearLocalBots, saveLocalBot } from '../src/store/local-bots'
 import { answer, answerPost, refuse, renderAt, useApiServer } from './api-server'
-import { DWARF, HILLS, IMP, MAIN_DETAIL, MATCHES, PAPER } from './fixtures/api'
+import { DWARF, HILLS, IMP, MAIN_DETAIL, MATCHES, NO_STATS, PAPER } from './fixtures/api'
 import { FakeSockets } from './live-fakes'
 
 useDom()
@@ -703,9 +703,11 @@ describe('/hills', () => {
             hill: { slug: 'main', name: 'main' },
             entry: MAIN_DETAIL.standings[1]?.entry,
             bot: DWARF,
+            entrants: 3,
           },
         ],
         championships: [],
+        stats: NO_STATS,
       }),
     )
     await renderAt('/hills', HillsPage)

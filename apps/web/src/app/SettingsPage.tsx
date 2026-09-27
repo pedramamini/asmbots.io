@@ -278,6 +278,7 @@ function AccountPanel() {
             <UserLink handle={me.user.handle} />. local bots stay in this browser too.
           </p>
           <HandleForm key={me.user.handle} me={me} />
+          <ProfileName me={me} />
           <div className="flex flex-wrap gap-2">
             <Button icon={LogOut} onClick={() => void signOut()}>
               sign out
@@ -297,6 +298,60 @@ function AccountPanel() {
         </div>
       )}
     </Panel>
+  )
+}
+
+type NameShown = 'shown' | 'anonymous'
+
+const NAME_SHOWN = [
+  { value: 'shown', label: 'shown' },
+  { value: 'anonymous', label: 'anonymous' },
+] as const satisfies readonly { value: NameShown; label: string }[]
+
+/**
+ * Whether the profile and every public page show the GitHub name, login, and avatar, or only the
+ * handle (PRODUCT_SPEC §6): `PATCH /api/me` `{ anonymous }`. Shown unless the user says so.
+ */
+function ProfileName({ me }: { me: Me }) {
+  const client = useQueryClient()
+  const { toast } = useToast()
+  const [saving, setSaving] = useState(false)
+  const value: NameShown = me.user.anonymous === true ? 'anonymous' : 'shown'
+
+  const save = async (next: NameShown) => {
+    if (next === value || saving) return
+    setSaving(true)
+    try {
+      client.setQueryData(['me'], await updateMe({ anonymous: next === 'anonymous' }))
+      await client.invalidateQueries({ queryKey: ['users'] })
+      toast(
+        next === 'anonymous'
+          ? 'your profile is anonymous: only your handle shows.'
+          : 'your profile shows your github name and avatar.',
+      )
+    } catch (error) {
+      const why = error instanceof ApiRequestError ? error.message : 'try again'
+      toast(`could not save: ${why}.`, { variant: 'danger' })
+    }
+    setSaving(false)
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-3">
+        <span className="text-panel-status text-muted">name on your profile</span>
+        <Segmented<NameShown>
+          label="name on your profile"
+          options={NAME_SHOWN}
+          value={value}
+          onValueChange={(next) => void save(next)}
+        />
+      </div>
+      <p className="text-data text-muted">
+        anonymous hides your github name, login, and avatar from your{' '}
+        <UserLink handle={me.user.handle} /> page and every public page. your handle still shows.
+      </p>
+    </div>
   )
 }
 

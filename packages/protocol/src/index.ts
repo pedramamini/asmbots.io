@@ -80,7 +80,9 @@ export {
   UpdateBot,
   UpdatedBot,
   UpdateMe,
+  UserDay,
   UserDetail,
+  UserStats,
 } from './api'
 export { fromBase64, fromBase64Url, sha256Hex, toBase64, toBase64Url } from './bytes'
 export { canonicalJson } from './canonical'

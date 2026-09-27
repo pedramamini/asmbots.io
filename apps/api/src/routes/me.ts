@@ -23,6 +23,7 @@ import {
   listApiTokens,
   listAudit,
   listMyBots,
+  setUserAnonymous,
   setUserHandle,
   toUser,
   type UserRow,
@@ -32,7 +33,7 @@ import { errorResponse, log } from '../middleware'
 import { classParam, idParam, wholeParam } from '../params'
 
 function meBody(row: UserRow): Me {
-  return { user: toUser(row), onboarded: row.onboarded_at !== null }
+  return { user: toUser(row, true), onboarded: row.onboarded_at !== null }
 }
 
 /** The user is gone (deleted account): the session goes with them. */
@@ -43,9 +44,10 @@ async function gone(c: Context<AppEnv>): Promise<Response> {
 
 /**
  * `GET /api/me`: the signed-in user; 401 when nobody is.
- * `PATCH /api/me` `{ handle }`: a new handle (lowercased; `handleProblem` says which are allowed),
- * 409 when someone else has it. The first one marks the user onboarded. The avatar is GitHub's,
- * refreshed at each sign-in.
+ * `PATCH /api/me` `{ handle?, anonymous? }`: a new handle (lowercased; `handleProblem` says which
+ * are allowed), 409 when someone else has it; the first one marks the user onboarded. `anonymous`
+ * hides the GitHub name, login, and avatar from every public record (PRODUCT_SPEC §6). The avatar,
+ * name, and login are GitHub's, refreshed at each sign-in.
  * `GET /api/me/bots`: the signed-in user's bots, private ones too, each with its latest version.
  * `?class=` (a weight class slug) keeps only the bots whose latest version is in that class.
  * `GET /api/me/audit?limit=`: the signed-in user's changes (`AUDIT_ACTIONS`), newest first; `limit`
@@ -113,11 +115,14 @@ export const me = new Hono<AppEnv>()
     return c.body(null, 204)
   })
   .patch('/', requireUser, limitBody(1024), async (c) => {
-    const asked = parse(UpdateMe, await jsonBody(c), 'the request').handle
-    const handle = asked.trim().toLowerCase()
-    const problem = handleProblem(handle)
+    const asked = parse(UpdateMe, await jsonBody(c), 'the request')
+    const userId = c.get('session')?.userId ?? ''
+    const handle = asked.handle?.trim().toLowerCase()
+    const problem = handle === undefined ? null : handleProblem(handle)
     if (problem !== null) return errorResponse(c, 'bad_request', problem)
-    const row = await setUserHandle(c.env.DB, c.get('session')?.userId ?? '', handle)
+    let row = handle === undefined ? null : await setUserHandle(c.env.DB, userId, handle)
     if (row === 'taken') return errorResponse(c, 'conflict', `${handle} is taken`)
+    if (asked.anonymous !== undefined)
+      row = await setUserAnonymous(c.env.DB, userId, asked.anonymous)
     return row === null ? gone(c) : c.json(meBody(row))
   })

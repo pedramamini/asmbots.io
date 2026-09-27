@@ -161,6 +161,8 @@ export const HillBest = z.object({
   hill: z.object({ slug: Slug, name: z.string() }),
   entry: HillEntry,
   bot: BotLabel,
+  /** The hill's entries now: the rank is out of these. */
+  entrants: whole('entrants', 1, Number.MAX_SAFE_INTEGER),
 })
 export type HillBest = z.output<typeof HillBest>
 
@@ -176,15 +178,52 @@ export const ChampionshipResult = z.object({
 })
 export type ChampionshipResult = z.output<typeof ChampionshipResult>
 
+const TALLY = whole('a count', 0, Number.MAX_SAFE_INTEGER)
+
+/** A day of a user's: the bots they made, the versions they saved, and the matches their bots finished. */
+export const UserDay = z.object({
+  /** `YYYY-MM-DD`, UTC. */
+  day: z.string().check(z.regex(/^\d{4}-\d{2}-\d{2}$/)),
+  bots: TALLY,
+  versions: TALLY,
+  matches: TALLY,
+  wins: TALLY,
+})
+export type UserDay = z.output<typeof UserDay>
+
+/**
+ * A user in numbers (PRODUCT_SPEC §6), over the bots the reader may list: their versions, every
+ * finished server match those bots played (hills and tournaments), and the rounds in them. A match
+ * counts once for each of the user's bots in it. W/T/L as the tourney scores a match: most points
+ * wins, a shared top ties. `survived` counts the rounds a bot was still running at the end; a
+ * match stored without its rounds counts in `matches` only. `lastAt` is the latest version saved
+ * or match finished; `days` has a row for each day with any of them, oldest first.
+ */
+export const UserStats = z.object({
+  versions: TALLY,
+  matches: TALLY,
+  wins: TALLY,
+  ties: TALLY,
+  losses: TALLY,
+  rounds: TALLY,
+  survived: TALLY,
+  /** The engine cycles the user's bots lived through, over every round. */
+  cycles: TALLY,
+  lastAt: z.nullable(Timestamp),
+  days: z.array(UserDay),
+})
+export type UserStats = z.output<typeof UserStats>
+
 /**
  * `GET /api/users/:handle`: the user, the bots the reader may list, their best place on each hill
- * (in hill order), and their championship results (latest first).
+ * (in hill order), their championship results (latest first), and their numbers.
  */
 export const UserDetail = z.object({
   user: User,
   bots: z.array(Bot),
   hills: z.array(HillBest),
   championships: z.array(ChampionshipResult),
+  stats: UserStats,
 })
 export type UserDetail = z.output<typeof UserDetail>
 
@@ -195,8 +234,16 @@ export type UserDetail = z.output<typeof UserDetail>
 export const Me = z.object({ user: User, onboarded: z.boolean() })
 export type Me = z.output<typeof Me>
 
-/** `PATCH /api/me`: a new handle (`handleProblem` says which are allowed). */
-export const UpdateMe = z.object({ handle: z.string().check(z.maxLength(64)) })
+/**
+ * `PATCH /api/me`: a new handle (`handleProblem` says which are allowed), whether to hide the
+ * name, the GitHub login, and the avatar (PRODUCT_SPEC §6), or both.
+ */
+export const UpdateMe = z
+  .object({
+    handle: z.optional(z.string().check(z.maxLength(64))),
+    anonymous: z.optional(z.boolean()),
+  })
+  .check(z.refine((v) => v.handle !== undefined || v.anonymous !== undefined, 'nothing to change'))
 export type UpdateMe = z.output<typeof UpdateMe>
 
 /** The most API tokens a user may have. */

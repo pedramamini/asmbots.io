@@ -10,6 +10,7 @@ import type {
   Tournament,
   TournamentList,
   UserDetail,
+  UserStats,
 } from '@asmbots/protocol'
 
 const T = '2026-09-24T12:00:00.000Z'
@@ -153,10 +154,43 @@ export const DWARF_DETAIL: BotDetail = {
   fights: 1204,
 }
 
+/** A profile's numbers with nothing in them. */
+export const NO_STATS: UserStats = {
+  versions: 0,
+  matches: 0,
+  wins: 0,
+  ties: 0,
+  losses: 0,
+  rounds: 0,
+  survived: 0,
+  cycles: 0,
+  lastAt: null,
+  days: [],
+}
+
 export const SYSTEM: UserDetail = {
   user: { id: 'system', handle: 'system', avatarUrl: null, createdAt: T },
   bots: [{ ...DWARF_DETAIL.bot, size: 23 }],
-  hills: [{ hill: { slug: 'main', name: 'main' }, entry: entry(DWARF, 2, 145), bot: DWARF }],
+  hills: [
+    {
+      hill: { slug: 'main', name: 'main' },
+      entry: entry(DWARF, 2, 145),
+      bot: DWARF,
+      entrants: 3,
+    },
+  ],
+  stats: {
+    versions: 2,
+    matches: 5,
+    wins: 4,
+    ties: 0,
+    losses: 1,
+    rounds: 50,
+    survived: 45,
+    cycles: 1_200_000,
+    lastAt: T,
+    days: [{ day: T.slice(0, 10), bots: 1, versions: 2, matches: 5, wins: 4 }],
+  },
   championships: [
     {
       tournament: { id: 't8', slug: 'weekly-8', name: 'Weekly 8', startsAt: T },

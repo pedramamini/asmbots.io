@@ -25,6 +25,7 @@ import {
   KEY,
   MAIN_DETAIL,
   MATCHES,
+  NO_STATS,
   SYSTEM,
   TOURNAMENTS,
   WEEKLY_9,
@@ -351,27 +352,65 @@ describe('/bots/$id', () => {
 })
 
 describe('/u/$handle', () => {
-  it('shows the user, when they joined, and their public bots', async () => {
+  /** The names of the bot cards, in order. */
+  const botNames = (panel: HTMLElement) =>
+    within(within(panel).getByRole('list', { name: 'bots' }))
+      .getAllByRole('listitem')
+      .map((li) => within(li).getByRole('link').textContent)
+
+  it('shows who they are, how long they have been here, and their numbers as pictures', async () => {
     await renderAt('/u/system', () => <ProfilePage handle="system" />)
     expect((await screen.findByRole('heading', { level: 1 })).textContent).toBe('system')
-    expect(screen.getByRole('region', { name: 'profile' }).textContent).toContain(
-      'joined 2026-09-24',
-    )
-    const bots = screen.getByRole('table', { name: 'bots' })
-    expect(cells(bots)).toEqual([['Dwarf', '23 B', 'light', 'public', '2026-09-24']])
+    const profile = screen.getByRole('region', { name: 'profile' })
+    expect(profile.textContent).toContain('joined 2026-09-24')
+    expect(profile.textContent).toContain('versions2')
+    expect(profile.textContent).toContain('best rank#2of 3 on main')
+    const record = screen.getByRole('region', { name: 'record' })
+    expect(record.textContent).toContain('80%win rate4 of 5')
+    expect(record.textContent).toContain('90%survival45 of 50 rounds')
+    expect(within(record).getByRole('img', { name: /^4 won \(80%\), 0 tied/ })).toBeTruthy()
+    const activity = screen.getByRole('region', { name: 'activity' })
+    expect(within(activity).getByRole('img').getAttribute('aria-label')).toMatch(/^5 matches over/)
+    const bots = screen.getByRole('region', { name: 'bots' })
+    expect(botNames(bots)).toEqual(['Dwarf'])
     expect(within(bots).getByRole('link', { name: 'Dwarf' }).getAttribute('href')).toBe(
       '/bots/roster-dwarf',
     )
-    const hills = screen.getByRole('table', { name: 'best hill ranks' })
-    expect(cells(hills)).toEqual([['main', '2', 'Dwarf', '1,500']])
+    const hills = screen.getByRole('region', { name: 'hills' })
     expect(within(hills).getByRole('link', { name: 'main' }).getAttribute('href')).toBe(
       '/hills/main',
     )
-    const cups = screen.getByRole('table', { name: 'championship results' })
-    expect(cells(cups)).toEqual([['Weekly 8', 'Dwarf', '4/0/1', 'champion']])
+    expect(within(hills).getByRole('img', { name: 'rank 2 of 3' })).toBeTruthy()
+    const cups = screen.getByRole('region', { name: 'championships' })
     expect(within(cups).getByRole('link', { name: 'Weekly 8' }).getAttribute('href')).toBe(
       '/tournaments/t8',
     )
+    expect(cups.textContent).toContain('champion')
+  })
+
+  it('shows the github name and login when they show them', async () => {
+    server.use(
+      answer('/users/system', {
+        ...SYSTEM,
+        user: { ...SYSTEM.user, name: 'Ada Lovelace', github: 'ada' },
+      }),
+    )
+    await renderAt('/u/system', () => <ProfilePage handle="system" />)
+    expect((await screen.findByRole('heading', { level: 1 })).textContent).toBe('Ada Lovelace')
+    const profile = screen.getByRole('region', { name: 'profile' })
+    expect(profile.textContent).toContain('@system')
+    expect(within(profile).getByRole('link', { name: 'github.com/ada' }).getAttribute('href')).toBe(
+      'https://github.com/ada',
+    )
+  })
+
+  it('says when a user is anonymous', async () => {
+    server.use(answer('/users/masked', { ...SYSTEM, user: { ...SYSTEM.user, anonymous: true } }))
+    await renderAt('/u/masked', () => <ProfilePage handle="masked" />)
+    await waitFor(() =>
+      expect(screen.getByRole('region', { name: 'profile' }).textContent).toContain('anonymous'),
+    )
+    expect(screen.queryByRole('link', { name: /github\.com/ })).toBeNull()
   })
 
   it('shows each bot’s size and class, and filters them by class', async () => {
@@ -389,21 +428,27 @@ describe('/u/$handle', () => {
     )
     await renderAt('/u/system', () => <ProfilePage handle="system" />)
     const panel = await screen.findByRole('region', { name: 'bots' })
-    const bots = within(panel).getByRole('table', { name: 'bots' })
-    await waitFor(() => expect(cells(bots)).toHaveLength(3))
-    expect(cells(bots).map((row) => row.slice(0, 3))).toEqual([
-      ['Dwarf', '23 B', 'light'],
-      ['Fort', '1,500 B', 'heavy'],
-      ['Blank', '–', ''],
+    await waitFor(() => expect(botNames(panel)).toHaveLength(3))
+    const cards = within(within(panel).getByRole('list', { name: 'bots' })).getAllByRole('listitem')
+    expect(cards.map((li) => li.textContent)).toEqual([
+      'Dwarf23 B · 2026-09-24light',
+      'Fort1,500 B · 2026-09-24heavy',
+      'Blankno version · 2026-09-24',
     ])
     const weight = within(panel).getByRole('radiogroup', { name: 'weight class' })
     fireEvent.click(within(weight).getByRole('radio', { name: 'heavy' }))
-    expect(cells(bots).map((row) => row[0])).toEqual(['Fort'])
+    expect(botNames(panel)).toEqual(['Fort'])
     expect(panel.textContent).toContain('1 of 3 bots')
     fireEvent.click(within(weight).getByRole('radio', { name: 'super' }))
-    expect(within(bots).getByText('no super bots.')).toBeTruthy()
-    fireEvent.click(within(bots).getByRole('button', { name: 'show every class' }))
-    expect(cells(bots)).toHaveLength(3)
+    expect(within(panel).getByText('no super bots.')).toBeTruthy()
+    fireEvent.click(within(panel).getByRole('button', { name: 'show every class' }))
+    expect(botNames(panel)).toHaveLength(3)
+    const arsenal = screen.getByRole('region', { name: 'arsenal' })
+    expect(
+      within(arsenal).getByRole('img', {
+        name: /^bots by weight class: 1 lightweight, 0 middleweight, 1 heavyweight/,
+      }),
+    ).toBeTruthy()
   })
 
   it('says so when there is no such user', async () => {
@@ -412,19 +457,24 @@ describe('/u/$handle', () => {
     expect(await screen.findByText('there is no user ghost.')).toBeTruthy()
   })
 
-  it('gives each empty list its one way on, which the router takes', async () => {
-    server.use(answer('/users/new', { ...SYSTEM, bots: [], hills: [], championships: [] }))
+  it('gives each empty panel its one way on, which the router takes', async () => {
+    server.use(
+      answer('/users/new', { ...SYSTEM, bots: [], hills: [], championships: [], stats: NO_STATS }),
+    )
     const router = await renderAt('/u/new', () => <ProfilePage handle="new" />)
     expect(await screen.findByText('no public bots yet.')).toBeTruthy()
     const links = [
       ['bots', 'write a bot', '/editor'],
-      ['best hill ranks', 'see the hills', '/hills'],
-      ['championship results', 'see the tournaments', '/tournaments'],
+      ['hills', 'see the hills', '/hills'],
+      ['championships', 'see the tournaments', '/tournaments'],
     ] as const
-    for (const [table, name, href] of links) {
-      const link = within(screen.getByRole('table', { name: table })).getByRole('link', { name })
+    for (const [region, name, href] of links) {
+      const link = within(screen.getByRole('region', { name: region })).getByRole('link', { name })
       expect(link.getAttribute('href')).toBe(href)
     }
+    expect(screen.getByRole('region', { name: 'record' }).textContent).toContain(
+      'no server matches yet',
+    )
     fireEvent.click(screen.getByRole('link', { name: 'see the hills' }))
     await waitFor(() => expect(router.state.location.pathname).toBe('/hills'))
     expect(await screen.findByText('page /hills')).toBeTruthy()
@@ -433,24 +483,23 @@ describe('/u/$handle', () => {
   it('leaves a modified click to the browser', async () => {
     server.use(answer('/users/new', { ...SYSTEM, bots: [] }))
     const router = await renderAt('/u/new', () => <ProfilePage handle="new" />)
-    const link = await screen.findByRole('link', { name: 'write a bot' })
+    const panel = await screen.findByRole('region', { name: 'bots' })
+    const link = within(panel).getByRole('link', { name: 'write a bot' })
     // A new tab: the page stays, and the browser gets the click.
     const kept = fireEvent.click(link, { metaKey: true })
     expect(kept).toBe(true)
     expect(router.state.location.pathname).toBe('/u/new')
   })
 
-  it('says each list failed with the profile, and one retry reads them all', async () => {
+  it('says the profile failed, and a retry reads it', async () => {
     server.use(refuse('/users/system', 503, 'unavailable', 'try later'))
     await renderAt('/u/system', () => <ProfilePage handle="system" />)
-    await waitFor(() => expect(screen.getAllByText('could not load: try later')).toHaveLength(4))
+    await waitFor(() => expect(screen.getAllByText('could not load: try later')).toHaveLength(1))
     server.use(answer('/users/system', SYSTEM))
-    fireEvent.click(screen.getAllByRole('button', { name: 'retry' })[0] as HTMLElement)
+    fireEvent.click(screen.getByRole('button', { name: 'retry' }))
     expect((await screen.findByRole('heading', { level: 1 })).textContent).toBe('system')
     expect(screen.queryByText(/could not load/)).toBeNull()
-    expect(cells(screen.getByRole('table', { name: 'bots' }))).toEqual([
-      ['Dwarf', '23 B', 'light', 'public', '2026-09-24'],
-    ])
+    expect(botNames(screen.getByRole('region', { name: 'bots' }))).toEqual(['Dwarf'])
   })
 })
 

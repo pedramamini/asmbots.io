@@ -625,7 +625,7 @@ about 5% over its page, so what grows one is a choice, made here and in `BUDGETS
 | `/hills` | 170.3 KB | 180 KB | |
 | `/hills/$slug` | 192.2 KB | 200 KB | |
 | `/bots/$id` | 186.9 KB | 195 KB | |
-| `/u/$handle` | 170.5 KB | 180 KB | |
+| `/u/$handle` | 181.4 KB | 190 KB | the profile's charts: HTML boxes and SVG, no chart library, the stats page's size bars shared |
 | `/docs` | 170.1 KB | 180 KB | a page's own MDX loads after its route |
 | `/docs/$` | 181.4 KB | 190 KB | |
 | `/stats` | 179.6 KB | 190 KB | the charts are HTML boxes, no chart library |

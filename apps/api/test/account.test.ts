@@ -276,8 +276,68 @@ describe('GET /api/users/:handle championships', () => {
         champion: true,
       },
     ])
+    // The numbers count the bots the reader may list: the private Spin for its owner only.
+    expect(
+      parse(UserDetail, await bodyOf(send(new Jar(), '/api/users/champ')), 'p').stats,
+    ).toMatchObject({ versions: 0, matches: 0 })
+    const { stats } = parse(UserDetail, await bodyOf(send(jar, '/api/users/champ')), 'p')
+    expect(stats).toMatchObject({ versions: 1, matches: 4, wins: 2, ties: 1, losses: 1, rounds: 0 })
+    expect(stats.lastAt).not.toBeNull()
+    expect(stats.days.find((d) => d.day === '2026-09-19')).toEqual({
+      day: '2026-09-19',
+      bots: 0,
+      versions: 0,
+      matches: 4,
+      wins: 2,
+    })
     const rivalRes = await send(new Jar(), '/api/users/rival')
     const theirs = parse(UserDetail, await rivalRes.json(), 'the profile').championships
     expect(theirs.map((r) => [r.wins, r.ties, r.losses, r.champion])).toEqual([[1, 1, 2, false]])
+  })
+})
+
+async function bodyOf(res: Promise<Response>): Promise<unknown> {
+  return (await res).json()
+}
+
+describe('anonymous profiles', () => {
+  it('shows the GitHub name and login until the user hides them, and to themself always', async () => {
+    const jar = new Jar()
+    await signIn(jar, 'masked')
+    await env.DB.prepare(
+      `UPDATE users SET name = 'Ada Lovelace', github_login = 'ada', avatar_url = 'https://a/1'
+       WHERE handle = 'masked'`,
+    ).run()
+    const shown = parse(UserDetail, await (await send(new Jar(), '/api/users/masked')).json(), 'p')
+    expect(shown.user).toMatchObject({
+      name: 'Ada Lovelace',
+      github: 'ada',
+      avatarUrl: 'https://a/1',
+    })
+    expect(shown.user.anonymous).toBeUndefined()
+
+    const res = await send(jar, '/api/me', { method: 'PATCH', body: { anonymous: true } })
+    expect(res.status).toBe(200)
+    const self = parse(Me, await res.json(), 'me')
+    expect(self.user).toMatchObject({ handle: 'masked', name: 'Ada Lovelace', anonymous: true })
+
+    const hidden = parse(UserDetail, await (await send(new Jar(), '/api/users/masked')).json(), 'p')
+    expect(hidden.user).toEqual({
+      id: self.user.id,
+      handle: 'masked',
+      avatarUrl: null,
+      createdAt: self.user.createdAt,
+      anonymous: true,
+    })
+
+    await send(jar, '/api/me', { method: 'PATCH', body: { anonymous: false } })
+    const back = parse(UserDetail, await (await send(new Jar(), '/api/users/masked')).json(), 'p')
+    expect(back.user.name).toBe('Ada Lovelace')
+  })
+
+  it('is 400 for a patch that changes nothing', async () => {
+    const jar = new Jar()
+    await signIn(jar, 'no-change')
+    expect((await send(jar, '/api/me', { method: 'PATCH', body: {} })).status).toBe(400)
   })
 })
