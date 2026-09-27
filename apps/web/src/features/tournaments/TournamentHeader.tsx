@@ -1,11 +1,13 @@
 /**
- * A tournament's header (PRODUCT_SPEC §4): its name, kind, and status, the live controls,
+ * A tournament's header (PRODUCT_SPEC §4): its name, kind, weight class, and status, the live controls,
  * `share ▾`, and the entrants as chips with their identicons, the champion's in accent. A shared
  * tournament (a link's snapshot, `share.ts`) has no controls: nothing runs it in this browser.
  * `share ▾` copies the tournament's link (it carries the tournament) and saves a bracket as a PNG;
  * a tournament of this browser has no card or stored match on the server to share.
  */
+import { classOfRange } from '@asmbots/protocol'
 import { Chip, Identicon, Panel, useToast } from '@asmbots/ui'
+import { WeightChip } from '../hills/WeightChip'
 import { ShareMenu } from '../share/ShareMenu'
 import { downloadBracketPng } from './export'
 import { copyTournamentLink } from './share'
@@ -37,11 +39,15 @@ export function TournamentHeader({
     />
   )
   const n = t.entrants.length
+  // A tournament made before weight classes has no band: no chip.
+  const { minBotBytes = 1, maxBotBytes } = t.config
+  const weight = maxBotBytes === undefined ? null : classOfRange(minBotBytes, maxBotBytes)
   return (
     <Panel title={t.name} status={`${n} ${n === 1 ? 'bot' : 'bots'}`} actions={share}>
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <Chip>{KIND_LABELS[t.kind]}</Chip>
+          {weight !== null && <WeightChip weight={weight} />}
           {shared ? (
             <>
               <StatusChip tournament={t} />

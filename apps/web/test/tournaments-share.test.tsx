@@ -244,6 +244,29 @@ describe('a tournament link', () => {
     expect(target.resultHash).toBe(result!.rounds[0]!.resultHash)
   })
 
+  it('carries 16 super-heavy local bots at the 4 KB cap, and their band', () => {
+    const big = (i: number): TournamentEntrant => ({
+      source: 'local',
+      ref: `big${i}.asm`,
+      name: `Big${i}`,
+      bytes: new Uint8Array(INLINE_BYTES_UP_TO).fill(i),
+    })
+    const t: Tournament = {
+      ...withJunk(),
+      kind: 'melee',
+      config: { ...CONFIG, minBotBytes: 2049, maxBotBytes: 4096, minSpacing: 4096 },
+      entrants: Array.from({ length: 16 }, (_, i) => big(i)),
+    }
+    expect(INLINE_BYTES_UP_TO).toBe(4096)
+    expect(leftOut(t)).toEqual([])
+    const shared = read(t)
+    expect(shared.entrants.map((e) => e.bytes?.length)).toEqual(Array(16).fill(4096))
+    expect(shared.entrants[5]?.bytes).toEqual(t.entrants[5]?.bytes)
+    expect(shared.config).toMatchObject({ minBotBytes: 2049, maxBotBytes: 4096 })
+    // Base64url of 64 KB is 87 KB before deflate: well under the replay fragment's 1 MB.
+    expect(tournamentFragment(t).length).toBeLessThan(1 << 20)
+  })
+
   it('leaves out a local bot with no machine code: its rounds cannot be watched', () => {
     const t = withJunk()
     expect(leftOut(t).map((e) => e.name)).toEqual(['Junk'])
@@ -274,9 +297,11 @@ describe('a tournament link', () => {
     unseeded.seeding = 'given'
     expect(reason(fragmentOf(unseeded))).toMatch(/^match \d+ is not of its bots$/)
     const giant = linkJson(meleeCup())
-    ;(giant.entrants as { bytes?: string }[])[0]!.bytes = toBase64Url(new Uint8Array(INLINE_BYTES_UP_TO + 1))
+    ;(giant.entrants as { bytes?: string }[])[0]!.bytes = toBase64Url(
+      new Uint8Array(INLINE_BYTES_UP_TO + 1),
+    )
     ;(giant.entrants as { source: string }[])[0]!.source = 'local'
-    expect(reason(fragmentOf(giant))).toBe(`Dwarf's bytes must be 1..${INLINE_BYTES_UP_TO}`)
+    expect(reason(fragmentOf(giant))).toBe('Dwarf is 4,097 bytes, and a link carries 1 to 4,096')
   })
 })
 
@@ -339,6 +364,8 @@ describe('the tournament page', () => {
     expect(header.textContent).toContain('finished')
     expect(within(header).getByRole('button', { name: 'auto-watch' })).toBeTruthy()
     expect(within(header).queryByText('shared')).toBeNull()
+    // Made before weight classes: no band, no chip.
+    expect(header.querySelector('[data-weight]')).toBeNull()
     const entrants = within(header).getByRole('list', { name: 'entrants' })
     expect(
       within(entrants)
@@ -365,6 +392,8 @@ describe('the tournament page', () => {
     const header = await screen.findByRole('region', { name: 'melee' })
     expect(header.textContent).toContain('shared')
     expect(header.textContent).toContain('paused · 2 / 3')
+    // A link writes the config in full: the engine's band, 1 to 4,096, is open weight.
+    expect(header.querySelector('[data-weight]')?.textContent).toBe('open')
     expect(within(header).queryByRole('button', { name: 'auto-watch' })).toBeNull()
     expect(within(header).queryByRole('button', { name: 'resume' })).toBeNull()
     expect(screen.getByRole('region', { name: 'standings' })).toBeTruthy()

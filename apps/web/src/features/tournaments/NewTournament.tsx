@@ -1,8 +1,9 @@
 /**
- * The new tournament form (PRODUCT_SPEC §4), in a modal: a name, the kind, the bots (roster bots
- * and my bots, checked in a list, and `.asm` files dropped on the form), the battle config with
- * its rounds per match and presets, a bracket's seeding and third-place match, and `start now`.
- * Under the bots, what the tournament plays and how long it may take, or why it cannot start.
+ * The new tournament form (PRODUCT_SPEC §4), in a modal: a name, the kind, the weight class (its
+ * size band and spacing), the bots (roster bots and my bots, checked in a list, and `.asm` files
+ * dropped on the form), the battle config with its rounds per match and presets, a bracket's
+ * seeding and third-place match, and `start now`. Under the bots, what the tournament plays and
+ * how long it may take, or why it cannot start.
  */
 import {
   Button,
@@ -36,7 +37,18 @@ import {
   withConfig,
   withPreset,
 } from '../arena/setup/config'
-import { checkPlan, defaultName, type PickedEntrant, tournamentInput, uniqueNames } from './create'
+import { WEIGHT_SHORT } from '../hills/weight-names'
+import {
+  checkPlan,
+  defaultName,
+  type PickedEntrant,
+  type TournamentWeight,
+  tournamentInput,
+  uniqueNames,
+  weightError,
+  weightNamed,
+  weightsFor,
+} from './create'
 import { type TournamentRunner, tournamentRunner } from './runner'
 import {
   KIND_LABELS,
@@ -100,6 +112,7 @@ function NewTournamentForm({
   const nameId = useId()
   const [name, setName] = useState('')
   const [kind, setKind] = useState<TournamentKind>('round-robin')
+  const [weight, setWeight] = useState<TournamentWeight>('lightweight')
   const [source, setSource] = useState<Source>('roster')
   const [query, setQuery] = useState('')
   const [picked, setPicked] = useState<readonly PickedEntrant[]>([])
@@ -124,6 +137,7 @@ function NewTournamentForm({
     thirdPlace,
   }
   const check = checkPlan(plan)
+  const error = check.error ?? weightError(picked, weightNamed(weight))
 
   /** Appends the bots not picked yet, in order. */
   const add = (list: readonly PickedEntrant[]) =>
@@ -138,8 +152,16 @@ function NewTournamentForm({
     else add([entrant])
   }
 
+  /** A class brings its hill's spacing: its bots need the room. */
+  const changeWeight = (next: TournamentWeight) => {
+    setWeight(next)
+    setConfig((c) => withConfig(c, { minSpacing: weightNamed(next).minSpacing }))
+  }
+
   const changeKind = (next: TournamentKind) => {
     setKind(next)
+    // A melee takes middleweight at most: 8 bigger bots do not fit in the core.
+    if (!weightsFor(next).some((c) => c.slug === weight)) changeWeight('middleweight')
     // A preset follows the kind into and out of a melee; a hand-made config stays.
     if ((next === 'melee') !== (kind === 'melee') && presetOf(config) !== null) {
       setConfig((c) => withPreset(c, presetFor(next, picked.length)))
@@ -166,7 +188,15 @@ function NewTournamentForm({
   }
 
   const submit = async () => {
-    const input = tournamentInput({ name, kind, entrants: picked, config, thirdPlace, seeding })
+    const input = tournamentInput({
+      name,
+      kind,
+      entrants: picked,
+      config,
+      thirdPlace,
+      weight,
+      seeding,
+    })
     if (input === null) {
       toast('the bots do not fit in the core: lower the spacing.', { variant: 'danger' })
       return
@@ -236,6 +266,12 @@ function NewTournamentForm({
           options={TOURNAMENT_KINDS.map((k) => ({ value: k, label: KIND_LABELS[k] }))}
           value={kind}
           onValueChange={changeKind}
+        />
+        <Segmented<TournamentWeight>
+          label="weight class"
+          options={weightsFor(kind).map((c) => ({ value: c.slug, label: WEIGHT_SHORT[c.slug] }))}
+          value={weight}
+          onValueChange={changeWeight}
         />
       </div>
 
@@ -321,8 +357,8 @@ function NewTournamentForm({
           </ol>
         )}
         <p aria-live="polite" className="text-data">
-          {check.error !== null ? (
-            <span className="text-danger">{check.error}</span>
+          {error !== null ? (
+            <span className="text-danger">{error}</span>
           ) : (
             <span className="text-muted">{check.summary}</span>
           )}
@@ -363,7 +399,7 @@ function NewTournamentForm({
           type="submit"
           name="create"
           variant="primary"
-          disabled={check.error !== null}
+          disabled={error !== null}
           loading={create.isPending}
         >
           {startNow ? 'start' : 'create'}

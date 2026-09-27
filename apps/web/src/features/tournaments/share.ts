@@ -58,7 +58,10 @@ export const TOURNAMENT_LINK_FORMAT = 'asmbots-tournament-link/1'
 /** The fragment key of a tournament link. */
 export const TOURNAMENT_KEY = 't'
 
-/** The largest local bot a link carries, in bytes of machine code: the most a bot assembles to. */
+/**
+ * The largest local bot a link carries, in bytes of machine code: the most a bot assembles to, the
+ * top of super-heavy. 16 such bots are about 87 KB of base64url, before deflate.
+ */
 export const INLINE_BYTES_UP_TO = MAX_BOT_BYTES
 
 /** The most JSON a link may unpack to: a 32-bot round robin of 10 rounds is about 1.5 MB. */
@@ -229,7 +232,10 @@ function parseEntrant(value: unknown, i: number): TournamentEntrant {
     fail(`${name}'s bytes are not base64url`)
   }
   if (bytes.length === 0 || bytes.length > INLINE_BYTES_UP_TO) {
-    fail(`${name}'s bytes must be 1..${INLINE_BYTES_UP_TO}`)
+    const most = INLINE_BYTES_UP_TO.toLocaleString('en-US')
+    fail(
+      `${name} is ${bytes.length.toLocaleString('en-US')} bytes, and a link carries 1 to ${most}`,
+    )
   }
   return { source, ref, name, bytes }
 }

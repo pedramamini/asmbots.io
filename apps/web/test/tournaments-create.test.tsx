@@ -20,6 +20,9 @@ import {
   type PickedEntrant,
   type Plan,
   tournamentInput,
+  weightError,
+  weightNamed,
+  weightsFor,
 } from '../src/features/tournaments/create'
 import { NewTournament } from '../src/features/tournaments/NewTournament'
 import { type MatchExecutor, TournamentRunner } from '../src/features/tournaments/runner'
@@ -91,6 +94,31 @@ describe('checkPlan', () => {
   })
 })
 
+describe('weight classes', () => {
+  it('offers a melee light and middle only, and the others every class', () => {
+    expect(weightsFor('melee').map((c) => c.slug)).toEqual(['lightweight', 'middleweight'])
+    expect(weightsFor('bracket').map((c) => c.slug)).toEqual([
+      'lightweight',
+      'middleweight',
+      'heavyweight',
+      'super-heavy',
+      'open',
+    ])
+  })
+
+  it('names the bots that do not fit, and the fix', () => {
+    const light = weightNamed('lightweight')
+    expect(weightError([rosterPick('imp', 20)], light)).toBeNull()
+    expect(weightError([rosterPick('imp'), rosterPick('Mender', 1443)], light)).toBe(
+      'Mender is 1,443 B; this lightweight tournament takes 1 to 512: remove it or pick another class.',
+    )
+    const heavy = weightNamed('heavyweight')
+    expect(weightError([rosterPick('imp'), rosterPick('Swarm', 2334)], heavy)).toBe(
+      'imp and 1 more do not fit; this heavyweight tournament takes 1,025 to 2,048: remove them or pick another class.',
+    )
+  })
+})
+
 describe('tournamentInput', () => {
   const draft = {
     name: '  ',
@@ -98,6 +126,7 @@ describe('tournamentInput', () => {
     entrants: [rosterPick('dwarf'), rosterPick('dwarf'), rosterPick('imp')],
     config: { ...DEFAULT_ARENA_CONFIG, seed: 7, rounds: 3 },
     thirdPlace: true,
+    weight: 'lightweight' as const,
     seeding: 'random' as const,
   }
 
@@ -110,6 +139,15 @@ describe('tournamentInput', () => {
     expect(input?.seeding).toEqual({ random: 99 })
     // Three bots play no third-place match.
     expect(input?.thirdPlace).toBe(false)
+    // Lightweight by default: today's band.
+    expect(input?.config).toMatchObject({ minBotBytes: 1, maxBotBytes: 512 })
+  })
+
+  it('gives every match its class’s band', () => {
+    const heavy = tournamentInput({ ...draft, weight: 'heavyweight' })
+    expect(heavy?.config).toMatchObject({ minBotBytes: 1025, maxBotBytes: 2048 })
+    const open = tournamentInput({ ...draft, weight: 'open' })
+    expect(open?.config).toMatchObject({ minBotBytes: 1, maxBotBytes: 4096 })
   })
 
   it('keeps a local bot source, and gives a round robin no bracket options', () => {
@@ -207,6 +245,49 @@ describe('the new tournament form', () => {
     for (const bot of good.slice(0, 17)) check(bot.name)
     expect(screen.getByText('a melee takes 2..16 bots: 17 bots picked')).toBeTruthy()
     expect(submit()?.disabled).toBe(true)
+  })
+
+  it('makes a heavyweight round robin: its band and its spacing', async () => {
+    const { created } = await renderForm()
+    const weight = screen.getByRole('radiogroup', { name: 'weight class' })
+    expect(within(weight).getByRole('radio', { name: 'light' }).getAttribute('aria-checked')).toBe(
+      'true',
+    )
+    check('Imp')
+    check('Mender')
+    expect(
+      screen.getByText(
+        'Mender is 1,443 B; this lightweight tournament takes 1 to 512: remove it or pick another class.',
+      ),
+    ).toBeTruthy()
+    expect(submit()?.disabled).toBe(true)
+    fireEvent.click(within(weight).getByRole('radio', { name: 'heavy' }))
+    expect(screen.getByText(/^Imp is \d+ B; this heavyweight tournament/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'remove Imp' }))
+    check('Hydra')
+    expect(submit()?.disabled).toBe(false)
+    await act(async () => submit()?.click())
+    await waitFor(() => expect(created).toHaveLength(1))
+    expect((created[0] as Tournament).config).toMatchObject({
+      minBotBytes: 1025,
+      maxBotBytes: 2048,
+      minSpacing: 2048,
+    })
+  })
+
+  it('takes a melee down to middleweight, the heaviest melee class', async () => {
+    await renderForm()
+    const weight = screen.getByRole('radiogroup', { name: 'weight class' })
+    fireEvent.click(within(weight).getByRole('radio', { name: 'super' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'melee' }))
+    expect(
+      within(weight)
+        .getAllByRole('radio')
+        .map((r) => r.textContent),
+    ).toEqual(['light', 'middle'])
+    expect(within(weight).getByRole('radio', { name: 'middle' }).getAttribute('aria-checked')).toBe(
+      'true',
+    )
   })
 
   it('enters my bots and dropped files with their sources, and creates without starting', async () => {

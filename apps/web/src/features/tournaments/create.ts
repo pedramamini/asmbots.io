@@ -2,6 +2,7 @@
  * The rules of the new tournament form (PRODUCT_SPEC §4): how many bots each kind takes, how many
  * matches a tournament plays and how long they may take, and the record `createTournament` gets.
  */
+import { OPEN_WEIGHT, WEIGHT_CLASSES, type WeightClass } from '@asmbots/protocol'
 import {
   MAX_BRACKET_ENTRANTS,
   MAX_MELEE_ENTRANTS,
@@ -100,6 +101,40 @@ export function checkPlan(plan: Plan): PlanCheck {
   return { error, warning, summary }
 }
 
+/** A tournament's weight class: one of the four, or open weight. */
+export type TournamentWeight = WeightClass['slug']
+
+/** Every class a tournament picks from, lightest first, open weight last. */
+const WEIGHTS: readonly WeightClass[] = [...WEIGHT_CLASSES, OPEN_WEIGHT]
+
+/** The classes a `kind` may pick: a melee only those with `melee` (8 big bots do not fit). */
+export function weightsFor(kind: TournamentKind): WeightClass[] {
+  return WEIGHTS.filter((c) => kind !== 'melee' || c.melee)
+}
+
+/** The class `slug` names. */
+export function weightNamed(slug: TournamentWeight): WeightClass {
+  return WEIGHTS.find((c) => c.slug === slug) ?? OPEN_WEIGHT
+}
+
+/**
+ * Why `entrants` cannot play in `weight`, or null when they all fit:
+ * `Titan is 1,500 B; this lightweight tournament takes 1 to 512: remove it or pick another class.`
+ */
+export function weightError(
+  entrants: readonly Pick<PickedEntrant, 'name' | 'size'>[],
+  weight: WeightClass,
+): string | null {
+  const out = entrants.filter((e) => e.size < weight.min || e.size > weight.max)
+  const first = out[0]
+  if (first === undefined) return null
+  const n = (x: number) => x.toLocaleString('en-US')
+  const takes = `this ${weight.name} tournament takes ${n(weight.min)} to ${n(weight.max)}`
+  return out.length === 1
+    ? `${first.name} is ${n(first.size)} B; ${takes}: remove it or pick another class.`
+    : `${first.name} and ${out.length - 1} more do not fit; ${takes}: remove them or pick another class.`
+}
+
 /** `names`, each made unique: the second `Dwarf` is `Dwarf 2`. */
 export function uniqueNames(names: readonly string[]): string[] {
   const taken = new Map<string, number>()
@@ -126,6 +161,8 @@ export interface TournamentDraft {
   readonly entrants: readonly PickedEntrant[]
   readonly config: ArenaConfig
   readonly thirdPlace: boolean
+  /** The size band every match takes: the class's bounds. */
+  readonly weight: TournamentWeight
   /** A bracket's seeds: in the order picked, or shuffled. */
   readonly seeding: 'given' | 'random'
 }
@@ -158,7 +195,9 @@ export function tournamentInput(
     }),
   )
   const name = draft.name.trim() || defaultName(kind, entrants.length)
-  const base = { name, kind, entrants, config: battleConfig(config, seed), rounds: config.rounds }
+  const { min, max } = weightNamed(draft.weight)
+  const battle = { ...battleConfig(config, seed), minBotBytes: min, maxBotBytes: max }
+  const base = { name, kind, entrants, config: battle, rounds: config.rounds }
   if (kind !== 'bracket') return base
   return {
     ...base,
