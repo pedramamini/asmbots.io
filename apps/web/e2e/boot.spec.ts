@@ -120,7 +120,7 @@ test('a first visit: the core boots, and take tour walks every page to the first
     }
   }
   await expect(page).toHaveURL(/\/$/)
-  await expect(tour.getByRole('list', { name: 'the pages' }).getByRole('listitem')).toHaveCount(6)
+  await expect(tour.getByRole('list', { name: 'the pages' }).getByRole('listitem')).toHaveCount(7)
   await tour.getByRole('button', { name: 'watch the first battle' }).click()
 
   // The arena's guided demo: Dwarf vs Imp, the first coach mark on the transport.
