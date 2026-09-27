@@ -50,14 +50,9 @@ function Shot({
 }
 
 /** A concept's art box: the space the art holds before it loads, and its frame. */
-function ArtBox({ black = false, children }: { black?: boolean; children: ReactNode }) {
+function ArtBox({ children }: { children: ReactNode }) {
   return (
-    <div
-      className={cx(
-        'relative aspect-[16/10] min-w-0 overflow-hidden rounded-sm border border-border',
-        black ? 'bg-arena-bg' : 'bg-panel-2',
-      )}
-    >
+    <div className="relative aspect-[16/10] min-w-0 overflow-hidden rounded-sm border border-border bg-panel-2">
       {children}
     </div>
   )
@@ -134,17 +129,17 @@ const CONCEPTS: readonly Concept[] = [
     ),
     figure: (
       <>
-        <ArtBox black>
+        <ArtBox>
           <ScopeTrace />
-          {/* The scope's labels are SVG text: dim on black is the art's, and axe skips a drawing. */}
+          {/* The scope's labels are SVG text: dim text is the art's, and axe skips a drawing. */}
           <svg
             aria-hidden
             className="pointer-events-none absolute inset-0 size-full font-mono text-panel-status"
           >
-            <text x={8} y={16} className="fill-arena-ruler">
+            <text x={8} y={16} className="fill-muted">
               PROCS
             </text>
-            <text x={8} y="100%" dy={-8} className="fill-arena-ruler">
+            <text x={8} y="100%" dy={-8} className="fill-muted">
               CYCLE 0 → 100,000
             </text>
           </svg>

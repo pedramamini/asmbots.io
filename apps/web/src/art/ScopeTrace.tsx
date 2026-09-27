@@ -52,8 +52,9 @@ export function tracePoints(trace: Trace): string {
 
 /**
  * Four bots' process counts over a battle, drawn as phosphor on a scope's graticule
- * (DESIGN_SYSTEM §10): three die, one lives. On the arena's black in every theme, in the bots'
- * hues. Art: hidden from assistive tech.
+ * (DESIGN_SYSTEM §10): three die, one lives. On the theme's panel, in the bots' hues: a dark
+ * theme gives them a glow, a light theme darkens them to ink (`light-dark` follows the theme's
+ * color-scheme). Art: hidden from assistive tech.
  */
 export function ScopeTrace({ className }: { className?: string | undefined }) {
   return (
@@ -65,15 +66,11 @@ export function ScopeTrace({ className }: { className?: string | undefined }) {
     >
       <defs>
         <filter id="scope-glow" x="-5%" y="-20%" width="110%" height="140%">
-          <feGaussianBlur stdDeviation="2.5" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
+          <feGaussianBlur stdDeviation="2.5" />
         </filter>
       </defs>
-      <rect width={WIDTH} height={HEIGHT} className="fill-arena-bg" />
-      <g className="stroke-arena-lattice" strokeWidth={1}>
+      <rect width={WIDTH} height={HEIGHT} className="fill-panel-2" />
+      <g className="stroke-border" strokeWidth={1}>
         {Array.from({ length: 11 }, (_, i) => (
           <line key={`v${i}`} x1={i * 48} y1={0} x2={i * 48} y2={HEIGHT} />
         ))}
@@ -81,16 +78,27 @@ export function ScopeTrace({ className }: { className?: string | undefined }) {
           <line key={`h${i}`} x1={0} y1={i * 25} x2={WIDTH} y2={i * 25} />
         ))}
       </g>
-      <g className="stroke-arena-ruler" strokeWidth={1}>
+      <g className="stroke-border-strong" strokeWidth={1}>
         <line x1={0} y1={HEIGHT / 2} x2={WIDTH} y2={HEIGHT / 2} />
         <line x1={WIDTH / 2} y1={0} x2={WIDTH / 2} y2={HEIGHT} />
       </g>
-      <g filter="url(#scope-glow)" fill="none" strokeWidth={1.5} strokeLinejoin="round">
+      <g fill="none" strokeWidth={1.5} strokeLinejoin="round">
+        {/* The glow: a blurred copy under each trace, clear in a light theme. */}
+        <g filter="url(#scope-glow)">
+          {TRACES.map((trace) => (
+            <polyline
+              key={trace.seed}
+              points={tracePoints(trace)}
+              stroke={`light-dark(transparent, var(--bot-${trace.hue}))`}
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+        </g>
         {TRACES.map((trace) => (
           <polyline
             key={trace.seed}
             points={tracePoints(trace)}
-            stroke={`var(--bot-${trace.hue})`}
+            stroke={`light-dark(color-mix(in oklab, var(--bot-${trace.hue}) 70%, black), var(--bot-${trace.hue}))`}
             vectorEffect="non-scaling-stroke"
           />
         ))}
