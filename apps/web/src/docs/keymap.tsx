@@ -7,6 +7,7 @@ import { type KeyBinding, KeyHelp } from '@asmbots/ui'
 import { NAV } from '../app/Frame'
 import {
   ARENA_KEYS,
+  CYCLE_KEYS,
   DEBUG_FUNCTION_KEYS,
   DEBUG_KEYS,
   DIGIT_BOTS,
@@ -28,6 +29,7 @@ export function allBindings(): KeyBinding[] {
   return [
     ...Object.values(GLOBAL_KEYS),
     ...NAV.map(({ key, label }) => goKey(key, label)),
+    ...Object.values(CYCLE_KEYS),
     ...Object.values(arena),
     { keys: [`1..${DIGIT_BOTS}`], description: 'isolate bot n', group: 'arena' },
     fullscreen,

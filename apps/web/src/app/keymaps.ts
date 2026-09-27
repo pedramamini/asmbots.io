@@ -22,6 +22,12 @@ export function goKey(key: string, label: string): KeyBinding {
   return { keys: ['g', key], description: `go to ${label}`, group: 'go' }
 }
 
+/** The header's routes in their order, wrapping at each end: `alt+]` from docs goes home. */
+export const CYCLE_KEYS = {
+  previous: { keys: ['alt+['], description: 'go to the previous route', group: 'go' },
+  next: { keys: ['alt+]'], description: 'go to the next route', group: 'go' },
+} as const satisfies Bindings
+
 /** The arena's keys while a battle shows. `1`..`9` come from `isolateKey`. */
 export const ARENA_KEYS = {
   play: { keys: ['space'], description: 'play or pause', group: 'arena' },

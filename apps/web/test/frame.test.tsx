@@ -11,7 +11,15 @@ import {
 } from '@tanstack/react-router'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { useDom, window } from '../../../packages/ui/test/dom'
-import { FPS_WARN, Frame, FrameToolbar, hasFooter, NAV, navActive } from '../src/app/Frame'
+import {
+  cycleNav,
+  FPS_WARN,
+  Frame,
+  FrameToolbar,
+  hasFooter,
+  NAV,
+  navActive,
+} from '../src/app/Frame'
 import { CHORD_WINDOW, createKeymap, type KeyCommand, ROUTE_SEARCH } from '../src/app/keys'
 import { useFps, useHeaderStat, useRouteStat } from '../src/app/slots'
 import { titleHead } from '../src/app/title'
@@ -106,6 +114,19 @@ describe('createKeymap', () => {
     expect(press('j', { metaKey: true }).taken).toBe(false)
     expect(press('k').taken).toBe(false)
     expect(list[0]?.run).toHaveBeenCalledTimes(2)
+  })
+
+  it('runs a bound alt+ key by its place on the keyboard, outside a text field', () => {
+    const list = commands(['alt+]'])
+    unregister = keymap.register(list)
+    // A Mac's ⌥] types ‘: the key's code says which key it was.
+    const alt = { key: '‘', code: 'BracketRight', altKey: true }
+    expect(press(']', alt)).toEqual({ taken: true, prevented: true })
+    expect(press(']', { ...alt, shiftKey: true }).taken).toBe(false)
+    expect(press(']', alt, document.createElement('input')).taken).toBe(false)
+    expect(press(']', { code: 'BracketRight' }).taken).toBe(false)
+    expect(press('[', { key: '“', code: 'BracketLeft', altKey: true }).taken).toBe(false)
+    expect(list[0]?.run).toHaveBeenCalledTimes(1)
   })
 
   it('keeps the default when the command did nothing', () => {
@@ -294,6 +315,21 @@ describe('Frame', () => {
     expect(router.state.location.pathname).toBe('/')
   })
 
+  it('cycles the nav routes with alt+[ and alt+], wrapping at each end', async () => {
+    const router = await renderAndWait()
+    const alt = (code: string) =>
+      act(() => void fireEvent.keyDown(document.body, { key: '', code, altKey: true }))
+    alt('BracketLeft')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/docs'))
+    alt('BracketRight')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'))
+    alt('BracketRight')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/arena'))
+    expect(cycleNav('/hills/main', 1)).toBe('/docs')
+    expect(cycleNav('/settings', 1)).toBe('/')
+    expect(cycleNav('/settings', -1)).toBe('/docs')
+  })
+
   it('knows which nav button holds a page: home only /, the others their subpages', () => {
     expect(navActive('/', '/')).toBe(true)
     expect(navActive('/', '/arena')).toBe(false)
@@ -346,6 +382,8 @@ describe('Frame', () => {
       'g tgo to tournaments',
       'g hgo to hills',
       'g dgo to docs',
+      'alt+[go to the previous route',
+      'alt+]go to the next route',
     ])
     key('?')
     expect(screen.queryByRole('dialog')).toBeNull()

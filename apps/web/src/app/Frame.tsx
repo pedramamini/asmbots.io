@@ -42,7 +42,7 @@ import { AccountSlot } from '../features/account/AccountSlot'
 import { useSettings } from '../store/settings'
 import { BootLayer } from './boot/BootLayer'
 import { GitHubIcon } from './github-icon'
-import { GLOBAL_KEYS, goKey } from './keymaps'
+import { CYCLE_KEYS, GLOBAL_KEYS, goKey } from './keymaps'
 import {
   focusRouteSearch,
   type KeyCommand,
@@ -233,7 +233,14 @@ function SkipLink() {
   )
 }
 
-/** `?`, `mod+k`, `/`, and the `g` chords. */
+/** The nav route `step` places from the page's own, wrapping. Off the nav, `+1` is the first. */
+export function cycleNav(pathname: string, step: 1 | -1): (typeof NAV)[number]['to'] {
+  const at = NAV.findIndex(({ to }) => navActive(to, pathname))
+  const from = at === -1 ? (step === 1 ? -1 : NAV.length) : at
+  return NAV[(from + step + NAV.length) % NAV.length]?.to ?? '/'
+}
+
+/** `?`, `mod+k`, `/`, the `g` chords, and `alt+[` `alt+]`. */
 function useGlobalKeys(toggleKeys: () => void, toggleMenu: () => void): void {
   const router = useRouter()
   const commands = useMemo<KeyCommand[]>(
@@ -245,6 +252,14 @@ function useGlobalKeys(toggleKeys: () => void, toggleMenu: () => void): void {
         ...goKey(key, label),
         run: () => void router.navigate({ to }),
       })),
+      {
+        ...CYCLE_KEYS.previous,
+        run: () => void router.navigate({ to: cycleNav(router.state.location.pathname, -1) }),
+      },
+      {
+        ...CYCLE_KEYS.next,
+        run: () => void router.navigate({ to: cycleNav(router.state.location.pathname, 1) }),
+      },
     ],
     [router, toggleKeys, toggleMenu],
   )

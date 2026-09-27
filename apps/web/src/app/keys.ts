@@ -36,7 +36,8 @@ export interface KeymapOptions {
  * keys come within `chordWindow` ms of each other. When one sequence is both a command and the
  * start of a longer one, the command runs at once. Keys typed into a text field, and keys with
  * Ctrl, Alt, or Meta, belong to the field and the browser, except a bound `mod+` key (`mod+k`):
- * Cmd or Ctrl with the key, which works in a field too.
+ * Cmd or Ctrl with the key, which works in a field too, and a bound `alt+` key (`alt+]`) outside
+ * a field, named by its place on the keyboard.
  */
 export function createKeymap({
   chordWindow = CHORD_WINDOW,
@@ -97,7 +98,16 @@ export function createKeymap({
           commands().find((c) => same(c.keys, mod)),
         )
       }
-      if (event.altKey || isEditable(event.target)) {
+      if (event.altKey) {
+        pending = []
+        if (event.shiftKey || isEditable(event.target)) return false
+        const alt = [`alt+${codeName(event.code, event.key)}`]
+        return take(
+          event,
+          commands().find((c) => same(c.keys, alt)),
+        )
+      }
+      if (isEditable(event.target)) {
         pending = []
         return false
       }
@@ -162,6 +172,14 @@ function keyName(key: string): string {
   if (key === ' ') return 'space'
   if (key === 'Escape') return 'esc'
   return key
+}
+
+/** An Alt key by its place on the keyboard, since on a Mac Alt changes the text: `⌥[` types `“`. */
+function codeName(code: string, key: string): string {
+  if (code === 'BracketLeft') return '['
+  if (code === 'BracketRight') return ']'
+  const letter = /^(?:Key|Digit)(.)$/.exec(code)?.[1]
+  return letter === undefined ? keyName(key) : letter.toLowerCase()
 }
 
 /** A control that takes typed text: its keys are the user's words, not commands. */
