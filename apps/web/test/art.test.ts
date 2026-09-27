@@ -6,10 +6,11 @@ import { bandBytes, litCells } from '../src/art/HexBand'
 import { tracePoints } from '../src/art/ScopeTrace'
 import {
   chip,
-  climbRange,
   FOOTER_HILLS,
   FOOTER_PEAKS,
+  FOOTER_POLE,
   footerRange,
+  podium,
   ridgeHeight,
   trophy,
 } from '../src/art/scenes'
@@ -42,8 +43,8 @@ describe('ditherCells', () => {
 describe('the scenes', () => {
   it('draw something and leave room: no plate is empty or solid', () => {
     for (const [scene, cols, rows] of [
-      [footerRange, 480, 42],
-      [climbRange, 160, 100],
+      [footerRange, 480, 68],
+      [podium, 160, 100],
       [trophy, 100, 100],
       [chip, 160, 100],
       // The intro banners, 320 × 80 px in 2 px cells, and the profile's and the docs' plates.
@@ -65,10 +66,10 @@ describe('the scenes', () => {
     expect(flags).toHaveLength(FOOTER_HILLS.length)
     for (const peak of flags) {
       expect(ridgeHeight(FOOTER_PEAKS, peak.x)).toBeCloseTo(peak.height, 5)
-      // The pole is 0.24 of the plate: the flag's top stays inside it.
-      expect(peak.height + 0.24).toBeLessThan(0.95)
+      // The flag's top stays inside the plate.
+      expect(peak.height + FOOTER_POLE).toBeLessThan(0.97)
     }
-    const cells = ditherCells(footerRange, { cols: 480, rows: 42 })
+    const cells = ditherCells(footerRange, { cols: 480, rows: 68 })
     expect(cells.includes(LIT)).toBe(true)
   })
 })

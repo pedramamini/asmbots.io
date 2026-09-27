@@ -174,7 +174,7 @@ const CONCEPTS: readonly Concept[] = [
     figure: (
       <>
         <ArtBox>
-          <Plate name="climb" />
+          <Plate name="podium" />
         </ArtBox>
         <Shot
           to="/tournaments"

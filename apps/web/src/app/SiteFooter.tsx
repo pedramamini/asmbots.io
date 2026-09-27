@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { DitherPlate } from '../art/DitherPlate'
-import { FOOTER_HILLS, FOOTER_PEAKS, footerRange } from '../art/scenes'
+import { FOOTER_HILLS, FOOTER_PEAKS, FOOTER_POLE, footerRange } from '../art/scenes'
 import { SOURCE_URL } from './site'
 
 /** A keyboard focus: the kit's 1 px accent outline, 2 px out (DESIGN_SYSTEM §8). */
@@ -53,9 +53,6 @@ const COLUMNS: readonly Column[] = [
   },
 ]
 
-/** The pole's height in the footer scene (`range`), 0..1 of the plate's: where a flag's label sits. */
-const POLE = 0.24
-
 /**
  * The foot of every page that scrolls (DESIGN_SYSTEM §10): the hills as a dither range, each
  * seeded hill's flag labeled with its name and a link to it, then the site's links. The arena and
@@ -65,7 +62,7 @@ export function SiteFooter() {
   const flags = FOOTER_PEAKS.filter((peak) => peak.flag === true)
   return (
     <footer className="mt-3 border-t border-border">
-      <div className="relative h-32">
+      <div className="relative h-52">
         <DitherPlate scene={footerRange} />
         {flags.map((peak, index) => {
           const hill = FOOTER_HILLS[index]
@@ -78,7 +75,7 @@ export function SiteFooter() {
               className={`absolute translate-x-5 rounded-sm bg-bg px-1 text-panel-status text-muted uppercase hover:text-accent-fg ${FOCUS}`}
               style={{
                 left: `${peak.x * 100}%`,
-                top: `calc(${(1 - peak.height - POLE) * 100}% - 2px)`,
+                top: `calc(${(1 - peak.height - FOOTER_POLE) * 100}% - 2px)`,
               }}
             >
               {hill}

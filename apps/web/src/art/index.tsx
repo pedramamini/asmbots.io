@@ -4,7 +4,7 @@
  */
 import { arenaFloor, bracket, disk, manual, summit, terminal } from './banners'
 import { DitherPlate } from './DitherPlate'
-import { chip, climbRange, footerRange, trophy } from './scenes'
+import { chip, footerRange, podium, trophy } from './scenes'
 
 export { HexBand } from './HexBand'
 export { Schematic } from './Schematic'
@@ -15,10 +15,10 @@ const SCENES = {
   arena: arenaFloor,
   bracket,
   chip,
-  climb: climbRange,
   disk,
   footer: footerRange,
   manual,
+  podium,
   summit,
   terminal,
   trophy,

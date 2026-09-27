@@ -9,17 +9,22 @@
  */
 
 /** How long the zeroing sweep takes, ms. */
-export const ZERO_MS = 900
+export const ZERO_MS = 400
 /** When the bots load, ms after the boot starts. */
-export const LOAD_MS = 1000
+export const LOAD_MS = 450
 /** When they start to run, ms. */
-export const RUN_MS = 1300
+export const RUN_MS = 600
 /** A tick of the bots, ms: each bot makes one move. */
 export const TICK_MS = 45
 /** How long after the boot the core reboots, ms. */
 export const REBOOT_MS = 16_000
 /** How long a write glows, ms. */
 const HEAT_MS = 700
+/**
+ * The steps a glow fades in, as drawn. The sweep sets every cell glowing at once; drawing each one
+ * again on every frame of its fade was most of the sweep's cost.
+ */
+const HEAT_STEPS = 8
 /** The most time one `advance` takes in: a tab that comes back does not replay what it missed. */
 const MAX_STEP_MS = 100
 
@@ -162,12 +167,14 @@ export class CoreDump {
     this.dirty(at)
   }
 
+  /** Cools each glow; a cell is dirty only when its glow drops a `HEAT_STEPS` step, or goes out. */
   private cool(dt: number): void {
     for (const i of this.hot) {
-      const next = (this.heat[i] ?? 0) - dt / HEAT_MS
-      this.heat[i] = Math.max(0, next)
-      if (next <= 0) this.hot.delete(i)
-      this.dirty(i)
+      const was = this.heat[i] ?? 0
+      const next = Math.max(0, was - dt / HEAT_MS)
+      this.heat[i] = next
+      if (next === 0) this.hot.delete(i)
+      if (Math.ceil(next * HEAT_STEPS) !== Math.ceil(was * HEAT_STEPS)) this.dirty(i)
     }
   }
 
