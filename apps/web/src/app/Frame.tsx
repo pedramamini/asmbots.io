@@ -23,6 +23,7 @@ import {
   Grid2x2,
   House,
   Keyboard,
+  Menu,
   Mountain,
   Palette,
   Trophy,
@@ -90,6 +91,9 @@ const FirstSignIn = lazy(() =>
 
 /** The `mod+k` menu: its own chunk, loaded on the first press. */
 const CommandMenu = lazy(() => import('./CommandMenu').then((m) => ({ default: m.CommandMenu })))
+
+/** A phone's nav, the whole screen: its own chunk, loaded on the first press of the menu button. */
+const NavSheet = lazy(() => import('./NavSheet').then((m) => ({ default: m.NavSheet })))
 
 /** The site's footer, the hills' dither range and the links: after the page paints, in a chunk of its own. */
 const SiteFooter = lazy(() => import('./SiteFooter').then((m) => ({ default: m.SiteFooter })))
@@ -316,15 +320,42 @@ export function navActive(to: string, pathname: string): boolean {
 
 /**
  * The routes; under `xl` each is its icon alone, its label left to screen readers: seven labels
- * do not fit beside the brand and the actions.
+ * do not fit beside the brand and the actions. Under `md` a menu button stands in for them all and
+ * opens `NavSheet`, the whole screen of them. The sheet is open on the page it opened over: any
+ * navigation (a row, the back button) closes it.
  */
 function Nav() {
   const pathname = useLocation({ select: (location) => location.pathname })
-  return NAV.map(({ to, label, icon }) => (
-    <NavLink key={to} to={to} icon={icon} active={navActive(to, pathname)}>
-      <span className="max-xl:sr-only">{label}</span>
-    </NavLink>
-  ))
+  const [sheetAt, setSheetAt] = useState<string | null>(null)
+  const sheet = sheetAt === pathname
+  return (
+    <>
+      {NAV.map(({ to, label, icon }) => (
+        <NavLink
+          key={to}
+          to={to}
+          icon={icon}
+          active={navActive(to, pathname)}
+          className="max-md:hidden"
+        >
+          <span className="max-xl:sr-only">{label}</span>
+        </NavLink>
+      ))}
+      <IconButton
+        icon={Menu}
+        label="pages"
+        aria-haspopup="dialog"
+        aria-expanded={sheet}
+        onClick={() => setSheetAt(pathname)}
+        className="md:hidden"
+      />
+      {sheet && (
+        <Suspense fallback={null}>
+          <NavSheet onClose={() => setSheetAt(null)} />
+        </Suspense>
+      )}
+    </>
+  )
 }
 
 function HeaderActions({ onKeys, onThemes }: { onKeys: () => void; onThemes: () => void }) {

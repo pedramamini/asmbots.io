@@ -315,6 +315,39 @@ describe('Frame', () => {
     expect(router.state.location.pathname).toBe('/')
   })
 
+  it("opens a phone's pages sheet from the nav's menu button, and a row goes and closes it", async () => {
+    const router = await renderAndWait()
+    const nav = within(screen.getByRole('banner')).getByRole('navigation')
+    const menu = within(nav).getByRole('button', { name: 'pages' })
+    expect(menu.getAttribute('aria-expanded')).toBe('false')
+    fireEvent.click(menu)
+    const sheet = await screen.findByRole('dialog', { name: 'pages' })
+    expect(menu.getAttribute('aria-expanded')).toBe('true')
+    const rows = within(sheet).getAllByRole('link')
+    expect(rows.map((row) => row.getAttribute('href'))).toEqual([
+      ...NAV.map(({ to }) => to),
+      '/settings',
+      expect.stringContaining('github.com'),
+    ])
+    expect(within(sheet).getByRole('link', { name: /^home/ }).getAttribute('aria-current')).toBe(
+      'page',
+    )
+    fireEvent.click(within(sheet).getByRole('link', { name: /^arena/ }))
+    await screen.findByText('the arena')
+    expect(router.state.location.pathname).toBe('/arena')
+    expect(screen.queryByRole('dialog', { name: 'pages' })).toBeNull()
+    // Open again over the arena, and the back button closes it too.
+    fireEvent.click(menu)
+    const again = await screen.findByRole('dialog', { name: 'pages' })
+    expect(
+      within(again)
+        .getByRole('link', { name: /^arena/ })
+        .getAttribute('aria-current'),
+    ).toBe('page')
+    act(() => router.history.back())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'pages' })).toBeNull())
+  })
+
   it('cycles the nav routes with alt+[ and alt+], wrapping at each end', async () => {
     const router = await renderAndWait()
     const alt = (code: string) =>

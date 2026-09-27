@@ -94,7 +94,7 @@ Bot 13+ wraps with a hatched marker in the roster so two bots never share an unm
 ```
 
 - **Panel**: `--panel` fill, 1 px `--border`, radius 4, padding 12. Title row: title left (accent), status right (muted). Hairline under the title row.
-- **Nav button**: 1 px `--border`, radius 3, padding 4 10, icon 12 px + label. Active: `--accent` border + text + `--accent-10` fill. Hover: `--border-strong`.
+- **Nav button**: 1 px `--border`, radius 3, padding 4 10, icon 12 px + label. Active: `--accent` border + text + `--accent-10` fill. Hover: `--border-strong`. Under `xl` the label goes (icon only); under `md` the nav is one menu button that opens a full-screen sheet (`Modal` `full`): one 48 px row per route, icon, UPPER name, a muted line on what it holds, the current route in the active look.
 - **Segmented control**: bordered pills, 2 px gap, active pill accent-bordered.
 - **Input**: `--panel-2` fill, `--border`, `> ` prompt glyph in `--text-dim`, no focus ring, focus = accent border.
 - **Chip**: 10 px UPPER, `--panel`, hairline, radius 3, padding 2 8. Semantic variants tint text only.

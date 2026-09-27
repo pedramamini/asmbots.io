@@ -770,8 +770,7 @@ CHROME_PATH="$HOME/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/G
 | `/docs` | 100 | 100 | 100 | 100 | 94 / 100 / 100 / 100 |
 | `/hills/main` | 99 to 100 | 100 | 100 | 100 | 79 / 100 / 100 / 100 |
 
-The gate is the desktop preset: the app is a dense desktop layout (DESIGN_SYSTEM §3; the header
-does not fit a phone), and §11's other bars are desktop ones (Chrome, M1). Mobile is not gated. Its
+The gate is the desktop preset: the app is a dense desktop layout (DESIGN_SYSTEM §3), and §11's other bars are desktop ones (Chrome, M1). Mobile is not gated. Its
 first paint waits for the entry and `vendor` chunks over simulated slow 4G (FCP 2.3 to 3.2 s), and
 nothing short of HTML prerendered for each route moves that.
 
@@ -828,8 +827,9 @@ Open items then, for mobile, which the gate does not measure:
 
 - Mobile performance: the `vendor` chunk carries about 55 KiB that `/` does not run. A content
   page's own chunks come one round trip after the entry's (reference pages 92 to 93).
-- The app header does not fit a 390 px phone: its nav and actions run 360 px past the right edge,
-  so the page scrolls sideways on every route (the docs' own column does not).
+- ~~The app header does not fit a 390 px phone~~: fixed 2026-09-27. Under `md` the nav is one
+  menu button that opens `NavSheet` (`src/app/NavSheet.tsx`, a lazy chunk), every page as a 48 px
+  row with a line on what it holds, then settings and the source; the header is 390 px wide.
 - Mobile best practices, `font-size`: most text is under 12 px. The type scale (DESIGN_SYSTEM §3)
   sets this on purpose, for a dense desktop layout.
 

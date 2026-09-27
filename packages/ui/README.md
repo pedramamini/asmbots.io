@@ -95,7 +95,7 @@ Two utilities of the kit's own besides the type roles and the animations: `trunc
 | `Identicon` | `<Identicon value={bytes} hue={bot} size={32} />`: 8 × 8 cells from a hash of the bytes. |
 | `HueSwatch` | `<HueSwatch hue={bot} />` |
 | `Hex` | `<Hex value={0x1a2f} />` shows `0x1A2F`; `<Hex byte value={255} />` shows `FF`. |
-| `Modal` | `<Modal open={open} onClose={close} title="submit to hill" actions={buttons}>…</Modal>`: `sm`, `md`, `lg`. |
+| `Modal` | `<Modal open={open} onClose={close} title="submit to hill" actions={buttons}>…</Modal>`: `sm`, `md`, `lg`, and `full`, the whole screen less a 12 px margin (a phone's menu). |
 | `Toast` | `const { toast } = useToast(); toast('link copied', { variant: 'accent' })`, under one `<ToastProvider>` at the root. |
 | `Skeleton` | `<Skeleton className="h-2.5 w-24" />`; `<Skeleton rows={5} />` holds a table's place. |
 | `RadarLoader` | `<RadarLoader framed label="loading dashboard" detail="6 sections remaining" />` |

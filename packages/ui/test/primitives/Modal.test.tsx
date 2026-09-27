@@ -263,11 +263,12 @@ describe('Modal', () => {
     expect(calls).toEqual(['showModal', 'close'])
   })
 
-  it('widens by size: 360, 480, and 640 px', () => {
+  it('widens by size: 360, 480, and 640 px, and full fills the overlay', () => {
     for (const [size, width] of [
       ['sm', 'max-w-90'],
       ['md', 'max-w-120'],
       ['lg', 'max-w-160'],
+      ['full', 'h-full'],
     ] as const) {
       const { unmount } = renderModal({ size })
       const panel = (dialog() as HTMLElement).firstElementChild as HTMLElement
