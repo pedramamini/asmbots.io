@@ -1,6 +1,7 @@
 /**
- * The cron (`triggers.crons` in `wrangler.jsonc`: Saturdays 18:00 UTC): starts the weekly
- * championship due and makes next week's (`championship.ts`).
+ * The cron (`triggers.crons` in `wrangler.jsonc`: Fridays 23:00 UTC and Saturdays 00:00 UTC, one
+ * of them 18:00 US Central): starts the weekly championship due and makes next week's
+ * (`championship.ts`). The other run finds none due and makes none new.
  */
 import type { TournamentJob } from '@asmbots/protocol'
 import {

@@ -23,7 +23,7 @@ const TOKEN = process.env.CLOUDFLARE_API_TOKEN
 const ACCOUNT = process.env.CLOUDFLARE_ACCOUNT_ID
 const SCRIPT = 'asmbots'
 const BACKUPS = 'asmbots-backups'
-const CRON = '0 18 * * 6'
+const CRONS = ['0 23 * * FRI', '0 0 * * SAT']
 /** The newest backup may be this old: a nightly run and some slack. */
 const BACKUP_MAX_AGE_H = 30
 const MAX_ERROR_RATE = 0.001
@@ -100,7 +100,8 @@ await check('championship cron', async () => {
     `/accounts/${ACCOUNT}/workers/scripts/${SCRIPT}/schedules`,
   )
   const crons = schedules.map((s) => s.cron)
-  assert(crons.includes(CRON), `schedules are ${JSON.stringify(crons)}, not ${CRON}`)
+  const missing = CRONS.filter((cron) => !crons.includes(cron))
+  assert(missing.length === 0, `schedules are ${JSON.stringify(crons)}, not ${CRONS.join(', ')}`)
   return crons.join(', ')
 })
 

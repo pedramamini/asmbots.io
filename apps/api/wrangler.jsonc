@@ -52,8 +52,9 @@
   // The running version's id and upload time: /api/health's uptime counts from it.
   "version_metadata": { "binding": "CF_VERSION_METADATA" },
   "triggers": {
-    // Saturdays 18:00 UTC: the weekly championship.
-    "crons": ["0 18 * * 6"]
+    // The weekly championship, Fridays 18:00 US Central: 23:00 UTC in daylight time, 00:00 UTC
+    // Saturday in standard time. Named days: Cloudflare counts weekdays from 1, Sunday.
+    "crons": ["0 23 * * FRI", "0 0 * * SAT"]
   },
   "vars": {
     "ISA_VERSION": "x16c-v1",

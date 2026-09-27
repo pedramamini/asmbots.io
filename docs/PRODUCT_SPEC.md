@@ -67,7 +67,7 @@ Tiled workspace, default the `writing` layout: library, the source over its prob
 
 ## 4. Tournaments `/tournaments`, `/tournaments/:id`
 
-- List: cards for scheduled, running, finished. Kinds: `round robin`, `bracket`, `melee`. Filter and search.
+- List: tiles of one height for scheduled, running, finished: a glyph of the kind, the status's color down the left edge, the champion (identicon and name), the live match count, or the entry window (`no entries yet` for an open one nobody entered), and a bar of the matches played. A championship cancelled with no entries is left out. Kinds: `round robin`, `bracket`, `melee`. Filter and search.
 - Create (signed in): name, kind, entrant source (my bots / roster / open entry with deadline), rounds per match, config preset, start now or schedule.
 - **Bracket view**: SVG bracket, 4..32 entrants, byes, third-place match, live-updating; click a node → match panel (rounds, seeds, per-round survivors, `watch` → arena replay).
 - **Round robin view**: results matrix (entrants × entrants, cell = points, hue-tinted), standings table with W/T/L and points, sortable.

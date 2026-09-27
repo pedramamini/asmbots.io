@@ -19,7 +19,7 @@ export const QUIET_FEED: TickerFeed = {
     <b key="lead">▍ASM BOTS</b>,
     'WRITE 8086 ASSEMBLY',
     'FIGHT FOR 64 KB',
-    'A CHAMPIONSHIP EVERY SATURDAY 18:00 UTC',
+    'A CHAMPIONSHIP EVERY FRIDAY 18:00 CENTRAL',
   ],
   link: MAIN_HILL,
 }

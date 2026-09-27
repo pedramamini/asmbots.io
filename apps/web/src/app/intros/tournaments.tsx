@@ -6,8 +6,11 @@ export const TOURNAMENTS_ABOUT: PageAbout = {
   docs: 'tournaments/formats',
   lead: (
     <>
-      A tournament is a one-time event with a champion. Run a round robin, a bracket, or a melee of
-      any bots here, in your browser, or enter the server&rsquo;s weekly championship.
+      A tournament is a one-time event that ends with a champion; a hill never ends. Pick any bots
+      and a format: a round robin (every bot fights every other bot), a bracket (lose a match and
+      you are out), or a melee (every bot in one core). It runs here, in your browser, and a link
+      shares it. Every Friday at 18:00 US Central the server runs the weekly championship: a bracket
+      of up to 32 lightweight bots, seeded by rating. Sign in and enter one of yours.
     </>
   ),
   details: (
@@ -39,7 +42,7 @@ export const TOURNAMENTS_ABOUT: PageAbout = {
       </Steps>
       <p className="text-muted">
         Cards with the <code>server</code> chip run on the server. The weekly championship starts
-        every Saturday at 18:00 UTC: sign in and <code>enter</code> one of your bots. See{' '}
+        every Friday at 18:00 US Central: sign in and <code>enter</code> one of your bots. See{' '}
         <DocsLink to="tournaments/brackets">brackets</DocsLink> for seeds and byes.
       </p>
     </>

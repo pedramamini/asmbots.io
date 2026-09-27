@@ -1036,7 +1036,8 @@ async function tournamentSummaries(
 
 /**
  * Tournaments: running ones first, then by start time, latest first; unscheduled ones last. A
- * draft shows to its owner only.
+ * draft shows to its owner only; one cancelled with no entries (a championship nobody entered)
+ * does not show.
  */
 export async function listTournaments(
   db: D1Database,
@@ -1044,7 +1045,10 @@ export async function listTournaments(
 ): Promise<TournamentSummary[]> {
   const { results } = await db
     .prepare(
-      `SELECT ${SUMMARY_COLUMNS} FROM tournaments t WHERE t.status != 'draft' OR t.owner_id = ?
+      `SELECT ${SUMMARY_COLUMNS} FROM tournaments t
+       WHERE (t.status != 'draft' OR t.owner_id = ?)
+         AND NOT (t.status = 'cancelled'
+           AND NOT EXISTS (SELECT 1 FROM tournament_entries e WHERE e.tournament_id = t.id))
        ORDER BY (t.status = 'running') DESC, t.starts_at IS NULL, t.starts_at DESC,
          t.created_at DESC
        LIMIT ?`,

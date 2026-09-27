@@ -117,7 +117,7 @@ describe('write rate limit', () => {
 
 describe('scheduled', () => {
   it('runs the weekly championship stub', async () => {
-    const controller = createScheduledController({ cron: '0 18 * * 6' })
+    const controller = createScheduledController({ cron: '0 23 * * FRI' })
     await expect(handler.scheduled(controller, env)).resolves.toBeUndefined()
   })
 })

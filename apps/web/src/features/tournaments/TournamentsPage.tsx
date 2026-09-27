@@ -1,7 +1,8 @@
 /**
- * `/tournaments` (PRODUCT_SPEC §4): this browser's tournaments and the server's as cards (name,
- * kind, entrants, status, and the champion once there is one; a server one with the `server`
- * chip, and its entry window while it takes entries), running ones first, then the newest,
+ * `/tournaments` (PRODUCT_SPEC §4): this browser's tournaments and the server's as tiles of one
+ * height (`TournamentTile`: name, kind, entrants, status, matches played, and the champion once
+ * there is one; a server one with the `server` chip, and its entry window while it takes entries),
+ * running ones first, then the newest,
  * filtered by kind and status and searched by name and bot. Mounting it picks up the local
  * tournaments a reload left running.
  */
@@ -10,13 +11,11 @@ import {
   Chip,
   type ChipVariant,
   EmptyState,
-  Identicon,
   Input,
   Panel,
   PanelGrid,
   Segmented,
 } from '@asmbots/ui'
-import { Link } from '@tanstack/react-router'
 import { Cloud, Plus, Trophy } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { useTournaments as useServerTournaments } from '../../api/queries'
@@ -26,7 +25,6 @@ import { LoadFailure } from '../../app/LoadFailure'
 import { PageIntro } from '../../app/PageIntro'
 import { assembleCached } from '../arena/setup/assembly'
 import { rosterCatalog } from '../arena/setup/bots'
-import { plural } from '../hills/links'
 import { takesEntries, utcTime } from './entry'
 import { type TournamentRunner, tournamentRunner, useRunnerSync } from './runner'
 import { type ServerCard, serverCard } from './server'
@@ -39,6 +37,7 @@ import {
   type TournamentStatus,
   useTournaments,
 } from './store'
+import { TournamentTile } from './TournamentTile'
 
 /** The status filter: `running` takes paused ones too, `finished` cancelled and failed ones. */
 export type StatusFilter = 'all' | 'scheduled' | 'running' | 'finished'
@@ -246,7 +245,7 @@ export function TournamentsPage({ onNew, runner = tournamentRunner() }: Tourname
           ) : (
             <ul
               aria-label="tournament list"
-              className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3"
+              className="grid auto-rows-fr grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"
             >
               {cards.map((card) => card.node)}
             </ul>
@@ -257,24 +256,30 @@ export function TournamentsPage({ onNew, runner = tournamentRunner() }: Tourname
   )
 }
 
-/** The link that a card is, local or the server's. */
-const CARD_LINK =
-  'flex min-w-0 flex-col gap-2 rounded-md border border-border bg-panel-2 p-2 transition-colors duration-120 ease-out hover:border-border-strong focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-accent'
-
 /**
- * A server tournament's card: the `server` chip (and `championship` for one with no owner), its
+ * A server tournament's tile: the `server` chip (and `championship` for one with no owner), its
  * entry window while it takes entries, and its champion once it has one.
  */
 function ServerTournamentCard({ card }: { card: ServerCard }) {
   const { summary: s, kind, status } = card
   const t = s.tournament
   return (
-    <li aria-label={t.name}>
-      <Link to="/tournaments/$id" params={{ id: t.id }} className={CARD_LINK}>
-        <p className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-bright">{t.name}</span>
-        </p>
-        <p className="flex flex-wrap items-center gap-2">
+    <TournamentTile
+      id={t.id}
+      name={t.name}
+      kind={kind}
+      status={status}
+      statusLabel={statusLabel({ status, progress: { done: s.done, of: s.of } })}
+      statusVariant={STATUS_VARIANT[status]}
+      entrants={s.entrants}
+      rounds={t.config.rounds}
+      progress={{ done: s.done, of: s.of }}
+      champion={s.champion === null ? undefined : { value: s.champion.name, name: s.champion.name }}
+      entryUntil={
+        takesEntries(t) && t.entryClosesAt !== null ? utcTime(t.entryClosesAt) : undefined
+      }
+      chips={
+        <>
           <Chip icon={Cloud} variant="info" title="the server runs it">
             server
           </Chip>
@@ -283,50 +288,28 @@ function ServerTournamentCard({ card }: { card: ServerCard }) {
               championship
             </Chip>
           )}
-          <Chip>{KIND_LABELS[kind]}</Chip>
-          <Chip variant={STATUS_VARIANT[status]}>
-            {statusLabel({ status, progress: { done: s.done, of: s.of } })}
-          </Chip>
-          <span className="text-data text-muted">{plural(s.entrants, 'bot')}</span>
-        </p>
-        {takesEntries(t) && t.entryClosesAt !== null && (
-          <p className="text-data text-muted">entries open until {utcTime(t.entryClosesAt)}</p>
-        )}
-        {s.champion !== null && (
-          <p className="flex min-w-0 items-center gap-2 text-data">
-            <Identicon value={s.champion.name} size={20} />
-            <span className="text-muted">champion</span>
-            <span className="truncate text-accent-fg">{s.champion.name}</span>
-          </p>
-        )}
-      </Link>
-    </li>
+        </>
+      }
+    />
   )
 }
 
 function TournamentCard({ tournament: t }: { tournament: Tournament }) {
   const winner = t.champion === null ? undefined : t.entrants[t.champion]
   return (
-    <li aria-label={t.name}>
-      <Link to="/tournaments/$id" params={{ id: t.id }} className={CARD_LINK}>
-        <p className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-bright">{t.name}</span>
-        </p>
-        <p className="flex flex-wrap items-center gap-2">
-          <Chip>{KIND_LABELS[t.kind]}</Chip>
-          <Chip variant={STATUS_VARIANT[t.status]}>{statusLabel(t)}</Chip>
-          <span className="text-data text-muted">
-            {t.entrants.length} {t.entrants.length === 1 ? 'bot' : 'bots'}
-          </span>
-        </p>
-        {winner !== undefined && (
-          <p className="flex min-w-0 items-center gap-2 text-data">
-            <Identicon value={identiconValue(winner)} size={20} />
-            <span className="text-muted">champion</span>
-            <span className="truncate text-accent-fg">{winner.name}</span>
-          </p>
-        )}
-      </Link>
-    </li>
+    <TournamentTile
+      id={t.id}
+      name={t.name}
+      kind={t.kind}
+      status={t.status}
+      statusLabel={statusLabel(t)}
+      statusVariant={STATUS_VARIANT[t.status]}
+      entrants={t.entrants.length}
+      rounds={t.rounds}
+      progress={t.progress}
+      champion={
+        winner === undefined ? undefined : { value: identiconValue(winner), name: winner.name }
+      }
+    />
   )
 }

@@ -317,7 +317,7 @@ A release is a tag, `v<stamp>`, on a commit whose `CHANGELOG.md` names it (the c
 | --- | --- | --- |
 | Production smoke passes | `scripts/smoke.ts` (read-only) | |
 | Backups ran last night | newest object in `asmbots-backups` ≤ 30 h old | |
-| Cron championship scheduled | the Worker's schedules include `0 18 * * 6` | the home page's "next championship" countdown |
+| Cron championship scheduled | the Worker's schedules include `0 23 * * FRI` and `0 0 * * SAT` | the home page's "next championship" countdown |
 | OAuth callback on the domain | `/api/auth/github` redirects to GitHub with the client id; the callback answers without a 404 | sign in on https://asmbots.io as a new user |
 | OG cards render | `/`, `/arena`, `/hills/main` fetched as Slackbot and Twitterbot have `og:*` and a large card; the card is a PNG | paste a link in Slack and in a post draft on X (X's card validator no longer previews) |
 | `robots.txt` allows indexing | `Allow: /` and no `Disallow: /` for `*` | |
@@ -331,7 +331,7 @@ Deployed 2026-09-25 09:5x UTC by hand (Worker version `d2b7e23d`), migration `00
 | --- | --- |
 | Production smoke | ✅ 10 of 10 |
 | Backups | ⚠️ passes on the pre-release export only. `backup.yml` has never run (see **Deploy**): no nightly backup exists |
-| Championship cron | ✅ `0 18 * * 6` on the Worker |
+| Championship cron | ✅ `0 23 * * FRI`, `0 0 * * SAT` on the Worker |
 | OAuth | ✅ redirect to GitHub with the production OAuth App's client id; callback live (400 without a code). A real sign-in is the release sign-off's |
 | OG cards | ✅ `/`, `/arena`, `/hills/main` as Slackbot and Twitterbot: large cards, 1200 × 630 PNGs. Slack and X pastes are the sign-off's |
 | `robots.txt` | ✅ `Allow: /` |

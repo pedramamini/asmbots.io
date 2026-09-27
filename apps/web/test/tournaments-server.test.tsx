@@ -420,6 +420,33 @@ describe('the tournament list', () => {
     expect(names()).toEqual(['my local cup', 'weekly 2026-09-19'])
   })
 
+  it('says a championship nobody entered yet is open, not that it has 0 bots', async () => {
+    server.use(
+      answer('/tournaments', {
+        tournaments: [
+          summary(
+            record({
+              id: 'w2',
+              name: 'weekly 2099-10-02',
+              status: 'scheduled',
+              entry: 'open',
+              entryClosesAt: OPEN_UNTIL,
+              startsAt: '2099-10-02T23:00:00.000Z',
+            }),
+            { entrants: 0, of: 0 },
+          ),
+        ],
+      }),
+    )
+    await renderAt('/tournaments', () => (
+      <TournamentsPage runner={new TournamentRunner(() => idle)} />
+    ))
+    const card = await screen.findByRole('listitem', { name: 'weekly 2099-10-02' })
+    expect(card.textContent).toContain('no entries yet')
+    expect(card.textContent).toContain('open: be the first to enter')
+    expect(card.textContent).not.toContain('0 bots')
+  })
+
   it('shows this browser’s tournaments when the server’s do not load', async () => {
     server.use(
       http.get('*/api/tournaments', () =>

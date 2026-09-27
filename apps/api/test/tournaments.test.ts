@@ -522,10 +522,11 @@ describe('a deleted account', () => {
 })
 
 describe('the cron', () => {
-  const saturday = Date.parse('2026-09-26T18:00:00.000Z')
+  // Friday 18:00 US Central, in daylight time.
+  const friday = Date.parse('2026-09-25T23:00:00.000Z')
   const week = 7 * 24 * HOUR
   const cron = async (at: number) => {
-    const controller = createScheduledController({ scheduledTime: at, cron: '0 18 * * 6' })
+    const controller = createScheduledController({ scheduledTime: at, cron: '0 23 * * FRI' })
     await worker.scheduled(controller, env)
   }
   const championships = async () => {
@@ -536,40 +537,57 @@ describe('the cron', () => {
   }
 
   it('makes next week’s championship, open six days, and only once', async () => {
-    expect(nextChampionshipStart(new Date(saturday)).toISOString()).toBe('2026-10-03T18:00:00.000Z')
-    expect(nextChampionshipStart(new Date(saturday - 1)).toISOString()).toBe(
-      '2026-09-26T18:00:00.000Z',
+    expect(nextChampionshipStart(new Date(friday)).toISOString()).toBe('2026-10-02T23:00:00.000Z')
+    expect(nextChampionshipStart(new Date(friday - 1)).toISOString()).toBe(
+      '2026-09-25T23:00:00.000Z',
     )
-    await cron(saturday)
-    await cron(saturday)
-    await cron(saturday + 15 * HOUR)
+    await cron(friday)
+    await cron(friday)
+    // The other cron, an hour on: none due, none new.
+    await cron(friday + HOUR)
     expect(await championships()).toEqual([
       {
-        id: 'weekly-2026-10-03',
+        id: 'weekly-2026-10-02',
         status: 'scheduled',
-        starts_at: '2026-10-03T18:00:00.000Z',
-        entry_closes_at: '2026-10-02T18:00:00.000Z',
+        starts_at: '2026-10-02T23:00:00.000Z',
+        entry_closes_at: '2026-10-01T23:00:00.000Z',
       },
     ])
-    const t = (await detail('weekly-2026-10-03')).tournament
+    const t = (await detail('weekly-2026-10-02')).tournament
     expect(t).toMatchObject({
-      name: 'weekly 2026-10-03',
+      name: 'weekly 2026-10-02',
       kind: 'bracket',
       entry: 'open',
       ownerId: null,
       config: {
         rounds: CHAMPIONSHIP_ROUNDS,
-        seed: 20261003,
+        seed: 20261002,
         battle: CHAMPIONSHIP_RULES,
         seeding: 'rating',
         thirdPlace: true,
       },
     })
     // Six days of entries: from the cron that made it to the day before it starts.
-    expect(Date.parse(t.entryClosesAt as string) - saturday).toBe(6 * 24 * HOUR)
+    expect(Date.parse(t.entryClosesAt as string) - friday).toBe(6 * 24 * HOUR)
     // The main hill's rules.
     expect(CHAMPIONSHIP_RULES).toEqual(SEED_HILLS.find((h) => h.slug === 'main')?.config)
-    expect(weeklyChampionship(new Date(saturday)).id).toBe('weekly-2026-09-26')
+    expect(weeklyChampionship(new Date(friday)).id).toBe('weekly-2026-09-25')
+  })
+
+  it('keeps 18:00 US Central in standard time, and names the week by its Central day', () => {
+    // Daylight time ends Sunday 2026-11-01: the start moves to 00:00 UTC, the Saturday.
+    const start = nextChampionshipStart(new Date('2026-10-31T00:00:00.000Z'))
+    expect(start.toISOString()).toBe('2026-11-07T00:00:00.000Z')
+    expect(weeklyChampionship(start)).toMatchObject({
+      id: 'weekly-2026-11-06',
+      entryClosesAt: '2026-11-06T00:00:00.000Z',
+      config: { seed: 20261106 },
+    })
+    // It begins again the second Sunday of March 2027.
+    expect(nextChampionshipStart(start).toISOString()).toBe('2026-11-14T00:00:00.000Z')
+    expect(nextChampionshipStart(new Date('2027-03-13T00:00:00.000Z')).toISOString()).toBe(
+      '2027-03-19T23:00:00.000Z',
+    )
   })
 
   it('starts the championship due, seeded by rating, and its champion lands in the feed', async () => {
@@ -584,8 +602,8 @@ describe('the cron', () => {
       ...entrants.map((v, i) =>
         env.DB.prepare(
           `INSERT INTO tournament_entries (tournament_id, bot_version_id, entered_at)
-           VALUES ('weekly-2026-10-03', ?, ?)`,
-        ).bind(v, new Date(saturday + i * HOUR).toISOString()),
+           VALUES ('weekly-2026-10-02', ?, ?)`,
+        ).bind(v, new Date(friday + i * HOUR).toISOString()),
       ),
       env.DB.prepare(
         `INSERT INTO ratings (bot_version_id, hill_id, rating, rd, volatility) VALUES
@@ -603,15 +621,15 @@ describe('the cron', () => {
     const bySeed = [...entrants].sort((a, b) => (rating.get(b) ?? 0) - (rating.get(a) ?? 0))
     expect(bySeed.slice(0, 2)).toEqual([imp, loop])
 
-    await cron(saturday + week)
+    await cron(friday + week)
     const [due, next] = await championships()
-    expect(due).toMatchObject({ id: 'weekly-2026-10-03', status: 'running' })
-    expect(next).toMatchObject({ id: 'weekly-2026-10-10', status: 'scheduled' })
-    expect(await seeds('weekly-2026-10-03')).toEqual(bySeed)
+    expect(due).toMatchObject({ id: 'weekly-2026-10-02', status: 'running' })
+    expect(next).toMatchObject({ id: 'weekly-2026-10-09', status: 'scheduled' })
+    expect(await seeds('weekly-2026-10-02')).toEqual(bySeed)
 
-    await drain('weekly-2026-10-03')
-    const expected = oracle(bySeed, 20261003, CHAMPIONSHIP_ROUNDS, CHAMPIONSHIP_RULES)
-    expect((await row('weekly-2026-10-03'))?.champion_id).toBe(expected)
+    await drain('weekly-2026-10-02')
+    const expected = oracle(bySeed, 20261002, CHAMPIONSHIP_ROUNDS, CHAMPIONSHIP_RULES)
+    expect((await row('weekly-2026-10-02'))?.champion_id).toBe(expected)
     const feed = parse(
       ChampionshipList,
       await (await send(new Jar(), '/api/championships')).json(),
@@ -619,7 +637,7 @@ describe('the cron', () => {
     )
     expect(feed.championships).toHaveLength(1)
     expect(feed.championships[0]).toMatchObject({
-      tournament: { id: 'weekly-2026-10-03', status: 'finished' },
+      tournament: { id: 'weekly-2026-10-02', status: 'finished' },
       entrants: 5,
       done: 5,
       of: 5,
@@ -634,23 +652,32 @@ describe('the cron', () => {
     )
     expect(
       profile.championships.find(
-        (r) => r.bot.versionId === expected && r.tournament.id === 'weekly-2026-10-03',
+        (r) => r.bot.versionId === expected && r.tournament.id === 'weekly-2026-10-02',
       ),
     ).toMatchObject({ champion: true })
   })
 
   it('cancels a championship due with fewer than 2 bots, and makes the next', async () => {
-    await cron(saturday + 2 * week)
+    await cron(friday + 2 * week)
     const byId = new Map((await championships()).map((c) => [c.id, c.status]))
-    expect(byId.get('weekly-2026-10-10')).toBe('cancelled')
-    expect(byId.get('weekly-2026-10-17')).toBe('scheduled')
+    expect(byId.get('weekly-2026-10-09')).toBe('cancelled')
+    expect(byId.get('weekly-2026-10-16')).toBe('scheduled')
+    // The list leaves out a championship nobody entered, once it is cancelled.
+    const list = parse(
+      TournamentList,
+      await (await send(new Jar(), '/api/tournaments')).json(),
+      'it',
+    )
+    const listed = list.tournaments.map((s) => s.tournament.id)
+    expect(listed).toContain('weekly-2026-10-16')
+    expect(listed).not.toContain('weekly-2026-10-09')
     // A user may not start a championship: the cron does.
     const jar = await user('eager')
     expect(
-      await errorOf(await post(jar, '/api/tournaments/weekly-2026-10-17/start')),
+      await errorOf(await post(jar, '/api/tournaments/weekly-2026-10-16/start')),
     ).toMatchObject({
       status: 403,
-      message: 'weekly 2026-10-17 is a championship: the cron starts it',
+      message: 'weekly 2026-10-16 is a championship: the cron starts it',
     })
   })
 
@@ -659,12 +686,12 @@ describe('the cron', () => {
     await env.DB.prepare(sqlScript([championshipInsert(first)])).run()
     const t = (await detail(first.id)).tournament
     expect(t).toMatchObject({
-      id: 'weekly-2027-01-02',
-      slug: 'weekly-2027-01-02',
+      id: 'weekly-2027-01-01',
+      slug: 'weekly-2027-01-01',
       status: 'scheduled',
       entry: 'open',
-      startsAt: '2027-01-02T18:00:00.000Z',
-      entryClosesAt: '2027-01-01T18:00:00.000Z',
+      startsAt: '2027-01-02T00:00:00.000Z',
+      entryClosesAt: '2027-01-01T00:00:00.000Z',
       config: first.config,
     })
   })

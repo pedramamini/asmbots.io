@@ -52,7 +52,7 @@ Copy `.dev.vars.example` to `.dev.vars` (git-ignored) for `wrangler dev`. Produc
 | `ADMIN_HANDLES` | var | empty | Who may read `GET /api/admin/stats`: handles, split on commas or spaces, any case. Empty: nobody. A handle is its user's pick, so name only handles their owners hold: a free one could be taken by anyone who signs up |
 | `RUNNER_ALARM_DELAY_MS` | var, unset | 0 | Ms between a Runner's alarms. The API tests set an hour and step the alarms by hand (`runDurableObjectAlarm`) |
 
-The cron, `0 18 * * 6`, starts and makes the weekly championship ([Cron](#cron)). The D1 and KV ids are the production ones; `wrangler dev` and the tests keep to local storage. Never mark a binding `remote`: the tests (`@cloudflare/vitest-pool-workers` honors it; `vitest.config.ts` also sets `remoteBindings: false`) and `wrangler dev` would then read and write production data. `.ttf` imports are `Data` (the share cards' font).
+The crons, `0 23 * * FRI` and `0 0 * * SAT`, start and make the weekly championship ([Cron](#cron)). The D1 and KV ids are the production ones; `wrangler dev` and the tests keep to local storage. Never mark a binding `remote`: the tests (`@cloudflare/vitest-pool-workers` honors it; `vitest.config.ts` also sets `remoteBindings: false`) and `wrangler dev` would then read and write production data. `.ttf` imports are `Data` (the share cards' font).
 
 ## Migrations and seed
 
@@ -187,7 +187,7 @@ A tournament job writes its entrants' order as their seeds when it starts (a bra
 
 ## Cron
 
-`0 18 * * 6` (Saturdays 18:00 UTC), the weekly championship (`src/cron.ts`, `src/championship.ts`). Each run starts every championship due (one with fewer than 2 bots is cancelled; a failed start is tried 3 times) and makes next week's, `weekly-<day>`, unless it is there: an open bracket of up to 32, seeded by rating, with a third-place match, under the main hill's rules (10 rounds, 80,000 cycles, 512 B), its matches placed from a seed of its day (`20261003`). It takes entries for six days, until the Friday 18:00 UTC before it. A championship has no owner; nobody may start one but the cron. Run it on `wrangler dev` with a request to `/cdn-cgi/handler/scheduled?cron=0+18+*+*+6` (`/__scheduled` is the SPA's: static assets answer it first).
+`0 23 * * FRI` and `0 0 * * SAT`, the weekly championship (`src/cron.ts`, `src/championship.ts`): it starts Fridays at 18:00 US Central (`America/Chicago`), which is 23:00 UTC in daylight time and 00:00 UTC Saturday in standard time, so one of the two runs finds it due. Name the days: Cloudflare counts weekdays from 1, Sunday, so `6` is Friday. Each run starts every championship due (one with fewer than 2 bots is cancelled; a failed start is tried 3 times) and makes next week's, `weekly-<day>` (its Central day), unless it is there: an open bracket of up to 32, seeded by rating, with a third-place match, under the main hill's rules (10 rounds, 80,000 cycles, 512 B), its matches placed from a seed of its day (`20261002`). It takes entries for six days, until the Thursday 18:00 Central before it. The tournament list leaves out a championship cancelled with no entries. A championship has no owner; nobody may start one but the cron. Run it on `wrangler dev` with a request to `/cdn-cgi/handler/scheduled?cron=0+23+*+*+FRI` (`/__scheduled` is the SPA's: static assets answer it first).
 
 ## Verification model
 
