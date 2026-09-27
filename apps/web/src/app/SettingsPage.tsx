@@ -39,13 +39,13 @@ import { HandleField } from '../features/account/HandleField'
 import { ago, day, plural, UserLink } from '../features/hills/links'
 import { appSound, toggleSound } from '../features/sound/engine'
 import {
-  botsToZip,
   LOCAL_BOTS_KEY,
   type LocalBot,
   unlinkLocalBots,
   useLocalBotActions,
   useLocalBots,
 } from '../store/local-bots'
+import { botsToZip, useImportZip } from '../store/local-bots-zip'
 import {
   type ArenaEffects,
   MOTION_PREFERENCES,
@@ -442,7 +442,8 @@ function DeleteAccount({ me, onClose }: { me: Me; onClose: () => void }) {
 
 function DataPanel() {
   const { data: bots = [] } = useLocalBots()
-  const { importZip, clear } = useLocalBotActions()
+  const { clear } = useLocalBotActions()
+  const importZip = useImportZip()
   const reset = useSettings((state) => state.reset)
   const { toast } = useToast()
   const [confirming, setConfirming] = useState(false)

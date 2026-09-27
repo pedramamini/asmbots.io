@@ -364,7 +364,17 @@ describe('roster catalog', () => {
         .map((b) => b.roster?.slug)
     expect(find('')).toHaveLength(ROSTER.length)
     expect(find('PAINTER')).toEqual(['painter-lcg', 'painter-spiral'])
-    expect(find('paper solid')).toEqual(['silk', 'hybrid'])
+    // Paper's family, and the bigger bots whose blurbs name their fights with paper.
+    expect(find('paper solid')).toEqual([
+      'bastion',
+      'mender',
+      'citadel',
+      'swarm',
+      'silk',
+      'twins',
+      'hybrid',
+      'hydra',
+    ])
     expect(find('paper solid pad')).toEqual(['silk'])
     expect(find('nothing-like-this')).toEqual([])
   })

@@ -3,8 +3,8 @@
  * blurb. No sources here, so a page can list the roster without them: `sources.ts` holds the text
  * of each file, and `images.ts` what each assembles to.
  *
- * A new bot is a file under roster/, its import in `sources.ts`, a row here, and
- * `bun run roster-images`.
+ * A new bot is a file under roster/, its import in `sources.ts` (`sources-large.ts` past 512
+ * bytes), a row here, and `bun run roster-images`.
  */
 
 /**

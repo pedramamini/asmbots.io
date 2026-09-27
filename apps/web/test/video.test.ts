@@ -1,11 +1,12 @@
 /**
- * The arena's video (`battle/video.ts`): the format it records in, the frame's size, and a
+ * The arena's video (`battle/video.ts`, `battle/record.ts`): the format it records in, the frame's size, and a
  * recording from the arena's draws to the file, on a fake `MediaRecorder` (jsdom has none).
  */
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { useDom, window } from '../../../packages/ui/test/dom'
 import type { ArenaCanvasHandle, DrawListener } from '../src/features/arena/ArenaCanvas'
 import { videoName } from '../src/features/arena/battle/files'
+import { recordArena } from '../src/features/arena/battle/record'
 import {
   footerStamp,
   type ScreenshotText,
@@ -14,7 +15,6 @@ import {
 import {
   canRecordVideo,
   MAX_WIDTH,
-  recordArena,
   recordingLabel,
   videoFormat,
 } from '../src/features/arena/battle/video'

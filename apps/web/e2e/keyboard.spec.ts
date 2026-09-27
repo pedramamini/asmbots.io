@@ -110,7 +110,7 @@ test('write a bot and debug it', async ({ page }) => {
   await open(page, '/editor', 'ASM BOTS // EDITOR')
   await typeSource(page, uniqueBot('stepper', 7))
   const toolbar = page.getByRole('toolbar', { name: 'editor' })
-  await expect(toolbar.getByLabel(/^size /)).toHaveText('7 / 512 B')
+  await expect(toolbar.getByLabel(/^size /)).toHaveText('7 B · light')
   const ip = page.getByLabel('ip', { exact: true })
   const ax = page.getByLabel('ax', { exact: true })
   // The writing layout hides the debugger: F11 shows it, and steps one instruction, `mov ax, 7`.
@@ -189,7 +189,7 @@ test('sign in, save a bot to the account, and submit it to a hill', async ({ pag
   await expect(page).toHaveTitle('ASM BOTS // EDITOR')
   await typeSource(page, uniqueBot('keyboard', Date.now() % 0xffff))
   await expect(page.getByRole('toolbar', { name: 'editor' }).getByLabel(/^size /)).toHaveText(
-    '7 / 512 B',
+    '7 B · light',
   )
   await page.keyboard.press('ControlOrMeta+s')
   await expect(page.getByText(/^saved keyboard: v1 in your account\.$/)).toBeVisible()

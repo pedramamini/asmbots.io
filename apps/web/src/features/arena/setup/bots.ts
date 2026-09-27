@@ -6,7 +6,13 @@
  * of refs; `resolveSelection` turns it into bots, and `arenaBots` into what the Worker loads.
  */
 import type { Assembled, Diag } from '@asmbots/asm'
-import { ROSTER, type RosterEntry, rosterImage } from '@asmbots/bots'
+import {
+  hasRosterImage,
+  largeImagesLoaded,
+  ROSTER,
+  type RosterEntry,
+  rosterImage,
+} from '@asmbots/bots'
 import { type BattleConfigInput, Pcg32, PlacementError, place } from '@asmbots/engine'
 import { roundOrder, roundSeed } from '@asmbots/tourney'
 import type { LocalBot } from '../../../store/local-bots'
@@ -50,13 +56,20 @@ export function errorsOf(bot: CatalogBot): readonly Diag[] {
 }
 
 let roster: readonly CatalogBot[] | undefined
+/** Whether `roster` has the bots past lightweight. */
+let rosterWhole = false
 
 /**
  * The roster, showcase bots first, then the solid ones, then the test bots, each tier in roster
- * order. Prebuilt: nothing is assembled, and no source is loaded.
+ * order. Prebuilt: nothing is assembled, and no source is loaded. The bots past lightweight are in
+ * it once their images have loaded: each route that lists the roster loads them first
+ * (`loadLargeImages`), so before that a page has the lightweight bots only.
  */
 export function rosterCatalog(): readonly CatalogBot[] {
-  roster ??= [...ROSTER]
+  if (roster !== undefined && rosterWhole === largeImagesLoaded()) return roster
+  rosterWhole = largeImagesLoaded()
+  roster = [...ROSTER]
+    .filter((entry) => hasRosterImage(entry.slug))
     .sort((a, b) => TIER_ORDER.indexOf(a.tier) - TIER_ORDER.indexOf(b.tier))
     .map(
       (entry): CatalogBot => ({
@@ -346,12 +359,14 @@ export function arenaFight(
 
 /**
  * Each bot's source for a replay file, in order. A roster bot's is read from the roster's
- * sources, a chunk of their own (`roster-source.ts`) that loads here, not with the arena.
+ * sources, a chunk of their own (`roster-source.ts`) that loads here, not with the arena, and the
+ * sources of the bots past lightweight, another (`loadLargeSources`).
  */
 export async function replaySources(fight: ArenaFight): Promise<string[]> {
   const { sources } = fight
   if (sources.every((source): source is string => source !== null)) return [...sources]
-  const { rosterSource } = await import('./roster-source')
+  const { loadLargeSources, rosterSource } = await import('./roster-source')
+  await loadLargeSources()
   return sources.map((source, i) => {
     if (source !== null) return source
     const ref = fight.spec.bots[i]

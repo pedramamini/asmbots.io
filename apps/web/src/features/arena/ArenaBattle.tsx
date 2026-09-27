@@ -22,10 +22,9 @@ import { roundOutcome } from './battle/outcome'
 import { ReplayChip } from './battle/ReplayChip'
 import { buildReplay, replayUrl } from './battle/replay'
 import { StandingsPanel } from './battle/StandingsPanel'
-import { captureArena, footerStamp, type ScreenshotText } from './battle/screenshot'
+import { footerStamp, type ScreenshotText } from './battle/shot-text'
 import { speedLabel } from './battle/speed'
 import { Transport } from './battle/Transport'
-import { RoundOver, Victory } from './battle/Victory'
 import type { ReplayCheck } from './battle/verify'
 import { canRecordVideo, useArenaVideo } from './battle/video'
 import { ROUND_PAUSE_MS, useArenaView } from './battle/view'
@@ -169,7 +168,12 @@ export function ArenaBattle({
     const handle = canvas.current
     if (handle === null) return
     const cycle = client.store.getState().cycle
-    const blob = await captureArena(handle, shotText())
+    const text = shotText()
+    // The painter is a chunk of its own: the arena's cold chunks do not take it.
+    const blob = await import('./battle/screenshot').then(
+      ({ captureArena }) => captureArena(handle, text),
+      () => null,
+    )
     if (blob === null) {
       toast('could not take the screenshot.', { variant: 'danger' })
       return
@@ -178,6 +182,7 @@ export function ArenaBattle({
   }, [client, names, seed, toast, shotText])
 
   const [recordable] = useState(canRecordVideo)
+  const ends = useEnds()
   const video = useArenaVideo({
     client,
     canvas,
@@ -316,8 +321,8 @@ export function ArenaBattle({
                 />
               </ArenaCanvas>
               <Announcer client={client} every={announceEvery} />
-              {over && !between && !hidden && (
-                <Victory
+              {ends !== null && over && !between && !hidden && (
+                <ends.Victory
                   result={result}
                   order={order}
                   hash={hash}
@@ -334,8 +339,8 @@ export function ArenaBattle({
                   onReplayLink={replay === undefined ? copyReplayLink : undefined}
                 />
               )}
-              {between && (
-                <RoundOver
+              {ends !== null && between && (
+                <ends.RoundOver
                   round={round}
                   rounds={rounds}
                   outcome={roundOutcome(result, order, names)}
@@ -395,4 +400,31 @@ function BattleStat({ client }: { client: ArenaClient }) {
   })
   useRouteStat(`${bots} bots · ${count(procs)} procs · cycle ${count(cycle)}`)
   return null
+}
+
+/** The end panels (`battle/Victory.tsx`), a chunk of their own. */
+type Ends = typeof import('./battle/Victory')
+let loadedEnds: Ends | null = null
+
+/**
+ * The end panels, loaded as the battle mounts rather than with the arena, whose cold chunks have
+ * no room for them: null until they load, which is long before a battle ends.
+ */
+function useEnds(): Ends | null {
+  const [ends, setEnds] = useState(loadedEnds)
+  useEffect(() => {
+    if (ends !== null) return
+    let live = true
+    import('./battle/Victory').then(
+      (module) => {
+        loadedEnds = module
+        if (live) setEnds(module)
+      },
+      () => {},
+    )
+    return () => {
+      live = false
+    }
+  }, [ends])
+  return ends
 }

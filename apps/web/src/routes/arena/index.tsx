@@ -1,3 +1,4 @@
+import { loadLargeImages } from '@asmbots/bots'
 import { createFileRoute } from '@tanstack/react-router'
 import { PageHeading } from '../../app/PageHeading'
 import { titleHead } from '../../app/title'
@@ -8,6 +9,9 @@ export const Route = createFileRoute('/arena/')({
   // The setup: `?b=roster:dwarf,roster:paper&seed=42&cycles=100000&rounds=3&procs=64`.
   validateSearch: validateArenaSearch,
   head: () => titleHead('arena'),
+  // The roster bots past lightweight load first: the page lists the roster (`rosterCatalog`).
+  // Offline, it lists the lightweight bots.
+  loader: () => loadLargeImages().catch(() => {}),
   component: ArenaRoute,
 })
 

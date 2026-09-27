@@ -18,6 +18,7 @@ import {
   pmarsPoints,
   simulate,
 } from '@asmbots/engine'
+import { WEIGHT_CLASSES } from '@asmbots/protocol'
 import { melee, roundRobin } from '@asmbots/tourney'
 
 const DOCS_DIR = new URL('../src/docs/', import.meta.url).pathname
@@ -540,9 +541,13 @@ describe('melee', () => {
 })
 
 describe('hill meta', () => {
-  const fighters = ROSTER.filter((r) => r.family !== 'painter' && r.family !== 'test').map(
-    (r) => r.slug as Fighter,
-  )
+  // The page's field is the main hill's: the lightweight fighters, no painters, no test bots.
+  const fighters = ROSTER.filter(
+    (r) =>
+      r.family !== 'painter' &&
+      r.family !== 'test' &&
+      fighter(r.slug).bytes.length <= WEIGHT_CLASSES[0].max,
+  ).map((r) => r.slug as Fighter)
   const field = (bots: Fighter[]) =>
     roundRobin(bots.map(botOf), { ...HILL_RULES, seed: 1 }, { rounds: 10 })
 

@@ -1,3 +1,4 @@
+import { loadLargeImages, loadLargeSources } from '@asmbots/bots'
 import { createFileRoute } from '@tanstack/react-router'
 import { PageHeading } from '../../app/PageHeading'
 import { titleHead } from '../../app/title'
@@ -9,6 +10,9 @@ export const Route = createFileRoute('/editor/')({
   // (`?b=roster:dwarf,roster:imp&seed=1&…`), a share link's `#src=`, a template's `?t=dwarf`.
   validateSearch: validateEditorSearch,
   head: () => titleHead('editor'),
+  // The roster bots past lightweight load first: the page lists the roster and opens its sources.
+  // Offline, it has the lightweight bots.
+  loader: () => Promise.all([loadLargeImages(), loadLargeSources()]).catch(() => {}),
   component: EditorIndex,
 })
 

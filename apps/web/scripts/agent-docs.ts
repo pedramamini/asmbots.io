@@ -19,7 +19,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { ROSTER, rosterSource } from '@asmbots/bots'
+import { loadRoster, ROSTER, rosterSource } from '@asmbots/bots'
 import { createProcessor } from '@mdx-js/mdx'
 import { type Zippable, zipSync } from 'fflate'
 import { SITE_URL, sitePath } from '../src/app/site'
@@ -469,6 +469,8 @@ export function skillFiles(
 ): Record<string, string> {
   const files: Record<string, string> = { 'SKILL.md': skillMarkdown(pages, template) }
   for (const page of pages) files[`references/${referenceFile(page.slug)}`] = page.markdown
+  // `loadRoster` takes the bots past lightweight, which `rosterSource` alone does not have.
+  loadRoster()
   for (const bot of exampleBots()) files[`examples/${bot.slug}.asm`] = rosterSource(bot.slug)
   files['bin/asmbots.js'] = cli
   return files

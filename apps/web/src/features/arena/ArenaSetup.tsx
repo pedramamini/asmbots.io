@@ -620,8 +620,13 @@ function BotCard({
           {count > 0 && <Chip variant="accent">×{count}</Chip>}
         </p>
         <p className="flex min-w-0 items-center gap-2 text-data text-muted">
-          <span className="truncate">
-            {bot.author || 'anonymous'} · {broken ? '—' : `${bytes.length} B`}
+          {/* The author gives way first: the size stays whole beside the class chip. */}
+          <span className="flex min-w-0">
+            <span className="truncate">{bot.author || 'anonymous'}</span>
+            <span className="shrink-0 whitespace-pre">
+              {' · '}
+              {broken ? '—' : `${bytes.length} B`}
+            </span>
           </span>
           {weight !== null && <WeightChip weight={weight} />}
         </p>

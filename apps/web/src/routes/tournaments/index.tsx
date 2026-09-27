@@ -1,3 +1,4 @@
+import { loadLargeImages } from '@asmbots/bots'
 import { createFileRoute } from '@tanstack/react-router'
 import { lazy, Suspense, useState } from 'react'
 import { PageHeading } from '../../app/PageHeading'
@@ -6,6 +7,9 @@ import { TournamentsPage } from '../../features/tournaments/TournamentsPage'
 
 export const Route = createFileRoute('/tournaments/')({
   head: () => titleHead('tournaments'),
+  // The roster bots past lightweight load first: the page lists the roster (`rosterCatalog`).
+  // Offline, it lists the lightweight bots.
+  loader: () => loadLargeImages().catch(() => {}),
   component: TournamentsRoute,
 })
 

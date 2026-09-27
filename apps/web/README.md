@@ -630,6 +630,14 @@ What took `/arena` under 250 KB:
    pasted, or dropped bot with `assembleCached` from a chunk it loads then
    (`setup/assembler.ts`); a replay file reads the roster's sources when it is written
    (`replaySources`). −16 KB on `/arena`, and the ~10 ms the page spent assembling the roster.
+4. The roster past lightweight on demand: the bots over 512 bytes (`images-large.gen.ts`,
+   `sources-large.ts`) are most of the roster's bytes, so the routes that list the roster (`/arena`,
+   `/embed/arena`, `/editor`, `/tournaments`) load them in their `loader` (`loadLargeImages`,
+   `loadLargeSources`), and `rosterCatalog` has them from then on. Also out of `/arena`'s cold
+   chunks: fflate's zip code (`store/local-bots-zip.ts`, the settings page's), the screenshot's
+   painter and the video recorder (`battle/screenshot.ts`, `battle/record.ts`, loaded on use and as
+   the battle mounts), and the end panels (`battle/Victory.tsx`, as the battle mounts). −6 KB on
+   `/arena`, −13 KB on `/editor`, −4 KB on the 404 imp.
 
 ### Runtime
 

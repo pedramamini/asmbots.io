@@ -11,7 +11,8 @@ export {
   playGoldens,
 } from './goldens'
 export type { RosterImage } from './images'
-export { rosterImage } from './images'
+export { hasRosterImage, rosterImage } from './images'
+export { largeImagesLoaded, loadLargeImages, loadLargeSources } from './large'
 export type { RosterBot } from './roster'
 export { fighter, loadRoster } from './roster'
 export { rosterSource } from './sources'

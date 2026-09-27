@@ -2,42 +2,62 @@ import { afterAll, describe, expect, it } from 'bun:test'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { IMAGES_FILE, imagesModule, literal, rosterImages } from './roster-images'
+import { IMAGE_FILES, imageSlugs, imagesModule, literal, rosterImages } from './roster-images'
 
 const DIR = mkdtempSync(join(tmpdir(), 'asmbots-roster-images-'))
 afterAll(() => rmSync(DIR, { recursive: true, force: true }))
 
 describe('roster-images: the file', () => {
   it('is what the generator writes: run `bun run roster-images` after changing a roster bot', () => {
-    expect(readFileSync(IMAGES_FILE, 'utf8')).toBe(imagesModule())
+    expect(readFileSync(IMAGE_FILES.light, 'utf8')).toBe(imagesModule('light'))
+    expect(readFileSync(IMAGE_FILES.large, 'utf8')).toBe(imagesModule('large'))
   })
 
   it('says so from the command line with --check', () => {
     const run = Bun.spawnSync(['bun', 'scripts/roster-images.ts', '--check'], {
       cwd: `${import.meta.dir}/..`,
     })
-    expect(run.stdout.toString()).toBe('packages/bots/src/images.gen.ts is up to date\n')
+    expect(run.stdout.toString()).toBe(
+      'packages/bots/src/images.gen.ts is up to date\n' +
+        'packages/bots/src/images-large.gen.ts is up to date\n',
+    )
     expect(run.exitCode).toBe(0)
+  })
+
+  it('puts the bots past lightweight in a module of their own', () => {
+    expect(imageSlugs('large').sort()).toEqual(
+      ['bastion', 'citadel', 'hydra', 'mender', 'swarm', 'twins'].sort(),
+    )
+    expect(imageSlugs('light')).toContain('imp')
+    expect(imageSlugs('light')).not.toContain('bastion')
   })
 })
 
 describe('roster-images: check and write', () => {
   it('finds a stale file, names the fix, and leaves it', () => {
-    const file = join(DIR, 'stale.ts')
-    writeFileSync(file, 'export const ROSTER_IMAGE_DATA = {}\n')
+    const files = { light: join(DIR, 'stale.ts'), large: join(DIR, 'stale-large.ts') }
+    writeFileSync(files.light, 'export const ROSTER_IMAGE_DATA = {}\n')
+    writeFileSync(files.large, imagesModule('large'))
     const lines: string[] = []
-    expect(rosterImages(true, (line) => lines.push(line), file)).toBe(1)
-    expect(lines).toEqual([expect.stringContaining('is stale: run `bun run roster-images`')])
-    expect(readFileSync(file, 'utf8')).toBe('export const ROSTER_IMAGE_DATA = {}\n')
+    expect(rosterImages(true, (line) => lines.push(line), files)).toBe(1)
+    expect(lines).toEqual([
+      expect.stringContaining('stale.ts is stale: run `bun run roster-images`'),
+      expect.stringContaining('stale-large.ts is up to date'),
+    ])
+    expect(readFileSync(files.light, 'utf8')).toBe('export const ROSTER_IMAGE_DATA = {}\n')
   })
 
-  it('writes the module, which a check then passes', () => {
-    const file = join(DIR, 'fresh.ts')
+  it('writes the modules, which a check then passes', () => {
+    const files = { light: join(DIR, 'fresh.ts'), large: join(DIR, 'fresh-large.ts') }
     const lines: string[] = []
-    expect(rosterImages(false, (line) => lines.push(line), file)).toBe(0)
-    expect(lines).toEqual([expect.stringMatching(/fresh\.ts: 22 bots$/)])
-    expect(readFileSync(file, 'utf8')).toBe(imagesModule())
-    expect(rosterImages(true, () => {}, file)).toBe(0)
+    expect(rosterImages(false, (line) => lines.push(line), files)).toBe(0)
+    expect(lines).toEqual([
+      expect.stringMatching(/fresh\.ts: 22 bots$/),
+      expect.stringMatching(/fresh-large\.ts: 6 bots$/),
+    ])
+    expect(readFileSync(files.light, 'utf8')).toBe(imagesModule('light'))
+    expect(readFileSync(files.large, 'utf8')).toBe(imagesModule('large'))
+    expect(rosterImages(true, () => {}, files)).toBe(0)
   })
 
   it('rejects any other argument', () => {

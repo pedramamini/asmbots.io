@@ -8,15 +8,13 @@ import { strFromU8, unzipSync, zipSync } from 'fflate'
 import { useDom } from '../../../packages/ui/test/dom'
 import { exportFileName, SettingsPage } from '../src/app/SettingsPage'
 import {
-  botsFromZip,
-  botsToZip,
   clearLocalBots,
   deleteLocalBot,
   getLocalBot,
-  importLocalBots,
   listLocalBots,
   saveLocalBot,
 } from '../src/store/local-bots'
+import { botsFromZip, botsToZip, importLocalBots } from '../src/store/local-bots-zip'
 import {
   DEFAULT_SETTINGS,
   motionReduced,

@@ -8,7 +8,8 @@ import { type RefObject, useCallback, useEffect, useRef, useState } from 'react'
 import type { ArenaCanvasHandle } from '../ArenaCanvas'
 import type { ArenaClient } from '../worker/client'
 import { downloadBlob } from './files'
-import { paintShot, readPalette, type ScreenshotText, shotLayout } from './screenshot'
+import type { recordArena } from './record'
+import type { ScreenshotText } from './shot-text'
 
 /** A container and codec the browser can record to. */
 export interface VideoFormat {
@@ -31,10 +32,6 @@ const FORMATS: readonly VideoFormat[] = [
 
 /** The widest video, px: past it, the arena is scaled down. */
 export const MAX_WIDTH = 1920
-/** The frames a second the video takes at most: one per display frame. */
-const FPS = 60
-/** Enough for the core's fine grain to stay sharp. */
-const BITRATE = 8_000_000
 /** How long a recording runs on after the end, ms: the end stays on screen a moment. */
 export const TAIL_MS = 1200
 
@@ -65,67 +62,6 @@ export interface ArenaRecording {
   stop(): Promise<Blob | null>
 }
 
-/**
- * Records the arena of `handle` from its next frame on, `text()` on each frame. The video's size
- * is set now, from the arena's: a resize later fits the arena into it. Null where the browser
- * cannot record, or the arena has no canvas yet.
- */
-export function recordArena(
-  handle: ArenaCanvasHandle,
-  text: () => ScreenshotText,
-): ArenaRecording | null {
-  const format = videoFormat()
-  const source = handle.canvas
-  if (format === null || source === null || handle.renderer === null) return null
-  const frame = document.createElement('canvas')
-  if (typeof frame.captureStream !== 'function') return null
-  const probe = frame.getContext('2d')
-  if (probe === null) return null
-  const layout = shotLayout(probe, source, text().bots, { maxWidth: MAX_WIDTH, even: true })
-  frame.width = layout.pixelWidth
-  frame.height = layout.pixelHeight
-  // A new size resets the context.
-  const ctx = frame.getContext('2d') as CanvasRenderingContext2D
-  const palette = readPalette()
-  const stream = frame.captureStream(FPS)
-  const release = () => {
-    for (const track of stream.getTracks()) track.stop()
-  }
-  let recorder: MediaRecorder
-  try {
-    recorder = new MediaRecorder(stream, { mimeType: format.mime, videoBitsPerSecond: BITRATE })
-  } catch {
-    release()
-    return null
-  }
-  const chunks: Blob[] = []
-  recorder.addEventListener('dataavailable', (event) => {
-    if (event.data.size > 0) chunks.push(event.data)
-  })
-  const off = handle.onDraw((canvas, overlay) =>
-    paintShot(ctx, layout, canvas, overlay, text(), palette),
-  )
-  // A chunk a second: a long battle's video is not one buffer held to the end.
-  recorder.start(1000)
-  return {
-    format,
-    stop: () =>
-      new Promise((resolve) => {
-        off()
-        const done = () => {
-          release()
-          resolve(chunks.length === 0 ? null : new Blob(chunks, { type: format.type }))
-        }
-        if (recorder.state === 'inactive') {
-          done()
-          return
-        }
-        recorder.addEventListener('stop', done, { once: true })
-        recorder.stop()
-      }),
-  }
-}
-
 export interface ArenaVideoOptions {
   client: Pick<ArenaClient, 'store' | 'pause' | 'play' | 'seek'>
   canvas: RefObject<ArenaCanvasHandle | null>
@@ -147,10 +83,29 @@ export interface ArenaVideo {
   exportRound(): void
 }
 
+/** The recorder (`record.ts`), a chunk of its own: once loaded, and while it loads. */
+let recorder: typeof import('./record') | undefined
+let loading: Promise<typeof import('./record')> | undefined
+
+/** Loads the recorder, once; a load that fails is tried again on the next call. */
+function loadRecorder(): Promise<typeof import('./record')> {
+  loading ??= import('./record').then(
+    (module) => {
+      recorder = module
+      return module
+    },
+    (error: unknown) => {
+      loading = undefined
+      throw error
+    },
+  )
+  return loading
+}
+
 /**
  * The arena's video recorder. A recording stops and saves a moment (`TAIL_MS`) after the match
  * ends, or the round, for `exportRound`; `toggle` stops it sooner. Leaving the battle saves what
- * was recorded.
+ * was recorded. The recorder loads as the battle mounts; a start before it has loaded waits for it.
  */
 export function useArenaVideo(options: ArenaVideoOptions): ArenaVideo {
   const latest = useRef(options)
@@ -172,11 +127,27 @@ export function useArenaVideo(options: ArenaVideoOptions): ArenaVideo {
     else downloadBlob(blob, fileName(current.recording.format.extension))
   }, [])
 
-  const start = useCallback((round: boolean): boolean => {
+  useEffect(() => {
+    loadRecorder().catch(() => {})
+  }, [])
+
+  /** Runs `then` with the recorder: at once when it has loaded, else once it does. */
+  const withRecorder = useCallback((then: (record: typeof recordArena) => void) => {
+    if (recorder !== undefined) {
+      then(recorder.recordArena)
+      return
+    }
+    loadRecorder().then(
+      (module) => then(module.recordArena),
+      () => latest.current.onFail('the recorder did not load: check the connection and try again.'),
+    )
+  }, [])
+
+  const start = useCallback((round: boolean, record: typeof recordArena): boolean => {
     if (live.current !== null) return true
     const { canvas, text, onFail } = latest.current
     const handle = canvas.current
-    const recording = handle === null ? null : recordArena(handle, text)
+    const recording = handle === null ? null : record(handle, text)
     if (recording === null) {
       onFail('this browser cannot record the arena.')
       return false
@@ -187,21 +158,23 @@ export function useArenaVideo(options: ArenaVideoOptions): ArenaVideo {
   }, [])
 
   const toggle = useCallback(() => {
-    if (live.current === null) start(false)
+    if (live.current === null) withRecorder((record) => start(false, record))
     else void stop()
-  }, [start, stop])
+  }, [start, stop, withRecorder])
 
   const exportRound = useCallback(() => {
     if (live.current !== null) return
     const { client } = latest.current
     const { status } = client.store.getState()
     if (status !== 'paused' && status !== 'playing' && status !== 'ended') return
-    client.pause()
-    client.seek(0)
-    void atStart(client.store).then(() => {
-      if (start(true)) client.play()
+    withRecorder((record) => {
+      client.pause()
+      client.seek(0)
+      void atStart(client.store).then(() => {
+        if (start(true, record)) client.play()
+      })
     })
-  }, [start])
+  }, [start, withRecorder])
 
   // The end, as the battle reaches it: of the round for an export, of the match for any.
   useEffect(

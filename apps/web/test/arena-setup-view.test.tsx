@@ -157,7 +157,8 @@ describe('arena setup', () => {
   it('lists the roster as cards: identicon, name, author, size, tier, and +', async () => {
     await renderArena()
     const cards = within(screen.getByRole('list', { name: 'bots to add' })).getAllByRole('listitem')
-    expect(cards).toHaveLength(22)
+    // Every roster bot, the ones past lightweight too: the route loads them (`loadLargeImages`).
+    expect(cards).toHaveLength(loadRoster().size)
     const dwarf = screen.getByRole('listitem', { name: 'Dwarf' })
     expect(dwarf.textContent).toContain('ASM Bots · 23 B')
     expect(dwarf.textContent).toContain('showcase')

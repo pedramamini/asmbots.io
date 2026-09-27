@@ -1,26 +1,22 @@
 /**
  * The text of each roster file, by slug: what `loadRoster` assembles, the editor opens, and a
  * replay file carries. The arena loads this module only to write a replay: its bots come prebuilt
- * (`images.ts`).
+ * (`images.ts`). The bots past lightweight are in `sources-large.ts`, which loads on demand
+ * (`large.ts`): a bot goes in the file of its size, and `test/images.test.ts` checks it.
  */
-import bastion from '../roster/bastion.asm' with { type: 'text' }
-import citadel from '../roster/citadel.asm' with { type: 'text' }
 import decoy from '../roster/decoy.asm' with { type: 'text' }
 import dwarf from '../roster/dwarf.asm' with { type: 'text' }
 import dwarfWide from '../roster/dwarf-wide.asm' with { type: 'text' }
 import gate from '../roster/gate.asm' with { type: 'text' }
 import hybrid from '../roster/hybrid.asm' with { type: 'text' }
-import hydra from '../roster/hydra.asm' with { type: 'text' }
 import imp from '../roster/imp.asm' with { type: 'text' }
 import impRing from '../roster/imp-ring.asm' with { type: 'text' }
-import mender from '../roster/mender.asm' with { type: 'text' }
 import painterLcg from '../roster/painter-lcg.asm' with { type: 'text' }
 import painterSpiral from '../roster/painter-spiral.asm' with { type: 'text' }
 import paper from '../roster/paper.asm' with { type: 'text' }
 import scanner from '../roster/scanner.asm' with { type: 'text' }
 import silk from '../roster/silk.asm' with { type: 'text' }
 import stone from '../roster/stone.asm' with { type: 'text' }
-import swarm from '../roster/swarm.asm' with { type: 'text' }
 import count from '../roster/test/count.asm' with { type: 'text' }
 import divZero from '../roster/test/div-zero.asm' with { type: 'text' }
 import halt from '../roster/test/halt.asm' with { type: 'text' }
@@ -29,27 +25,22 @@ import repCopy from '../roster/test/rep-copy.asm' with { type: 'text' }
 import spin from '../roster/test/spin.asm' with { type: 'text' }
 import splStorm from '../roster/test/spl-storm.asm' with { type: 'text' }
 import stackWalk from '../roster/test/stack-walk.asm' with { type: 'text' }
-import twins from '../roster/twins.asm' with { type: 'text' }
 import vampire from '../roster/vampire.asm' with { type: 'text' }
+import { largeSource } from './large'
 
-const SOURCES: Readonly<Record<string, string>> = {
+/** The lightweight bots' sources, by slug. */
+export const SOURCES_LIGHT: Readonly<Record<string, string>> = {
   imp,
   'imp-ring': impRing,
   dwarf,
   'dwarf-wide': dwarfWide,
   gate,
   decoy,
-  bastion,
-  mender,
-  citadel,
-  swarm,
   stone,
   paper,
   silk,
-  twins,
   scanner,
   hybrid,
-  hydra,
   vampire,
   'painter-lcg': painterLcg,
   'painter-spiral': painterSpiral,
@@ -63,9 +54,14 @@ const SOURCES: Readonly<Record<string, string>> = {
   misalign,
 }
 
-/** The text of roster bot `slug`'s file. Throws for a slug the roster does not have. */
+/**
+ * The text of roster bot `slug`'s file. Throws for a slug the roster does not have, and for a bot
+ * past lightweight before `loadLargeSources`.
+ */
 export function rosterSource(slug: string): string {
-  const source = SOURCES[slug]
-  if (source === undefined) throw new Error(`the roster has no bot '${slug}'`)
+  const source = SOURCES_LIGHT[slug] ?? largeSource(slug)
+  if (source === undefined) {
+    throw new Error(`the roster has no bot '${slug}' (one past 512 B needs loadLargeSources)`)
+  }
   return source
 }

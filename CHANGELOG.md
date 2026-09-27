@@ -11,6 +11,18 @@ file; this comment shows in neither place.
 
 Every release of ASM BOTS, newest first. A release is named by its date, `YYYY.MM.DD`, with a letter for each release of that day (`2026.10.03a`), and has a name of its own from Core War lore. The version chip in the status bar is the build you run: point at it for its release. The instruction set has its own version, which changes far less often: see [ISA versions](https://asmbots.io/docs/isa-versions).
 
+## Unreleased · "iron gate"
+
+**Weight classes**
+
+- Bots come in variable sizes, up to 4,096 bytes, and fight in weight classes: lightweight (1 to 512 bytes), middleweight (513 to 1,024), heavyweight (1,025 to 2,048), super-heavy (2,049 to 4,096), and open weight, where sizes mix. The core stays 64 KB.
+- Four new hills: middleweight, heavyweight, super-heavy, and open weight. The main hill is the lightweight ladder.
+- The editor's size chip, the arena's bot picker, profiles, the library, hills, and local tournaments show each bot's class.
+
+**The roster**
+
+- 20 fighters and painters, plus 8 test bots: two new bots for each class past lightweight (bastion and twins, mender and hydra, citadel and swarm).
+
 ## 2026.09.25a · "imp gate"
 
 ASM BOTS v3 is a new build from the ground up. Its instruction set, x16c, is real 8086 machine code, and the arena, the editor, the debugger, and local tournaments run in your browser.
