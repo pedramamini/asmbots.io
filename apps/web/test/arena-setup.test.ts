@@ -19,6 +19,7 @@ import {
   fightStatus,
   fits,
   matchesQuery,
+  maxSpacing,
   randomFill,
   replaySources,
   resolveSelection,
@@ -35,6 +36,7 @@ import {
   PRESETS,
   presetOf,
   ROUNDS,
+  SPACING,
   sanitizeConfig,
   seedOf,
   withConfig,
@@ -555,6 +557,20 @@ describe('placement', () => {
     const draws = [1, 2, 3]
     expect(fightSeed([10, 10], 1024, null, () => draws.shift() ?? 0)).toBe(1)
     expect(fightSeed([10, 10, 10, 10, 10, 10, 10, 10], 8192, null, () => 5)).toBeNull()
+  })
+
+  it('caps the spacing where the bots surely place, from any seed, in every round', () => {
+    expect(maxSpacing([])).toBe(SPACING.max)
+    expect(maxSpacing([512, 512])).toBe(SPACING.max)
+    const crowd = Array.from({ length: MAX_MELEE_ENTRANTS }, (_, i) => 64 + i * 28)
+    const cap = maxSpacing(crowd)
+    expect(cap % SPACING.step).toBe(0)
+    expect(cap).toBeLessThan(2816)
+    expect(cap).toBeGreaterThanOrEqual(PRESETS['melee 16'].minSpacing)
+    expect(maxSpacing(Array(MAX_MELEE_ENTRANTS).fill(512))).toBeGreaterThanOrEqual(
+      PRESETS['melee 16'].minSpacing,
+    )
+    for (let seed = 0; seed < 200; seed++) expect(fits(crowd, cap, seed, 10)).toBe(true)
   })
 
   it('agrees with the engine: a seed that fits runs', () => {

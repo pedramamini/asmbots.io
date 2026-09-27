@@ -1,5 +1,6 @@
-import { Input, Segmented, Slider, Toggle } from '@asmbots/ui'
-import { type ReactNode, useId, useState } from 'react'
+import { IconButton, Input, Segmented, Slider, Toggle } from '@asmbots/ui'
+import { Info } from 'lucide-react'
+import { lazy, type ReactNode, Suspense, useId, useState } from 'react'
 import type { ArenaConfig } from '../../../store/settings'
 import {
   CYCLES,
@@ -20,6 +21,10 @@ export interface ConfigFormProps {
   onChange: (change: Partial<ArenaConfig>) => void
   /** A preset chip was chosen. */
   onPreset: (preset: PresetName) => void
+  /** The widest spacing the bots surely place with (`maxSpacing`): the spacing slider's end. */
+  maxSpacing: number
+  /** How many bots the spacing is for: what the cap's `ⓘ` names. */
+  bots: number
 }
 
 const count = (n: number) => n.toLocaleString('en-US')
@@ -28,20 +33,23 @@ const count = (n: number) => n.toLocaleString('en-US')
  * The battle config (PRODUCT_SPEC §2): the preset chips, then rounds, max cycles, the seed (fixed
  * or random), the process cap, and the spacing. A preset lights up while the values are its own.
  */
-export function ConfigForm({ config, onChange, onPreset }: ConfigFormProps) {
+export function ConfigForm({ config, onChange, onPreset, maxSpacing, bots }: ConfigFormProps) {
   const preset = presetOf(config)
   return (
     <div className="flex flex-col gap-3">
-      <Segmented<PresetName | 'custom'>
-        label="preset"
-        options={PRESET_NAMES}
-        // No preset matches a hand-made config: `custom` checks no pill.
-        value={preset ?? 'custom'}
-        onValueChange={(value) => {
-          if (value !== 'custom') onPreset(value)
-        }}
-        className="flex-wrap"
-      />
+      <div className="flex items-start gap-2">
+        <Segmented<PresetName | 'custom'>
+          label="preset"
+          options={PRESET_NAMES}
+          // No preset matches a hand-made config: `custom` checks no pill.
+          value={preset ?? 'custom'}
+          onValueChange={(value) => {
+            if (value !== 'custom') onPreset(value)
+          }}
+          className="flex-1 flex-wrap"
+        />
+        <PresetHelp />
+      </div>
       <dl className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2">
         <Field label="rounds">
           {(id) => (
@@ -86,18 +94,50 @@ export function ConfigForm({ config, onChange, onPreset }: ConfigFormProps) {
         </Field>
         <Field label="spacing">
           {(id) => (
-            <Slider
-              id={id}
-              {...range(SPACING)}
-              value={config.minSpacing}
-              onValueChange={(minSpacing) => onChange({ minSpacing })}
-              format={(n) => `${count(n)} B`}
-              showValue
-            />
+            <>
+              <Slider
+                id={id}
+                {...range({ ...SPACING, max: maxSpacing })}
+                value={Math.min(config.minSpacing, maxSpacing)}
+                onValueChange={(minSpacing) => onChange({ minSpacing })}
+                format={(n) => `${count(n)} B`}
+                showValue
+              />
+              {maxSpacing < SPACING.max && (
+                <IconButton
+                  icon={Info}
+                  size="sm"
+                  tooltip="top"
+                  className="ml-2 shrink-0"
+                  label={`${count(maxSpacing)} B at most: any wider and these ${bots} bots may not all fit in the 64 KB core.`}
+                />
+              )}
+            </>
           )}
         </Field>
       </dl>
     </div>
+  )
+}
+
+/** The preset help dialog: its own chunk, loaded on the first open. */
+const PresetDialog = lazy(() => import('./PresetHelp').then((m) => ({ default: m.PresetDialog })))
+
+/**
+ * The `ⓘ` beside the preset chips: a dialog that tells duel, melee, and hill rules apart, with
+ * each preset's values.
+ */
+function PresetHelp() {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <IconButton icon={Info} label="about the presets" size="sm" onClick={() => setOpen(true)} />
+      {open && (
+        <Suspense fallback={null}>
+          <PresetDialog onClose={() => setOpen(false)} />
+        </Suspense>
+      )}
+    </>
   )
 }
 

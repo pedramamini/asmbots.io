@@ -23,6 +23,7 @@ import {
   type ReactNode,
   Suspense,
   useDeferredValue,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -54,6 +55,7 @@ import {
   fightStatus,
   localCatalog,
   matchesQuery,
+  maxSpacing,
   randomFill,
   resolveSelection,
   rosterCatalog,
@@ -70,10 +72,22 @@ import {
   withConfig,
   withPreset,
 } from './setup/config'
-import { Diagnostics } from './setup/Diagnostics'
 import { type ArenaSetupSpec, type BotRef, formatRef } from './setup/url'
 import { copyShareLink } from './share'
 import { FightStep, RosterStep } from './tour'
+
+/** Assembler errors: their own chunk, loaded when a bot first fails to assemble. */
+const LazyDiagnostics = lazy(() =>
+  import('./setup/Diagnostics').then((m) => ({ default: m.Diagnostics })),
+)
+
+function Diagnostics(props: { source: string; diagnostics: readonly Diag[] }) {
+  return (
+    <Suspense fallback={null}>
+      <LazyDiagnostics {...props} />
+    </Suspense>
+  )
+}
 
 /**
  * The intro's banner, loaded after the page: the setup sits at the edge of its budget. Its box is
@@ -153,6 +167,12 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
     () => resolveSelection(spec.bots, { local, shared, assemble }),
     [spec.bots, local, shared, assemble],
   )
+  // The spacing slider ends where the bots stop surely fitting; a spacing past it comes down.
+  const spacingCap = maxSpacing(sizesOf(selection))
+  useEffect(() => {
+    if (spec.config.minSpacing <= spacingCap) return
+    onSpecChange((s) => ({ ...s, config: withConfig(s.config, { minSpacing: spacingCap }) }))
+  }, [spacingCap, spec.config.minSpacing, onSpecChange])
   // My bots, assembled: null until the store is read and the assembler has loaded.
   const mine = useMemo(
     () =>
@@ -477,6 +497,8 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
               onPreset={(preset: PresetName) =>
                 onSpecChange((s) => ({ ...s, config: withPreset(s.config, preset) }))
               }
+              maxSpacing={spacingCap}
+              bots={selection.length}
             />
           </Panel>
           <div className="relative flex items-center gap-2" data-tour="arena-fight">

@@ -13,11 +13,11 @@ import {
   type RosterEntry,
   rosterImage,
 } from '@asmbots/bots'
-import { type BattleConfigInput, Pcg32, PlacementError, place } from '@asmbots/engine'
+import { type BattleConfigInput, CORE_SIZE, Pcg32, PlacementError, place } from '@asmbots/engine'
 import { roundOrder, roundSeed } from '@asmbots/tourney'
 import type { LocalBot } from '../../../store/local-bots'
 import type { ArenaBot } from '../worker/protocol'
-import { battleConfig, MIN_ARENA_BOTS, randomSeed } from './config'
+import { battleConfig, MIN_ARENA_BOTS, randomSeed, SPACING } from './config'
 import { type ArenaSetupSpec, type BotRef, formatRef, type SharedBot } from './url'
 
 /** Where a bot comes from: the roster, this browser's store, or a share link. */
@@ -289,6 +289,28 @@ export function fits(
     if (error instanceof PlacementError) return false
     throw error
   }
+}
+
+/**
+ * The free bases the last bot to place keeps, at the least, at `maxSpacing`: 1,000 draws all miss
+ * 1,024 of 65,536 bases about once in 7 million.
+ */
+const CLEAR_BASES = 1024
+
+/**
+ * The widest spacing images of `sizes` surely place with, from any seed and in any round order: the
+ * spacing slider's end, on its grain. A placed image of size s' keeps a bot of size s off
+ * s + s' + 2m - 1 bases, so the largest bot, placed last, keeps `CLEAR_BASES` free when the others
+ * block no more than the rest of the core, even with no two blocks overlapping.
+ */
+export function maxSpacing(sizes: readonly number[]): number {
+  const others = sizes.length - 1
+  if (others < 1) return SPACING.max
+  const total = sizes.reduce((sum, size) => sum + size, 0)
+  const largest = Math.max(...sizes)
+  const room = CORE_SIZE - CLEAR_BASES - (total - largest) - others * (largest - 1)
+  const m = Math.floor(room / (2 * others) / SPACING.step) * SPACING.step
+  return Math.min(SPACING.max, Math.max(SPACING.min, m))
 }
 
 /** Random seeds a fight tries before it says the bots do not fit. */

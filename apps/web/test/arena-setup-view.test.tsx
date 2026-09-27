@@ -288,6 +288,14 @@ describe('arena setup', () => {
     expect(within(screen.getByRole('region', { name: 'config' })).getByText('custom')).toBeTruthy()
   })
 
+  it('tells the presets apart in the dialog behind the ⓘ', async () => {
+    await renderArena('/arena?b=roster:imp,roster:dwarf')
+    fireEvent.click(screen.getByRole('button', { name: 'about the presets' }))
+    const dialog = await screen.findByRole('dialog', { name: 'the presets' })
+    expect(within(dialog).getByText(/up to 16 bots · 1 round · 300,000 cycles/)).toBeTruthy()
+    expect(within(dialog).getByText(/2 bots · 10 rounds · 80,000 cycles/)).toBeTruthy()
+  })
+
   it('fixes a seed, or draws one each battle', async () => {
     const { router } = await renderArena('/arena?b=roster:imp,roster:dwarf')
     const seed = screen.getByLabelText('seed') as HTMLInputElement
@@ -348,7 +356,8 @@ describe('bots from files, the store, a paste, and a share link', () => {
     drop([new File([BROKEN], 'broken.asm'), new File(['hello'], 'notes.txt')])
     const dialog = await screen.findByRole('dialog', { name: '2 files did not assemble' })
     expect(within(dialog).getByText('broken.asm')).toBeTruthy()
-    expect(dialog.textContent).toContain('2:13 error')
+    // The error list is its own chunk.
+    await waitFor(() => expect(dialog.textContent).toContain('2:13 error'))
     expect(dialog.textContent).toContain('jmp nowhere')
     expect(within(dialog).getByText('not an .asm file')).toBeTruthy()
     fireEvent.click(within(dialog).getByRole('button', { name: 'close' }))

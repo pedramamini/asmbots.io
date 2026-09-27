@@ -172,6 +172,11 @@ export function defaultName(kind: TournamentKind, entrants: number): string {
   return `${KIND_LABELS[kind]} · ${entrants} ${entrants === 1 ? 'bot' : 'bots'}`
 }
 
+/** The image sizes one match of a `kind` places: a melee's all at once, the two largest in the others. */
+export function placedSizes(kind: TournamentKind, sizes: readonly number[]): number[] {
+  return kind === 'melee' ? [...sizes] : [...sizes].sort((a, b) => b - a).slice(0, 2)
+}
+
 /**
  * The record of `draft`, or null when its bots do not place in the core: a melee's all at once,
  * the two largest in the others. The seed is the config's, or a random one they place with.
@@ -181,8 +186,10 @@ export function tournamentInput(
   random: () => number = randomSeed,
 ): NewTournament | null {
   const { kind, config } = draft
-  const sizes = draft.entrants.map((e) => e.size)
-  const placed = kind === 'melee' ? sizes : [...sizes].sort((a, b) => b - a).slice(0, 2)
+  const placed = placedSizes(
+    kind,
+    draft.entrants.map((e) => e.size),
+  )
   const seed = fightSeed(placed, config.minSpacing, config.seed, random, config.rounds)
   if (seed === null) return null
   const names = uniqueNames(draft.entrants.map((e) => e.name))

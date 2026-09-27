@@ -17,7 +17,7 @@ import {
   useToast,
 } from '@asmbots/ui'
 import { FileUp, X } from 'lucide-react'
-import { type DragEvent, useId, useMemo, useRef, useState } from 'react'
+import { type DragEvent, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useLocalBots } from '../../store/local-bots'
 import type { ArenaConfig } from '../../store/settings'
 import { assembleCached, fileAssembles, readBotFiles } from '../arena/setup/assembly'
@@ -27,6 +27,7 @@ import {
   errorsOf,
   localCatalog,
   matchesQuery,
+  maxSpacing,
   rosterCatalog,
 } from '../arena/setup/bots'
 import { ConfigForm } from '../arena/setup/ConfigForm'
@@ -42,6 +43,7 @@ import {
   checkPlan,
   defaultName,
   type PickedEntrant,
+  placedSizes,
   type TournamentWeight,
   tournamentInput,
   uniqueNames,
@@ -138,6 +140,16 @@ function NewTournamentForm({
   }
   const check = checkPlan(plan)
   const error = check.error ?? weightError(picked, weightNamed(weight))
+  // The spacing slider ends where a match's bots stop surely fitting; a spacing past it comes down.
+  const spacingCap = maxSpacing(
+    placedSizes(
+      kind,
+      picked.map((e) => e.size),
+    ),
+  )
+  useEffect(() => {
+    if (config.minSpacing > spacingCap) setConfig((c) => withConfig(c, { minSpacing: spacingCap }))
+  }, [spacingCap, config.minSpacing])
 
   /** Appends the bots not picked yet, in order. */
   const add = (list: readonly PickedEntrant[]) =>
@@ -371,6 +383,8 @@ function NewTournamentForm({
           config={config}
           onChange={(change) => setConfig((c) => withConfig(c, change))}
           onPreset={(preset) => setConfig((c) => withPreset(c, preset))}
+          maxSpacing={spacingCap}
+          bots={kind === 'melee' ? picked.length : 2}
         />
         {kind === 'bracket' && (
           <div className="flex flex-wrap items-center gap-3">
