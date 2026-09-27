@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { hasFooter } from '../src/app/Frame'
+import { fillsScreen, hasFooter } from '../src/app/Frame'
 import { arenaFloor, bracket, disk, manual, summit, terminal } from '../src/art/banners'
 import { BRIGHT, ditherCells, LIT, OFF, ON, type Scene } from '../src/art/dither'
 import { bandBytes, litCells } from '../src/art/HexBand'
@@ -173,12 +173,18 @@ describe('tracePoints', () => {
 })
 
 describe('hasFooter', () => {
-  it('ends a page in the footer, but not the arena, the editor, or an embed', () => {
-    for (const path of ['/', '/hills', '/hills/main', '/docs/start-here', '/arenas']) {
+  it('ends a page in the footer, the arena past a full screen, but not the editor or an embed', () => {
+    for (const path of ['/', '/hills', '/hills/main', '/docs/start-here', '/arena', '/arena/abc']) {
       expect(hasFooter(path)).toBe(true)
     }
-    for (const path of ['/arena', '/arena/abc', '/editor', '/editor/bot-1', '/embed/arena/x']) {
+    for (const path of ['/editor', '/editor/bot-1', '/embed/arena/x']) {
       expect(hasFooter(path)).toBe(false)
     }
+    expect(['/arena', '/arena/abc', '/arenas', '/'].map(fillsScreen)).toEqual([
+      true,
+      true,
+      false,
+      false,
+    ])
   })
 })

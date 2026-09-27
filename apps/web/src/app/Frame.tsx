@@ -92,12 +92,23 @@ const CommandMenu = lazy(() => import('./CommandMenu').then((m) => ({ default: m
 /** The site's footer, the hills' dither range and the links: after the page paints, in a chunk of its own. */
 const SiteFooter = lazy(() => import('./SiteFooter').then((m) => ({ default: m.SiteFooter })))
 
-/** The routes that fill the screen, and so have no footer: an app, not a page. */
-const FULL_SCREEN = ['/arena', '/editor', '/embed'] as const
+/** The routes that fill the screen and have no footer: an app, not a page. */
+const FULL_SCREEN = ['/editor', '/embed'] as const
+
+/** The routes that fill the screen at least, with the footer below the fold: the arena's fight. */
+const FILL = ['/arena'] as const
+
+const under = (pathname: string, paths: readonly string[]) =>
+  paths.some((path) => pathname === path || pathname.startsWith(`${path}/`))
 
 /** Whether a page at `pathname` ends in the footer. */
 export function hasFooter(pathname: string): boolean {
-  return !FULL_SCREEN.some((path) => pathname === path || pathname.startsWith(`${path}/`))
+  return !under(pathname, FULL_SCREEN)
+}
+
+/** Whether a page at `pathname` fills the screen at least, its footer past it. */
+export function fillsScreen(pathname: string): boolean {
+  return under(pathname, FILL)
 }
 
 /** Where a route's `FrameToolbar` renders: the row between the header and the content. */
@@ -120,7 +131,9 @@ export function Frame({ children }: { children: ReactNode }) {
   )
   const openKeys = useCallback(() => setKeysOpen(true), [])
   useKeymapListener()
-  const footer = hasFooter(useLocation({ select: (location) => location.pathname }))
+  const pathname = useLocation({ select: (location) => location.pathname })
+  const footer = hasFooter(pathname)
+  const fill = fillsScreen(pathname)
   const idle = usePaintedAndIdle()
 
   return (
@@ -146,8 +159,11 @@ export function Frame({ children }: { children: ReactNode }) {
         >
           {footer ? (
             // The page fills the height at least, so a short page's footer stands at the bottom.
-            <div className="flex min-h-full flex-col">
-              <div className="flex-1">{children}</div>
+            // A page that fills the screen gets all of it, and its footer waits below the fold,
+            // past the box's own height: a view that grows (`flex-1 basis-0`) fills the screen
+            // exactly, and a long page runs on past it.
+            <div className={fill ? 'h-full' : 'flex min-h-full flex-col'}>
+              <div className={fill ? 'flex min-h-full flex-col' : 'flex-1'}>{children}</div>
               {idle && (
                 <Suspense fallback={null}>
                   <SiteFooter />

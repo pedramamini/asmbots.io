@@ -341,7 +341,8 @@ describe('Frame', () => {
     expect(hasFooter('/')).toBe(true)
     expect(hasFooter('/docs/strategy/imps')).toBe(true)
     expect(hasFooter('/hills/main')).toBe(true)
-    for (const path of ['/arena', '/editor', '/editor/abc', '/embed/arena']) {
+    expect(hasFooter('/arena')).toBe(true)
+    for (const path of ['/editor', '/editor/abc', '/embed/arena']) {
       expect(hasFooter(path)).toBe(false)
     }
   })

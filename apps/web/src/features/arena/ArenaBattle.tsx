@@ -264,7 +264,8 @@ export function ArenaBattle({
   const roundStatus =
     rounds > 1 ? `round ${round + 1}/${rounds} · seed ${roundSeed}` : `seed ${seed}`
   return (
-    <PanelGrid className="p-3 lg:h-full lg:grid-rows-[auto_minmax(0,1fr)_auto]">
+    // Wide, the fight fills the screen (the frame's fill box), and the footer waits below it.
+    <PanelGrid className="p-3 lg:min-h-0 lg:flex-1 lg:basis-0 lg:grid-rows-[auto_minmax(0,1fr)_auto]">
       <BattleStat client={client} />
       <Panel
         ref={panel}
