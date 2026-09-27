@@ -409,7 +409,7 @@ export async function buildSeed(
       )
     })
     matches.forEach((m, i) => {
-      const { points, survivors, resultHash } = m.replay.result
+      const { points, survivors, resultHash, rounds } = m.replay.result
       const duel = m.participants.length === 2
       statements.push(
         insert('matches', {
@@ -420,7 +420,12 @@ export async function buildSeed(
           participants_json: JSON.stringify(m.participants.map((p) => p.versionId)),
           rounds: spec.rounds,
           seed: SEED_MATCH_SEED,
-          result_json: JSON.stringify({ points, survivors, resultHash } satisfies MatchOutcome),
+          result_json: JSON.stringify({
+            points,
+            survivors,
+            resultHash,
+            rounds,
+          } satisfies MatchOutcome),
           replay_key: m.key,
           finished_at: new Date(now.getTime() + i * 1000).toISOString(),
         }),

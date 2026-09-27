@@ -2,7 +2,7 @@
  * `GET /api/matches/:id/verify` (ARCHITECTURE §7, verification model): a published match's inputs
  * and its row. What a client does with them is done here too: the inputs, run with
  * `@asmbots/tourney`, give the key the row stores and each round's result hash, for a match the
- * launch seed stored (one hash, no rounds), a melee, and one a `Runner` played. And the 404s.
+ * launch seed stored (no key, each round), a melee, and one a `Runner` played. And the 404s.
  */
 import { runDurableObjectAlarm } from 'cloudflare:test'
 import { env } from 'cloudflare:workers'
@@ -96,9 +96,9 @@ describe('GET /api/matches/:id/verify', () => {
     const answer = await verify(id as string)
     const { match, inputs } = answer
     expect(match.id).toBe(id)
-    // The launch seed stored no key and no rounds: the key is its replay's.
+    // The launch seed stores no key (the key is its replay's), and each round, as a Runner does.
     expect(match.key).toBeNull()
-    expect(match.result?.rounds).toBeUndefined()
+    expect(match.result?.rounds).toHaveLength(match.rounds)
     expect(inputs).toMatchObject({
       id,
       participants: match.participants,
@@ -114,6 +114,9 @@ describe('GET /api/matches/:id/verify', () => {
     const run = rerun(answer)
     expect(run.key).toBe(inputs.key)
     expect(matchResultHash(run.rounds)).toBe(match.result?.resultHash)
+    expect(run.rounds.map((r) => r.resultHash)).toEqual(
+      match.result?.rounds?.map((r) => r.resultHash),
+    )
     expect(run.points).toEqual(match.result?.points)
   })
 
