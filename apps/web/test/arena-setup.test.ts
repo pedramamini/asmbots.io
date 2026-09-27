@@ -11,10 +11,13 @@ import { fromBase64Url, SOURCES_KEY, toBase64Url } from '@asmbots/protocol'
 import { MAX_MELEE_ENTRANTS } from '@asmbots/tourney'
 import { defaultParseSearch } from '@tanstack/react-router'
 import { deflateSync, strToU8 } from 'fflate'
+import { rateArenaMatch } from '../src/features/arena/battle/rate'
 import { assembleCached, fileAssembles, readBotFiles } from '../src/features/arena/setup/assembly'
 import {
   arenaBots,
   arenaFight,
+  bestFill,
+  byRank,
   fightSeed,
   fightStatus,
   fits,
@@ -22,6 +25,7 @@ import {
   maxSpacing,
   outsideWeight,
   randomFill,
+  ranksOf,
   replaySources,
   resolveSelection,
   rosterCatalog,
@@ -457,6 +461,51 @@ describe('randomFill', () => {
     const a = randomFill(roster, [], 5, () => 0)
     expect(randomFill(roster, [], 5, () => 0)).toEqual(a)
     expect(randomFill(roster, [], 5, () => 0.999)).not.toEqual(a)
+  })
+})
+
+describe('the ranking', () => {
+  const roster = rosterCatalog()
+  const refs = (list: readonly BotRef[]) => list.map(formatRef)
+  const dwarf: BotRef = { kind: 'roster', slug: 'dwarf' }
+  const paper: BotRef = { kind: 'roster', slug: 'paper' }
+  const imp: BotRef = { kind: 'roster', slug: 'imp' }
+
+  it('rates a match: the top points win, the rest lose, a copy counts once', () => {
+    const after = rateArenaMatch([dwarf, paper, imp, dwarf], [0, 300, 0, 200], {})
+    expect(after).not.toBeNull()
+    const got = after as NonNullable<typeof after>
+    expect(Object.keys(got).sort()).toEqual(['roster:dwarf', 'roster:imp', 'roster:paper'])
+    expect(got['roster:paper']).toMatchObject({ wins: 1, losses: 0, draws: 0 })
+    expect(got['roster:dwarf']).toMatchObject({ wins: 0, losses: 1, draws: 0 })
+    const rating = (key: string) => got[key]?.rating ?? 0
+    expect(rating('roster:paper')).toBeGreaterThan(rating('roster:dwarf'))
+    expect(rating('roster:dwarf')).toBeGreaterThan(rating('roster:imp'))
+    expect(rateArenaMatch([dwarf, dwarf], [1, 0], {})).toBeNull()
+  })
+
+  it('draws the bots that share the top points', () => {
+    const got = rateArenaMatch([dwarf, paper], [100, 100], {})
+    expect(got?.['roster:dwarf']).toMatchObject({ wins: 0, losses: 0, draws: 1 })
+  })
+
+  it('sorts by rank, the best first, and ranks only the bots with a record', () => {
+    const records = rateArenaMatch([dwarf, paper], [0, 300], {}) ?? {}
+    const sorted = refs(byRank(roster, records).map((bot) => bot.ref))
+    expect(sorted[0]).toBe('roster:paper')
+    expect(sorted.at(-1)).toBe('roster:dwarf')
+    expect([...ranksOf(roster, records)]).toEqual([
+      ['roster:paper', 1],
+      ['roster:dwarf', 2],
+    ])
+  })
+
+  it('best fill takes the list in order, the unpicked first, then the best again', () => {
+    const three = roster.slice(0, 3)
+    const [a, b, c] = three.map((bot) => formatRef(bot.ref))
+    expect(refs(bestFill(three, [three[0]?.ref as BotRef], 2))).toEqual([b, c])
+    expect(refs(bestFill(three, [], 5))).toEqual([a, b, c, a, b])
+    expect(bestFill(three, [], 0)).toEqual([])
   })
 })
 

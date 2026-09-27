@@ -232,6 +232,10 @@ export function ArenaBattle({
   useEffect(() => {
     link.current = null
     if (finished === null) return
+    // The match counts in the bots' records (the setup's ranking), once per match key.
+    void import('./battle/rate').then((m) =>
+      m.recordArenaMatch(finished.key, fight.spec.bots, finished.points),
+    )
     let live = true
     void replayLinkOf(fight, finished).then((url) => {
       if (live) link.current = url

@@ -27,6 +27,7 @@ import { validateArenaSearch } from '../src/features/arena/setup/search'
 import { sharedBots, sharedFragment } from '../src/features/arena/setup/url'
 import { type ArenaClient, createArenaStore } from '../src/features/arena/worker/client'
 import { stringifySearch } from '../src/router'
+import { useBotRecords } from '../src/store/bot-records'
 import {
   clearLocalBots,
   LOCAL_BOTS_KEY,
@@ -66,6 +67,7 @@ afterAll(() => restoreCanvas())
 
 beforeEach(async () => {
   await clearLocalBots()
+  useBotRecords.setState({ records: {}, seen: [] })
   useSettings.setState({ ...structuredClone(DEFAULT_SETTINGS), theme: 'sentinel' })
 })
 
@@ -216,6 +218,32 @@ describe('arena setup', () => {
     expect(
       (screen.getByRole('button', { name: /random fill/ }) as HTMLButtonElement).disabled,
     ).toBe(true)
+  })
+
+  it('lists the ranked bots first, with their records, and fills with the best', async () => {
+    const record = (rating: number, wins: number, losses: number) => ({
+      wins,
+      losses,
+      draws: 0,
+      rating,
+      rd: 100,
+      volatility: 0.06,
+    })
+    useBotRecords.setState({
+      records: { 'roster:imp': record(1700, 3, 1), 'roster:paper': record(1600, 1, 1) },
+    })
+    await renderArena()
+    const cards = within(screen.getByRole('list', { name: 'bots to add' })).getAllByRole('listitem')
+    expect(cards.slice(0, 2).map((card) => card.getAttribute('aria-label'))).toEqual([
+      'Imp',
+      'Paper',
+    ])
+    expect(within(cards[0] as HTMLElement).getByTitle(/^rank/).textContent).toBe(
+      '#1 · 3-1-0 · 75%',
+    )
+    fireEvent.click(screen.getByRole('button', { name: /best fill/ }))
+    expect(picked()).toHaveLength(16)
+    expect(picked().slice(0, 2)).toEqual(['Imp', 'Paper'])
   })
 
   it('filters the cards by the search', async () => {

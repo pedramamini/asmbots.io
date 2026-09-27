@@ -16,6 +16,7 @@ import {
 import { type BattleConfigInput, CORE_SIZE, Pcg32, PlacementError, place } from '@asmbots/engine'
 import { weightClassOf } from '@asmbots/protocol'
 import { roundOrder, roundSeed } from '@asmbots/tourney'
+import { type BotRecord, rankScore } from '../../../store/bot-records'
 import type { LocalBot } from '../../../store/local-bots'
 import type { ArenaConfig } from '../../../store/settings'
 import type { ArenaBot } from '../worker/protocol'
@@ -151,6 +152,48 @@ export function randomFill(
   const fresh = pool.filter((ref) => !taken.has(formatRef(ref)))
   const refs = [...shuffle(fresh), ...shuffle(pool.filter((ref) => taken.has(formatRef(ref))))]
   while (refs.length < room) refs.push(...shuffle([...pool]))
+  return refs.slice(0, room)
+}
+
+/**
+ * `bots` by their rank in this browser's records (`rankScore`), the best first. The sort is
+ * stable: bots of equal score, as the ones with no record, keep their order.
+ */
+export function byRank(
+  bots: readonly CatalogBot[],
+  records: Readonly<Record<string, BotRecord>>,
+): CatalogBot[] {
+  const score = (bot: CatalogBot) => rankScore(records[formatRef(bot.ref)])
+  return [...bots].sort((a, b) => score(b) - score(a))
+}
+
+/**
+ * Each ranked bot of `bots`'s place, 1 the best, by ref: the bots with a record, in `byRank`
+ * order. A bot with none has no place.
+ */
+export function ranksOf(
+  bots: readonly CatalogBot[],
+  records: Readonly<Record<string, BotRecord>>,
+): Map<string, number> {
+  const ranked = byRank(bots, records).filter((bot) => records[formatRef(bot.ref)] !== undefined)
+  return new Map(ranked.map((bot, i) => [formatRef(bot.ref), i + 1]))
+}
+
+/**
+ * `room` picks from `bots`, in their order (the ranking's: the best first), to fill the selection:
+ * each bot that assembles once, the ones not yet in `picked` first, then the best again while room
+ * is left. Empty when no bot assembles.
+ */
+export function bestFill(
+  bots: readonly CatalogBot[],
+  picked: readonly BotRef[],
+  room: number,
+): BotRef[] {
+  const pool = bots.filter((bot) => errorsOf(bot).length === 0).map((bot) => bot.ref)
+  if (pool.length === 0 || room <= 0) return []
+  const taken = new Set(picked.map(formatRef))
+  const refs = pool.filter((ref) => !taken.has(formatRef(ref)))
+  while (refs.length < room) refs.push(...pool)
   return refs.slice(0, room)
 }
 

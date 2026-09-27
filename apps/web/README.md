@@ -85,13 +85,15 @@ weight class, none takes any size), and a share link carries the same query (`@a
 `setup/search.ts`, the route's `validateSearch`, imports no code, since it rides the entry chunk.
 `setup/config.ts` has the limits, the presets, and the class (`ArenaConfig.weight`, which no preset
 sets), and `setup/bots.ts` the roster, the local and shared bots, the bots outside the class
-(`outsideWeight`), and the fight button's words. Click-only parts load as their own chunks, since
+(`outsideWeight`), the ranking (`byRank`, `ranksOf`, `bestFill`), and the fight button's words.
+The ranking reads `store/bot-records.ts` (localStorage); `battle/rate.ts`, a chunk with Glicko-2
+that `ArenaBattle` loads as a match ends, counts the match there once per match key. Click-only parts load as their own chunks, since
 the setup sits at the edge of its budget: the paste box (`setup/PasteBox.tsx`), dropped files
 (`setup/files.ts`, with the assembler), and the problem modal with the assembler's errors
 (`setup/Problems.tsx`, `setup/Diagnostics.tsx`).
 
 The class, when set, locks the picker's weight filter (its pills count the search's bots in each
-class) and random fill to it; `add` refuses a bot of another class with a warn toast (a dropped
+class) and both fills to it; `add` refuses a bot of another class with a warn toast (a dropped
 file is still saved to my bots); choosing a class removes the picked bots of the others; and
 `fightStatus` blocks a fight with one (`remove 1 bot outside middleweight`). The bots panel shows
 each ready bot's class chip, and `clear` empties it, with `undo` on the toast. `vite.config.ts` loads the roster's `.asm` imports as text (`textImport` of the repo's

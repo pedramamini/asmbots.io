@@ -14,7 +14,7 @@ import {
   Slider,
   useToast,
 } from '@asmbots/ui'
-import { Dices, FileUp, Link, Plus, Save, Swords, X } from 'lucide-react'
+import { Dices, FileUp, Link, Plus, Save, Swords, Trophy, X } from 'lucide-react'
 import {
   type ChangeEvent,
   type DragEvent,
@@ -31,6 +31,7 @@ import { ROUTE_SEARCH } from '../../app/keys'
 import { useLinkAction } from '../../app/link-action'
 import { PageIntro } from '../../app/PageIntro'
 import { useRouteStat } from '../../app/slots'
+import { type BotRecord, gamesOf, useBotRecords } from '../../store/bot-records'
 import { type LocalBot, useLocalBotActions, useLocalBots } from '../../store/local-bots'
 import { type ArenaConfig, useSettings } from '../../store/settings'
 import {
@@ -45,6 +46,8 @@ import { loadAssembly, useAssemble } from './setup/assembler'
 import {
   type ArenaFight,
   arenaFight,
+  bestFill,
+  byRank,
   type CatalogBot,
   carriesFiles,
   errorsOf,
@@ -55,6 +58,7 @@ import {
   maxSpacing,
   outsideWeight,
   randomFill,
+  ranksOf,
   resolveSelection,
   rosterCatalog,
   type SetupBot,
@@ -131,6 +135,7 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
   const arenaSpeed = useSettings((state) => state.arenaSpeed)
   const setArenaSpeed = useSettings((state) => state.setArenaSpeed)
   const localBots = useLocalBots()
+  const records = useBotRecords((state) => state.records)
   const { save } = useLocalBotActions()
   const [source, setSource] = useState<Source>('roster')
   const [query, setQuery] = useState('')
@@ -171,10 +176,11 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
   // The arena's class, when it has one, holds the picker's weight filter to it.
   const locked = spec.config.weight !== 'all'
   const filter: WeightFilter = locked ? spec.config.weight : weight
-  // The bots the picker lists, which `random fill` draws from: the search's, in the weight class.
-  const searched = (
-    source === 'roster' ? rosterCatalog() : source === 'mine' ? (mine ?? []) : []
-  ).filter((bot) => matchesQuery(bot, query))
+  // The bots the picker lists, best ranked first, which the fills draw from: the search's, in the
+  // weight class. A bot's rank is its place among the source's bots with a record.
+  const catalog = source === 'roster' ? rosterCatalog() : source === 'mine' ? (mine ?? []) : []
+  const ranks = ranksOf(catalog, records)
+  const searched = byRank(catalog, records).filter((bot) => matchesQuery(bot, query))
   const listed = searched.filter((bot) => inWeight(bot.assembled.bytes.length, filter))
   // Each filter pill counts the search's bots in its class, and the other pills lock with a class.
   const weightFilters = WEIGHT_FILTERS.map(({ value, label }) => ({
@@ -245,15 +251,19 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
   const addBot = (bot: CatalogBot) =>
     add(inClass([bot], (b) => b.assembled.bytes.length).map((b) => b.ref))
 
-  /** Fills the selection to its cap with random picks from the bots listed. */
-  const fill = () => {
+  /** Fills the selection to its cap from the bots listed: random picks, or the best ranked. */
+  const fill = (best: boolean) => {
     const room = MAX_ARENA_BOTS - latest.current.bots.length
-    const refs = randomFill(listed, latest.current.bots, room)
+    const refs = (best ? bestFill : randomFill)(listed, latest.current.bots, room)
     add(refs)
-    toast(`added ${refs.length} random ${refs.length === 1 ? 'bot' : 'bots'}.`, {
-      variant: 'accent',
-    })
+    toast(
+      `added ${refs.length} ${best ? 'best' : 'random'} ${refs.length === 1 ? 'bot' : 'bots'}.`,
+      {
+        variant: 'accent',
+      },
+    )
   }
+  const fillable = !full && listed.some((bot) => errorsOf(bot).length === 0)
 
   const remove = (index: number) =>
     onSpecChange((s) => ({ ...s, bots: s.bots.filter((_, i) => i !== index) }))
@@ -410,15 +420,26 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
                 />
               )}
               {source !== 'paste' && (
-                <Button
-                  icon={Dices}
-                  size="sm"
-                  title={`fill to ${MAX_ARENA_BOTS} bots with random picks from this list`}
-                  disabled={full || !listed.some((bot) => errorsOf(bot).length === 0)}
-                  onClick={fill}
-                >
-                  random fill
-                </Button>
+                <>
+                  <Button
+                    icon={Trophy}
+                    size="sm"
+                    title={`fill to ${MAX_ARENA_BOTS} bots with the best ranked of this list`}
+                    disabled={!fillable}
+                    onClick={() => fill(true)}
+                  >
+                    best fill
+                  </Button>
+                  <Button
+                    icon={Dices}
+                    size="sm"
+                    title={`fill to ${MAX_ARENA_BOTS} bots with random picks from this list`}
+                    disabled={!fillable}
+                    onClick={() => fill(false)}
+                  >
+                    random fill
+                  </Button>
+                </>
               )}
               <Segmented<Source>
                 label="bot source"
@@ -447,6 +468,8 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
             {source === 'roster' && (
               <BotGrid
                 bots={listed}
+                records={records}
+                ranks={ranks}
                 picked={spec.bots}
                 full={full}
                 onAdd={addBot}
@@ -468,6 +491,8 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
                 catalog={mine}
                 listed={listed}
                 empty={`none of my ${kind}bots${matching}.`}
+                records={records}
+                ranks={ranks}
                 picked={spec.bots}
                 full={full}
                 onAdd={addBot}
@@ -606,6 +631,9 @@ function pickCounts(picked: readonly BotRef[]): Map<string, number> {
 }
 
 interface GridProps {
+  /** This browser's bot records, and each ranked bot's place, by ref. */
+  records: Readonly<Record<string, BotRecord>>
+  ranks: ReadonlyMap<string, number>
   picked: readonly BotRef[]
   /** The selection is at its cap: no `+`. */
   full: boolean
@@ -616,6 +644,8 @@ interface GridProps {
 /** Bot cards, three across on a wide screen. */
 function BotGrid({
   bots,
+  records,
+  ranks,
   picked,
   full,
   onAdd,
@@ -637,6 +667,8 @@ function BotGrid({
         <BotCard
           key={formatRef(bot.ref)}
           bot={bot}
+          record={records[formatRef(bot.ref)]}
+          rank={ranks.get(formatRef(bot.ref))}
           count={counts.get(formatRef(bot.ref)) ?? 0}
           full={full}
           onAdd={() => onAdd(bot)}
@@ -650,10 +682,13 @@ function BotGrid({
 
 /**
  * A bot in the picker: its identicon, name, author, size and weight class, and tier (a roster bot) or `local`, and
- * `+`. A bot already picked shows how often; a bot that does not assemble shows `errors`.
+ * `+`. A bot already picked shows how often; a bot that does not assemble shows `errors`. A bot
+ * with a record shows its rank and its wins, losses, and draws: `#3 · 12-4-1 · 71%`.
  */
 function BotCard({
   bot,
+  record,
+  rank,
   count,
   full,
   onAdd,
@@ -661,6 +696,8 @@ function BotCard({
   coach,
 }: {
   bot: CatalogBot
+  record: BotRecord | undefined
+  rank: number | undefined
   count: number
   full: boolean
   onAdd: () => void
@@ -682,6 +719,15 @@ function BotCard({
           <span className="truncate text-bright">{bot.name}</span>
           {count > 0 && <Chip variant="accent">×{count}</Chip>}
         </p>
+        {record !== undefined && rank !== undefined && (
+          <p
+            className="truncate text-data text-muted"
+            title="rank · wins-losses-draws · win rate, in this browser's arena"
+          >
+            <span className="text-accent-fg">#{rank}</span> · {record.wins}-{record.losses}-
+            {record.draws} · {Math.round((100 * record.wins) / gamesOf(record))}%
+          </p>
+        )}
         <p className="flex min-w-0 items-center gap-2 text-data text-muted">
           {/* The author gives way first: the size stays whole beside the class chip. */}
           <span className="flex min-w-0">
