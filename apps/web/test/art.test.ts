@@ -7,7 +7,6 @@ import { tracePoints } from '../src/art/ScopeTrace'
 import {
   chip,
   FOOTER_HILLS,
-  FOOTER_PEAKS,
   FOOTER_POLE,
   footerRange,
   podium,
@@ -36,14 +35,15 @@ describe('ditherCells', () => {
 
   it('gives the same cells on every call', () => {
     const grid = { cols: 120, rows: 40 }
-    expect(ditherCells(footerRange, grid)).toEqual(ditherCells(footerRange, grid))
+    const { scene } = footerRange('/')
+    expect(ditherCells(scene, grid)).toEqual(ditherCells(scene, grid))
   })
 })
 
 describe('the scenes', () => {
   it('draw something and leave room: no plate is empty or solid', () => {
     for (const [scene, cols, rows] of [
-      [footerRange, 480, 68],
+      [footerRange('/').scene, 480, 90],
       [podium, 160, 100],
       [trophy, 100, 100],
       [chip, 160, 100],
@@ -62,15 +62,26 @@ describe('the scenes', () => {
   })
 
   it('stand each footer flag on its peak, one flag a seeded hill, clear of the top', () => {
-    const flags = FOOTER_PEAKS.filter((peak) => peak.flag)
-    expect(flags).toHaveLength(FOOTER_HILLS.length)
-    for (const peak of flags) {
-      expect(ridgeHeight(FOOTER_PEAKS, peak.x)).toBeCloseTo(peak.height, 5)
-      // The flag's top stays inside the plate.
-      expect(peak.height + FOOTER_POLE).toBeLessThan(0.97)
+    for (const path of ['/', '/hills', '/hills/main', '/docs/start-here', '/tournaments']) {
+      const { peaks, scene } = footerRange(path)
+      const flags = peaks.filter((peak) => peak.flag)
+      expect(flags).toHaveLength(FOOTER_HILLS.length)
+      for (const peak of flags) {
+        expect(ridgeHeight(peaks, peak.x)).toBeCloseTo(peak.height, 5)
+        // The flag's top stays inside the plate.
+        expect(peak.height + FOOTER_POLE).toBeLessThan(0.97)
+      }
+      const cells = ditherCells(scene, { cols: 480, rows: 90 })
+      expect(cells.includes(LIT)).toBe(true)
     }
-    const cells = ditherCells(footerRange, { cols: 480, rows: 68 })
-    expect(cells.includes(LIT)).toBe(true)
+  })
+
+  it('seed the footer by page: the same path, the same range; another path, another', () => {
+    const grid = { cols: 240, rows: 45 }
+    expect(footerRange('/hills').peaks).toEqual(footerRange('/hills').peaks)
+    expect(ditherCells(footerRange('/hills').scene, grid)).not.toEqual(
+      ditherCells(footerRange('/tournaments').scene, grid),
+    )
   })
 })
 

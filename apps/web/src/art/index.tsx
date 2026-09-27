@@ -16,7 +16,7 @@ const SCENES = {
   bracket,
   chip,
   disk,
-  footer: footerRange,
+  footer: footerRange('/').scene,
   manual,
   podium,
   summit,

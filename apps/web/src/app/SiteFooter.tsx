@@ -1,6 +1,7 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useLocation } from '@tanstack/react-router'
+import { useMemo } from 'react'
 import { DitherPlate } from '../art/DitherPlate'
-import { FOOTER_HILLS, FOOTER_PEAKS, FOOTER_POLE, footerRange } from '../art/scenes'
+import { FOOTER_HILLS, FOOTER_POLE, footerRange } from '../art/scenes'
 import { SOURCE_URL } from './site'
 
 /** A keyboard focus: the kit's 1 px accent outline, 2 px out (DESIGN_SYSTEM §8). */
@@ -55,15 +56,17 @@ const COLUMNS: readonly Column[] = [
 
 /**
  * The foot of every page that scrolls (DESIGN_SYSTEM §10): the hills as a dither range, each
- * seeded hill's flag labeled with its name and a link to it, then the site's links. The arena and
- * the editor fill the screen and have none.
+ * seeded hill's flag labeled with its name and a link to it, then the site's links. Each page
+ * seeds its own range from its path. The arena and the editor fill the screen and have none.
  */
 export function SiteFooter() {
-  const flags = FOOTER_PEAKS.filter((peak) => peak.flag === true)
+  const pathname = useLocation({ select: (location) => location.pathname })
+  const { peaks, scene } = useMemo(() => footerRange(pathname), [pathname])
+  const flags = peaks.filter((peak) => peak.flag === true)
   return (
     <footer className="mt-3 border-t border-border">
-      <div className="relative h-52">
-        <DitherPlate scene={footerRange} />
+      <div className="relative h-68">
+        <DitherPlate scene={scene} />
         {flags.map((peak, index) => {
           const hill = FOOTER_HILLS[index]
           if (hill === undefined) return null

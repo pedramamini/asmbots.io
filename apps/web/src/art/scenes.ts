@@ -24,6 +24,8 @@ export interface RangeOptions {
   readonly stars?: number | undefined
   /** A flag's pole, 0..1 of the plate's height; the cloth scales with it. 0.24 when absent. */
   readonly pole?: number | undefined
+  /** The near ridge's lowest height, 0..1 of the plate's, rolling a little: none when absent. */
+  readonly floor?: number | undefined
 }
 
 /** The height of the near ridge at `x`, 0..1 of the plate's: the highest peak there. */
@@ -52,8 +54,10 @@ function farHeight(x: number): number {
  * a flag on each peak that has one (a hill with a king), a banded sun, and stars. The footer's
  * range and the `/hills` banner.
  */
-export function range({ peaks, sun, stars = 0, pole = 0.24 }: RangeOptions): Scene {
+export function range({ peaks, sun, stars = 0, pole = 0.24, floor = 0 }: RangeOptions): Scene {
   const flag = pole / 0.24
+  const ground = (x: number) =>
+    Math.max(ridgeHeight(peaks, x), floor * (1 + 0.2 * Math.sin(x * 17 + 0.7)))
   return (x, y, grid) => {
     const cell = 1 / grid.rows
     const wide = aspect(grid)
@@ -67,11 +71,11 @@ export function range({ peaks, sun, stars = 0, pole = 0.24 }: RangeOptions): Sce
       const wave = 0.012 * flag * Math.sin((dx / flag) * 55)
       if (cloth && y + wave < top - pole + 0.075 * flag) return BRIGHT
     }
-    const near = 1 - ridgeHeight(peaks, x)
+    const near = 1 - ground(x)
     if (y >= near) {
       const depth = y - near
       if (depth < cell * 1.2) return 1
-      const slope = ridgeHeight(peaks, x + 0.002) - ridgeHeight(peaks, x - 0.002)
+      const slope = ground(x + 0.002) - ground(x - 0.002)
       const toward = sun === undefined ? 0 : Math.sign(sun.x - x) * Math.sign(slope)
       return 0.5 + 0.08 * toward + 0.32 * smoothstep(0, 0.6, depth)
     }
@@ -92,32 +96,82 @@ export function range({ peaks, sun, stars = 0, pole = 0.24 }: RangeOptions): Sce
   }
 }
 
-/**
- * The footer's range: the three seeded hills, `main` tallest, each with its king's flag, and low
- * foothills between them. The plate is tall, so the heights spread wide.
- */
-export const FOOTER_PEAKS: readonly Peak[] = [
-  { x: 0.08, height: 0.32, spread: 0.11 },
-  { x: 0.22, height: 0.54, spread: 0.12, flag: true },
-  { x: 0.36, height: 0.2, spread: 0.09 },
-  { x: 0.5, height: 0.8, spread: 0.17, flag: true },
-  { x: 0.65, height: 0.36, spread: 0.1 },
-  { x: 0.8, height: 0.64, spread: 0.12, flag: true },
-  { x: 0.94, height: 0.22, spread: 0.09 },
-]
-
 /** The footer flags' pole, 0..1 of its plate: short, as the plate is tall. */
-export const FOOTER_POLE = 0.15
+export const FOOTER_POLE = 0.12
 
 /** The hill each footer flag stands for, left to right. */
 export const FOOTER_HILLS = ['tiny', 'main', 'melee'] as const
 
-export const footerRange: Scene = range({
-  peaks: FOOTER_PEAKS,
-  sun: { x: 0.64, y: 0.46, r: 0.22 },
-  stars: 1,
-  pole: FOOTER_POLE,
-})
+/** A footer's range: its peaks (the flags' links stand on them) and the picture. */
+export interface FooterRange {
+  readonly peaks: readonly Peak[]
+  readonly scene: Scene
+}
+
+/** A fixed 0..1 stream for `seed` (FNV-1a into mulberry32): the same seed, the same numbers. */
+function seeded(seed: string): () => number {
+  let state = 2166136261
+  for (let i = 0; i < seed.length; i++) state = Math.imul(state ^ seed.charCodeAt(i), 16777619)
+  return () => {
+    state = (state + 0x6d2b79f5) | 0
+    let t = Math.imul(state ^ (state >>> 15), 1 | state)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+/** The footer's flagged peaks before a seed moves them: `main` tallest, in the middle. */
+const FOOTER_FLAGS = [
+  { x: 0.22, height: 0.56, spread: 0.13 },
+  { x: 0.5, height: 0.78, spread: 0.17 },
+  { x: 0.8, height: 0.66, spread: 0.13 },
+] as const
+
+/**
+ * The footer's range for a page (`seed`, its path): the three seeded hills, each with its king's
+ * flag, foothills between them over a rolling floor, so no valley drops to the far ridge, a sun,
+ * and stars. Each page moves the peaks and the sun a little, so each footer differs and all match.
+ */
+export function footerRange(seed: string): FooterRange {
+  const random = seeded(seed)
+  const between = (low: number, high: number) => low + (high - low) * random()
+  const flags = FOOTER_FLAGS.map(
+    (peak): Peak => ({
+      x: peak.x + between(-0.04, 0.04),
+      height: peak.height + between(-0.05, 0.05),
+      spread: peak.spread + between(-0.015, 0.015),
+      flag: true,
+    }),
+  )
+  // Two foothills in each gap between flags and the plate's edges, shorter than any flag.
+  const edges = [0, ...flags.map((peak) => peak.x), 1]
+  const foothills: Peak[] = []
+  for (let i = 0; i + 1 < edges.length; i++) {
+    const left = edges[i] ?? 0
+    const width = (edges[i + 1] ?? 1) - left
+    for (const at of [0.33, 0.67]) {
+      foothills.push({
+        x: left + width * (at + between(-0.1, 0.1)),
+        height: between(0.28, 0.42),
+        spread: between(0.07, 0.11),
+      })
+    }
+  }
+  const peaks = [...foothills, ...flags].sort((a, b) => a.x - b.x)
+  // The sun anywhere across the sky, clear of the flags and their labels; between the first two
+  // when no draw is.
+  const clear = (x: number) => flags.every((peak) => Math.abs(x - peak.x) > 0.11)
+  let sunX = ((flags[0]?.x ?? 0.22) + (flags[1]?.x ?? 0.5)) / 2
+  for (let draw = 0; draw < 8; draw++) {
+    const x = between(0.08, 0.92)
+    if (clear(x)) {
+      sunX = x
+      break
+    }
+  }
+  const sun = { x: sunX, y: between(0.36, 0.5), r: between(0.2, 0.25) }
+  return { peaks, scene: range({ peaks, sun, stars: 1, pole: FOOTER_POLE, floor: 0.2 }) }
+}
 
 /** Whether (dx, y) is on a small four-point sparkle centered at (px, py), in heights. */
 function sparkle(dx: number, y: number, px: number, py: number, cell: number): boolean {
