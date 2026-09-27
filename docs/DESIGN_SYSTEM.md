@@ -147,8 +147,18 @@ Rules:
 
 - **Art is not content.** Every drawing is `aria-hidden`; the text beside it says what it shows. Text inside an SVG drawing may use `--text-dim`.
 - **Nothing moves.** A plate draws once, and again only on a resize or a theme change.
-- **After the paint.** The art is one chunk (`src/art`), loaded once the page has painted and gone idle; its box holds the space before, so nothing shifts.
+- **After the paint.** The drawings are one chunk (`src/art/index.tsx`), loaded once the page has painted and gone idle; a page renders a stand-in (`art/Plate.tsx` for a plate, `art/lazy.tsx` for the others), and its box holds the space before, so nothing shifts.
 - **Screenshots** on the home page are the docs' (`public/docs-shots`), small, framed as a window with its `ASM BOTS // PAGE` bar, lazy, and each opens its page.
 - **A section's banner** sits at the right end of its page intro (`PageIntro`'s `art`, an `IntroArt`), from `md` on, 320 × 80 px, fading in from the text's side. One scene a section: every page of the section shows the same one. The arena's setup loads its banner after the page, behind a placeholder of the same box: `/arena` is at the edge of its budget.
 - **The footer** ends every page that scrolls; the arena, the editor, and embeds fill the screen and have none.
 - Empty states stay text (§4): no art there.
+
+### Add a plate
+
+1. **The scene.** A `Scene` (`src/art/dither.ts`) gives each cell a tone, 0 to 1, or `BRIGHT`; measure in plate heights (`aspect(grid)`) so it keeps its shape on any width. A section banner goes in `src/art/banners.ts` and keeps its subject at the right end; any other in `src/art/scenes.ts`.
+2. **Its name.** Add it to `SCENES` in `src/art/index.tsx`.
+3. **The page.** A banner: `<PageIntro art={<IntroArt name="…" />} />`. Any other: `<Plate name="…" />` (`art/Plate.tsx`) in a box with a fixed size and `overflow-hidden`. 2 px cells (`cell={2}`) under about 200 px.
+4. **Its test.** Add the scene and its grid to the coverage case in `apps/web/test/art.test.ts` (something drawn, room left), and a banner to `keep their subject at the right end`.
+5. **The budget.** `bun run bundle`. On a page within 1 KB of its budget (`/arena`), load the art there with `lazy()` behind a placeholder of the same box, as `ArenaSetup.tsx` does: CI measures about 0.2 KB over a local build.
+
+Review it in two themes, a dark one and `paper`. Canvases are masked in the theme screenshots, but a box that changes a page's layout changes its baselines: remake them (apps/web README, "Screenshots").

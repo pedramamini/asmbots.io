@@ -79,6 +79,7 @@ Every change passes `bun run check`, and a change to what battles do also update
 - **A bot.** [packages/bots/README.md, "Adding a bot"](./packages/bots/README.md#adding-a-bot): the file in house style, the roster row, its recorded fights, its tests, and the goldens.
 - **An instruction.** [packages/codec/README.md, "Adding an instruction"](./packages/codec/README.md#adding-an-instruction). The ISA is frozen, so a new instruction is x16c v2: the spec changes first.
 - **A theme.** [packages/ui/README.md, "Add a theme"](./packages/ui/README.md#add-a-theme): one CSS block, one palette entry, and the contrast check.
+- **A picture.** [docs/DESIGN_SYSTEM.md, "Add a plate"](./docs/DESIGN_SYSTEM.md#add-a-plate): a dither scene, its name, its test, and the budget.
 
 Bugs, bot showcases, and ISA questions each have an issue template. Report a security problem as [SECURITY.md](./SECURITY.md) says, not in an issue. Everyone here follows the [code of conduct](./CODE_OF_CONDUCT.md).
 
