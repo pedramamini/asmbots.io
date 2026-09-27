@@ -3,6 +3,8 @@ import { Info } from 'lucide-react'
 import { lazy, type ReactNode, Suspense, useId, useState } from 'react'
 import type { ArenaConfig } from '../../../store/settings'
 import { WEIGHT_FILTERS } from '../../hills/WeightChip'
+import { speedLabel, speedOf } from '../battle/speed'
+import { MAX_CYCLES_PER_FRAME, MIN_CYCLES_PER_FRAME } from '../worker/protocol'
 import {
   CYCLES,
   type Limits,
@@ -28,14 +30,20 @@ export interface ConfigFormProps {
   bots: number
   /** Shows the class row: the arena's. A tournament picks its class apart. */
   weight?: boolean | undefined
+  /**
+   * The cycles per frame a fight starts at, and what sets it: the arena's speed row. A tournament
+   * has none. The transport under the fight moves the speed while it plays.
+   */
+  speed?: { value: number; onChange: (speed: number) => void } | undefined
 }
 
 const count = (n: number) => n.toLocaleString('en-US')
 
 /**
  * The battle config (PRODUCT_SPEC §2): the preset chips, then rounds, max cycles, the seed (fixed
- * or random), the process cap, the spacing, and in the arena the one weight class it takes. A
- * preset lights up while the values are its own; the class is no preset's.
+ * or random), the process cap, the spacing, and in the arena the speed a fight starts at and the
+ * one weight class it takes. A preset lights up while the values are its own; the speed and the
+ * class are no preset's.
  */
 export function ConfigForm({
   config,
@@ -44,6 +52,7 @@ export function ConfigForm({
   maxSpacing,
   bots,
   weight = false,
+  speed,
 }: ConfigFormProps) {
   const preset = presetOf(config)
   return (
@@ -126,6 +135,24 @@ export function ConfigForm({
             </>
           )}
         </Field>
+        {speed !== undefined && (
+          <Field label="speed">
+            {(id) => (
+              <Slider
+                id={id}
+                min={MIN_CYCLES_PER_FRAME}
+                max={MAX_CYCLES_PER_FRAME}
+                step={MIN_CYCLES_PER_FRAME}
+                scale="log"
+                className="flex-1"
+                value={speed.value}
+                onValueChange={(value) => speed.onChange(speedOf(value))}
+                format={(value) => speedLabel(speedOf(value))}
+                showValue
+              />
+            )}
+          </Field>
+        )}
         {weight && (
           <Field label="class">
             {(id) => (

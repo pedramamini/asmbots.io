@@ -24,6 +24,7 @@ import {
   type LoadedMessage,
   MAX_CYCLES_PER_FRAME,
   type MatchMessage,
+  MIN_CYCLES_PER_FRAME,
   type Placement,
   type Speed,
 } from './protocol'
@@ -285,7 +286,9 @@ export class ArenaClient {
   /** Cycles per frame from the next frame on. Throws `RangeError` for a speed the Worker refuses. */
   speed(cyclesPerFrame: Speed): void {
     if (!isSpeed(cyclesPerFrame)) {
-      throw new RangeError(`speed must be 1..${MAX_CYCLES_PER_FRAME} cycles per frame, or max`)
+      throw new RangeError(
+        `speed must be ${MIN_CYCLES_PER_FRAME}..1, or a whole 1..${MAX_CYCLES_PER_FRAME}, cycles per frame, or max`,
+      )
     }
     this.send({ type: 'speed', cyclesPerFrame })
     this.store.setState({ speed: cyclesPerFrame })

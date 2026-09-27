@@ -609,6 +609,7 @@ describe('the fight', () => {
     ])
     expect(config).toEqual({ maxCycles: 100_000, maxProcesses: 64, minSpacing: 1024, seed: 42 })
     expect(rounds).toBe(1)
+    expect(client.speed).toHaveBeenCalledWith(100)
     expect(client.play).toHaveBeenCalledTimes(1)
     expect(useSettings.getState().lastArenaConfig).toMatchObject({ seed: 42, rounds: 1 })
     // The URL holds the setup it fought, every field written.
@@ -634,6 +635,19 @@ describe('the fight', () => {
     // The next fight reuses the Worker.
     fireEvent.click(fightButton())
     expect(client.load).toHaveBeenCalledTimes(2)
+    await settle()
+  })
+
+  it('starts at the config speed, and keeps it for the next visit', async () => {
+    const { client } = await renderArena('/arena?b=roster:dwarf,roster:paper&seed=42')
+    const speed = screen.getByRole('slider', { name: 'speed' })
+    // A log slider's arrow halves the speed, whole counts rounded: 100, 50, 25, 13 .. 1, 0.5.
+    for (let i = 0; i < 8; i++) fireEvent.keyDown(speed, { key: 'ArrowLeft' })
+    expect(useSettings.getState().arenaSpeed).toBe(0.5)
+    expect(speed.getAttribute('aria-valuetext')).toBe('0.5/f')
+    fireEvent.click(fightButton())
+    expect(client.speed).toHaveBeenLastCalledWith(0.5)
+    expect(client.play).toHaveBeenCalledTimes(1)
     await settle()
   })
 

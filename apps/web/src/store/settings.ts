@@ -67,6 +67,11 @@ export interface Settings {
   /** The ids of the coach marks the user has dismissed: `arena`, `editor`. */
   coachMarksSeen: string[]
   lastArenaConfig: ArenaConfig | null
+  /**
+   * The cycles per frame a fight starts at (the arena worker's `Speed`, never `max`): the config's
+   * speed row. The transport moves the speed of the fight on the screen, not this.
+   */
+  arenaSpeed: number
 }
 
 export interface SettingsState extends Settings {
@@ -81,6 +86,7 @@ export interface SettingsState extends Settings {
   /** Records that the user dismissed a coach mark; it never shows again. */
   markCoachSeen: (id: string) => void
   setLastArenaConfig: (config: ArenaConfig | null) => void
+  setArenaSpeed: (speed: number) => void
   /** Every setting back to its default, the theme included (it follows the system again). */
   reset: () => void
 }
@@ -91,6 +97,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   sound: { on: false, volume: 0.5, cues: allCues(true) },
   coachMarksSeen: [],
   lastArenaConfig: null,
+  arenaSpeed: 100,
 })
 
 /** Every cue, each `on`. */
@@ -155,6 +162,7 @@ export const useSettings = create<SettingsState>()(
             : { coachMarksSeen: [...state.coachMarksSeen, id] },
         ),
       setLastArenaConfig: (lastArenaConfig) => set({ lastArenaConfig }),
+      setArenaSpeed: (arenaSpeed) => set({ arenaSpeed }),
       reset: () => {
         localStore.removeItem(THEME_STORAGE_KEY)
         set({ ...defaults(), theme: initTheme() })
@@ -164,13 +172,14 @@ export const useSettings = create<SettingsState>()(
       name: SETTINGS_STORAGE_KEY,
       version: 1,
       storage: createJSONStorage(() => localStore),
-      partialize: ({ effects, motion, sound, coachMarksSeen, lastArenaConfig }): Settings => ({
+      partialize: ({
         effects,
         motion,
         sound,
         coachMarksSeen,
         lastArenaConfig,
-      }),
+        arenaSpeed,
+      }): Settings => ({ effects, motion, sound, coachMarksSeen, lastArenaConfig, arenaSpeed }),
       // Storage is the user's to edit: take what is well formed, keep the default for the rest.
       merge: (stored, current) => ({ ...current, ...sanitizeSettings(stored) }),
     },
@@ -209,6 +218,10 @@ export function sanitizeSettings(stored: unknown): Partial<Settings> {
   }
   if (stored.lastArenaConfig === null || isArenaConfig(stored.lastArenaConfig)) {
     out.lastArenaConfig = stored.lastArenaConfig
+  }
+  // The arena checks the speed again before it plays (`isSpeed`); here it only has to be a number.
+  if (typeof stored.arenaSpeed === 'number' && Number.isFinite(stored.arenaSpeed)) {
+    out.arenaSpeed = stored.arenaSpeed
   }
   return out
 }

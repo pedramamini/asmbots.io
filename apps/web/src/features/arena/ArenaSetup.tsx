@@ -126,6 +126,8 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
   const { toast } = useToast()
   const link = useLinkAction()
   const setLastArenaConfig = useSettings((state) => state.setLastArenaConfig)
+  const arenaSpeed = useSettings((state) => state.arenaSpeed)
+  const setArenaSpeed = useSettings((state) => state.setArenaSpeed)
   const localBots = useLocalBots()
   const { save } = useLocalBotActions()
   const [source, setSource] = useState<Source>('roster')
@@ -545,6 +547,7 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
               maxSpacing={spacingCap}
               bots={selection.length}
               weight
+              speed={{ value: arenaSpeed, onChange: setArenaSpeed }}
             />
           </Panel>
           <div className="relative flex items-center gap-2" data-tour="arena-fight">

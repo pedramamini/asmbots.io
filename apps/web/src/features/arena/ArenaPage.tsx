@@ -21,6 +21,7 @@ import {
 } from './setup/url'
 import { ARENA_TOUR, WatchStep } from './tour'
 import { ArenaClient, INITIAL_ARENA_STATE } from './worker/client'
+import { DEFAULT_SPEED, isSpeed } from './worker/protocol'
 
 /** How long the URL waits after the setup's last change, ms: a slider drag writes it once. */
 export const URL_DELAY = 250
@@ -131,7 +132,10 @@ export function ArenaPage({
     [],
   )
 
-  /** Loads `next` and plays it; the intro's fight waits paused, at its own speed, for its guide. */
+  /**
+   * Loads `next` and plays it at the config's speed; the intro's fight waits paused, at its own
+   * speed, for its guide.
+   */
   const startFight = (next: ArenaFight, intro = false) => {
     writeUrl(next.spec)
     if (session.current === null) {
@@ -144,7 +148,11 @@ export function ArenaPage({
     const { client } = session.current
     client.load(next.bots, next.config, next.rounds)
     if (intro) client.speed(INTRO_SPEED)
-    else client.play()
+    else {
+      const { arenaSpeed } = useSettings.getState()
+      client.speed(isSpeed(arenaSpeed) ? arenaSpeed : DEFAULT_SPEED)
+      client.play()
+    }
     setFight(next)
     setIntroRun(intro ? ++introRuns.current : null)
   }

@@ -35,6 +35,7 @@ import {
   type LoadedMessage,
   MAX_CYCLES_PER_FRAME,
   MAX_KEYFRAMES,
+  MIN_CYCLES_PER_FRAME,
   type Speed,
 } from './protocol'
 
@@ -69,7 +70,11 @@ function checkCount(name: string, v: number, max: number): number {
 }
 
 function checkSpeed(speed: Speed): Speed {
-  if (!isSpeed(speed)) fail(`speed must be 1..${MAX_CYCLES_PER_FRAME} cycles per frame, or max`)
+  if (!isSpeed(speed)) {
+    fail(
+      `speed must be ${MIN_CYCLES_PER_FRAME}..1, or a whole 1..${MAX_CYCLES_PER_FRAME}, cycles per frame, or max`,
+    )
+  }
   return speed
 }
 
@@ -111,6 +116,8 @@ export class ArenaSession {
   private keyframesMoved = true
   private playing = false
   private speed: Speed = DEFAULT_SPEED
+  /** A speed below 1: the share of a cycle the frames have gathered and not run yet. */
+  private owed = 0
   /** Whether `ended` went out for the battle's end. A frame before the end clears it. */
   private endedSent = false
   private readonly now: () => number
@@ -252,10 +259,22 @@ export class ArenaSession {
     if (this.playing && !battle.over) {
       const deadline = this.now() + FRAME_BUDGET_MS
       const target =
-        this.speed === 'max' ? battle.config.maxCycles : battle.cycle + (this.speed as number)
+        this.speed === 'max'
+          ? battle.config.maxCycles
+          : battle.cycle + this.cyclesThisFrame(this.speed)
       this.advance(battle, target, deadline)
     }
     return this.frame(false)
+  }
+
+  /** The cycles a playing frame runs at `speed`: below 1, a cycle each time `owed` fills. */
+  private cyclesThisFrame(speed: number): number {
+    if (speed >= 1) return speed
+    this.owed += speed
+    // The float sum of 0.01s falls just short of 1: the slack keeps it on the hundredth frame.
+    const whole = Math.floor(this.owed + 1e-9)
+    this.owed -= whole
+    return whole
   }
 
   private seek(cycle: number): ArenaMessage[] {

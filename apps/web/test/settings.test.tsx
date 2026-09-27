@@ -49,12 +49,14 @@ describe('useSettings', () => {
     settings.markCoachSeen('arena')
     settings.setTheme('amber')
     settings.setCue('tick', false)
+    settings.setArenaSpeed(0.05)
     expect(stored()).toEqual({
       effects: { bloom: true, scanlines: false, vignette: true },
       motion: 'reduce',
       sound: { on: true, volume: 0.8, cues: { ...DEFAULT_SETTINGS.sound.cues, tick: false } },
       coachMarksSeen: ['arena'],
       lastArenaConfig: null,
+      arenaSpeed: 0.05,
     })
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('amber')
     expect(document.documentElement.dataset.theme).toBe('amber')
@@ -99,6 +101,8 @@ describe('useSettings', () => {
     expect(sanitizeSettings('nope')).toEqual({})
     expect(sanitizeSettings({ lastArenaConfig: { rounds: -1 } })).toEqual({})
     expect(sanitizeSettings({ sound: { on: 'yes', volume: 1 } })).toEqual({})
+    expect(sanitizeSettings({ arenaSpeed: 'fast' })).toEqual({})
+    expect(sanitizeSettings({ arenaSpeed: 0.2 })).toEqual({ arenaSpeed: 0.2 })
   })
 
   it('reads sound stored before the cues as every cue on', () => {

@@ -3,9 +3,9 @@ import { FastForward, Pause, Play, SkipForward, StepBack, StepForward } from 'lu
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { useStore } from 'zustand'
 import type { ArenaClient } from '../worker/client'
-import { MAX_CYCLES_PER_FRAME } from '../worker/protocol'
+import { MAX_CYCLES_PER_FRAME, MIN_CYCLES_PER_FRAME } from '../worker/protocol'
 import type { BattleLog } from './log'
-import { speedLabel } from './speed'
+import { speedLabel, speedOf } from './speed'
 
 export interface TransportProps {
   client: ArenaClient
@@ -23,7 +23,7 @@ const count = (n: number) => n.toLocaleString('en-US')
 
 /**
  * The transport under the arena (PRODUCT_SPEC §2): step back, play and pause, step, the speed (a
- * log slider from 1 to 10,000 cycles a frame, and `max`), the scrub bar, and the round with `next
+ * log slider from 0.01 to 10,000 cycles a frame, and `max`), the scrub bar, and the round with `next
  * round` between the rounds of a match.
  */
 export function Transport({
@@ -50,7 +50,7 @@ export function Transport({
     if (speed !== 'max') setLastCount(speed)
   }, [speed])
   const shown = speed === 'max' ? lastCount : speed
-  const setSpeed = (next: number) => client.speed(next)
+  const setSpeed = (next: number) => client.speed(speedOf(next))
 
   return (
     <div className="flex h-6 shrink-0 items-center gap-2" data-tour="arena-transport">
@@ -87,12 +87,13 @@ export function Transport({
       />
       <Slider
         aria-label="speed"
-        min={1}
+        min={MIN_CYCLES_PER_FRAME}
         max={MAX_CYCLES_PER_FRAME}
+        step={MIN_CYCLES_PER_FRAME}
         scale="log"
         value={shown}
         onValueChange={setSpeed}
-        format={(n) => `${count(n)}/f`}
+        format={(n) => speedLabel(speedOf(n))}
         showValue
         className="w-40 shrink-0"
         // At max the count is not in effect: the track fades, its value stays readable.

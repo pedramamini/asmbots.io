@@ -19,10 +19,16 @@ import {
   MAX_MINOR,
   reasonText,
 } from '../src/features/arena/battle/log'
+import { matchOutcome, roundOutcome } from '../src/features/arena/battle/outcome'
 import { buildReplay } from '../src/features/arena/battle/replay'
 import { runningStandings } from '../src/features/arena/battle/StandingsPanel'
-import { faster, SPEED_STEPS, slower, speedLabel } from '../src/features/arena/battle/speed'
-import { matchOutcome, roundOutcome } from '../src/features/arena/battle/outcome'
+import {
+  faster,
+  SPEED_STEPS,
+  slower,
+  speedLabel,
+  speedOf,
+} from '../src/features/arena/battle/speed'
 import { useArenaView } from '../src/features/arena/battle/view'
 import { ArenaScene, NOT_SEEN } from '../src/features/arena/render/scene'
 import { fightSeed, fits } from '../src/features/arena/setup/bots'
@@ -170,7 +176,8 @@ describe('the events log', () => {
 })
 
 describe('the speed', () => {
-  it('steps along 1-2-5 to 10,000, then max, and back', () => {
+  it('steps along 1-2-5 from 0.01 to 10,000, then max, and back', () => {
+    expect(SPEED_STEPS[0]).toBe(0.01)
     expect(SPEED_STEPS.at(-1)).toBe('max')
     expect(faster(1)).toBe(2)
     expect(faster(137)).toBe(200)
@@ -178,9 +185,17 @@ describe('the speed', () => {
     expect(faster('max')).toBe('max')
     expect(slower('max')).toBe(10_000)
     expect(slower(137)).toBe(100)
-    expect(slower(1)).toBe(1)
+    expect(slower(1)).toBe(0.5)
+    expect(slower(0.01)).toBe(0.01)
+    expect(faster(0.5)).toBe(1)
     expect(speedLabel(2000)).toBe('2,000/f')
+    expect(speedLabel(0.05)).toBe('0.05/f')
     expect(speedLabel('max')).toBe('max')
+  })
+
+  it('takes a slider value as whole cycles from 1 up and hundredths below', () => {
+    expect(speedOf(137.42)).toBe(137)
+    expect(speedOf(0.37)).toBe(0.37)
   })
 })
 

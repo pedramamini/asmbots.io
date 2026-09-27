@@ -33,8 +33,15 @@ export interface ArenaBot {
   readonly meta?: BotMeta | undefined
 }
 
-/** Cycles per frame: 1..`MAX_CYCLES_PER_FRAME`, or `max`, as many as `FRAME_BUDGET_MS` allows. */
+/**
+ * Cycles per frame: `MIN_CYCLES_PER_FRAME`..`MAX_CYCLES_PER_FRAME`, or `max`, as many as
+ * `FRAME_BUDGET_MS` allows. Below 1 it is a share of a cycle, to watch one instruction at a time:
+ * the frames add it up and run a cycle each time it passes a whole one.
+ */
 export type Speed = number | 'max'
+
+/** The slowest speed: a cycle every 100 frames, near 2 seconds at 60 frames a second. */
+export const MIN_CYCLES_PER_FRAME = 0.01
 
 /** The speed slider's top before `max` (PRODUCT_SPEC §2). */
 export const MAX_CYCLES_PER_FRAME = 10_000
@@ -44,10 +51,12 @@ export const DEFAULT_SPEED: Speed = 100
 
 /** Whether `value` is a speed the Worker takes. */
 export function isSpeed(value: unknown): value is Speed {
-  return (
-    value === 'max' ||
-    (Number.isInteger(value) && (value as number) >= 1 && (value as number) <= MAX_CYCLES_PER_FRAME)
-  )
+  if (value === 'max') return true
+  if (typeof value !== 'number' || !Number.isFinite(value)) return false
+  // A whole count from 1 up; below 1, a share of a cycle.
+  return value < 1
+    ? value >= MIN_CYCLES_PER_FRAME
+    : Number.isInteger(value) && value <= MAX_CYCLES_PER_FRAME
 }
 
 /**

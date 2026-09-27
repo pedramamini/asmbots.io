@@ -235,6 +235,7 @@ describe('ArenaSession: load', () => {
       { type: 'speed', cyclesPerFrame: 0 },
       { type: 'speed', cyclesPerFrame: 10_001 },
       { type: 'speed', cyclesPerFrame: 2.5 },
+      { type: 'speed', cyclesPerFrame: 0.005 },
     ]
     for (const request of bad) {
       const messages = send(session, request)
@@ -475,6 +476,23 @@ describe('ArenaSession: playback', () => {
     expectFrameOf(frame, straight(DUEL, DUEL_CONFIG, 500))
     send(session, { type: 'pause' })
     expect(frameIn(send(session, { type: 'requestFrame' })).cycle).toBe(500)
+  })
+
+  it('runs a cycle every few frames below 1 a frame', () => {
+    const session = new ArenaSession()
+    loaded(session, DUEL, DUEL_CONFIG)
+    send(session, { type: 'speed', cyclesPerFrame: 0.25 })
+    send(session, { type: 'play' })
+    const cycles = Array.from(
+      { length: 8 },
+      () => frameIn(send(session, { type: 'requestFrame' })).cycle,
+    )
+    expect(cycles).toEqual([0, 0, 0, 1, 1, 1, 1, 2])
+    // 100 frames at the slowest speed run one cycle, float sums notwithstanding.
+    send(session, { type: 'speed', cyclesPerFrame: 0.01 })
+    let last = 0
+    for (let i = 0; i < 100; i++) last = frameIn(send(session, { type: 'requestFrame' })).cycle
+    expect(last).toBe(3)
   })
 
   it('stops a frame at the budget: max runs until it, a set speed runs short of its count', () => {
