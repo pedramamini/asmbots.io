@@ -119,7 +119,7 @@ Scoring: pMARS points (ISA_SPEC §5.5). Ratings: Glicko-2 per bot across hill hi
 
 ## 6. Web app (apps/web)
 
-- **Routing**: TanStack Router, file-based. Routes: `/` (home + live ticker), `/arena`, `/arena/:replayId`, `/editor`, `/editor/:botId`, `/tournaments`, `/tournaments/:id`, `/hills`, `/hills/:slug`, `/bots/:id`, `/u/:handle`, `/docs/*`, `/settings`.
+- **Routing**: TanStack Router, file-based. Routes: `/` (home + live ticker), `/arena`, `/arena/:replayId`, `/editor`, `/editor/:botId`, `/tournaments`, `/tournaments/:id`, `/hills`, `/hills/:slug`, `/bots/:id`, `/u/:handle`, `/stats`, `/docs/*`, `/settings`.
 - **State**: TanStack Query for server data; Zustand for arena/editor session state; URL is the source of truth for shareable state (battle config + bot ids + seed are encoded in the query string).
 - **Arena Worker**: `arena.worker.ts` owns a `Battle`. Main thread sends `{load, play, pause, seek, speed, step}`; Worker posts per-frame `FrameDelta { cycle, writes: Uint16Array, execs: Uint16Array, deaths, spawns, stats }` via transferables. Speed is cycles-per-frame, 1..10,000, plus "max".
 - **Renderer**: WebGL2. Three 256x256 R8/R16 textures (owner, write-age, exec-age) uploaded per frame with `texSubImage2D`; one fullscreen quad; the fragment shader maps owner → theme palette, age → glow falloff, and draws the 1 px lattice, the ruler, and PC markers via a second instanced draw. Post pass: bloom (two-pass blur at quarter res) and optional scanline/vignette, both theme-controlled. Fallback: Canvas2D dirty-rect renderer when WebGL2 is unavailable.

@@ -267,3 +267,43 @@ export const terminal: Scene = (x, y, grid) => {
   if (Math.abs(dx) < 0.3 && y >= 0.82 && y < 0.87) return y < 0.82 + cellY ? 1 : 0.7
   return ground(x, y) + (y > 0.87 ? 0.06 * clamp01(1 - Math.abs(dx) / 0.8) : 0)
 }
+
+/** The chart's bars, left to right, and the gap between them, a share of a bar's slot. */
+const BARS = 16
+const BAR_GAP = 0.3
+
+/** Bar `i`'s height, 0..1 of the chart's: climbing to the right, a little noise on the way. */
+function barHeight(i: number): number {
+  const t = i / (BARS - 1)
+  return clamp01(0.14 + 0.7 * t ** 1.6 + 0.16 * (noise(i, 11) - 0.5) * (1 - t))
+}
+
+/**
+ * `/stats`: a bar chart climbing to the right end over dotted gridlines, a day a bar, the older
+ * bars dimmer (brightness is recency) and today's lit at its top.
+ */
+export const chart: Scene = (x, y, grid) => {
+  const cellY = 1 / grid.rows
+  const base = 0.9
+  const top = 0.1
+  const left = 0.3
+  const right = 0.97
+  if (x > left - 0.04 && x < right && on(y, base, cellY)) return 0.7
+  const bx = (x - left) / (right - left)
+  if (bx >= 0 && bx < 1 && y < base) {
+    const i = Math.floor(bx * BARS)
+    const within = bx * BARS - i
+    const height = top + (base - top) * (1 - barHeight(i))
+    if (within > BAR_GAP / 2 && within < 1 - BAR_GAP / 2 && y > height) {
+      const last = i === BARS - 1
+      if (y < height + cellY * 1.5) return last ? BRIGHT : 1
+      return last ? 1 : 0.2 + 0.6 * (i / (BARS - 1))
+    }
+  }
+  // The gridlines: dotted, every other cell.
+  const col = Math.floor(x * grid.cols)
+  for (const at of [0.3, 0.5, 0.7]) {
+    if (x > left - 0.04 && on(y, at, cellY)) return col % 3 === 0 ? 0.3 : 0
+  }
+  return ground(x, y) * smoothstep(0, left, x)
+}

@@ -425,6 +425,23 @@ Tests: `test/tournaments-*.test.ts(x)` (store and runner, form, list, bracket, v
 detail page) and `e2e/tournaments.spec.ts` (a bracket and a round robin to the end, and the round
 robin's link opened in a fresh browser).
 
+## Stats
+
+`/stats` (PRODUCT_SPEC §12) is the site in numbers, from one read, `GET /api/stats`, at most
+5 minutes old. The code is in `src/features/stats/`.
+
+| File | What it holds |
+| --- | --- |
+| `query.ts` | `statsQuery`, `useStats`. Not in `api/queries.ts`: every page takes that module, and only this one reads the stats. |
+| `series.ts` | Every day from the first to today (at least 30, at most 90 on the chart), running totals, uptime (`3d 04h`), the bots by class and by size in powers of two, `compact` (`142M`). |
+| `charts.tsx` | `DayChart` (a bar a day, the hovered or today's bright, its readout above), `SizeChart` (the size histogram, the classes under the bins they span), `ClassCounts`, `Split` (two counts as one bar). HTML boxes in the theme's tokens, no chart library; each chart is one image to assistive tech, its label the numbers. |
+| `StatsPage.tsx` | The panels: the site in numbers, activity, life and death, weight classes, records, hills. |
+
+The banner is the `chart` plate (DESIGN_SYSTEM §10). The footer's `compete` column links the page.
+
+Tests: `test/stats.test.tsx` (the series, the page, a failed read), API `test/stats.test.ts`; the
+page is in the smoke, axe, and focus specs.
+
 ## Empty and error states
 
 Every list says when it is empty with the kit's `EmptyState` (DESIGN_SYSTEM §4, §9): one muted
@@ -433,7 +450,7 @@ sentence and one accent action. A link action goes through `app/link-action.ts`
 
 | List | It says | Its action |
 | --- | --- | --- |
-| Hills (`/hills`) | no hill is open yet. | see how hills work (`/docs/tournaments/hills`) |
+| Hills (`/hills`, `/stats`) | no hill is open yet. | see how hills work (`/docs/tournaments/hills`) |
 | A hill's standings, its feed; the home page's top 10 | no entrants yet. / no submissions yet | submit a bot: the hill's own `submit` dialog, `sign in to submit a bot` signed out; the home page links `/hills/main` |
 | Matches (hill, home) | no matches played yet. | fight one in the arena |
 | Tournaments | no tournaments yet (this browser, the server) / no tournament matches. | new tournament / clear the filters |
@@ -611,6 +628,7 @@ about 5% over its page, so what grows one is a choice, made here and in `BUDGETS
 | `/u/$handle` | 170.5 KB | 180 KB | |
 | `/docs` | 170.1 KB | 180 KB | a page's own MDX loads after its route |
 | `/docs/$` | 181.4 KB | 190 KB | |
+| `/stats` | 179.6 KB | 190 KB | the charts are HTML boxes, no chart library |
 | `/settings` | 183.5 KB | 195 KB | |
 | `/embed/arena` | 214.2 KB | 225 KB | |
 | / art, after paint | 5.0 KB | 10 KB | `src/art`: the dither plates, the schematic, the scope trace, the hex band (DESIGN_SYSTEM §10) |
@@ -700,6 +718,7 @@ The battle page and the soak run on the preview, which needs the seeded dev Work
 | the build's manifest | `public/.assetsignore` | not deployed | `bun run bundle`, `e2e/network.spec.ts` |
 | replays, `GET /api/replays/:key` | API | `public, max-age=31536000, immutable` and an `ETag`: the key names the content | API `read-api.test.ts`, `e2e/network.spec.ts` |
 | hills and standings, `GET /api/hills`, `/api/hills/:slug` | API `edgeCached` | 30 s in the colo's edge cache (Cache API), `public, max-age=30`, with `Age`; a request with `Cache-Control: no-cache` gets them as they are | API `edge-cache.test.ts`, `hill-submit.test.ts`; web `api-cache.test.ts`; `e2e/network.spec.ts` |
+| the stats, `GET /api/stats` | API KV | 5 min in KV for every colo, no request skips it; `public, max-age=60` | API `stats.test.ts` |
 | GitHub avatars | `features/account/avatars.ts` | `preconnect` to `https://avatars.githubusercontent.com`: the header when the `signed_in` hint is there, the profile page always | `e2e/network.spec.ts` |
 
 The app reads a hill's board past the cache each time it reads it again (a job ended, a

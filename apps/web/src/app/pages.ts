@@ -53,6 +53,13 @@ const APP_PAGES: Readonly<Record<string, PageMeta>> = {
     label: 'hills',
     headline: 'the hills',
   },
+  '/stats': {
+    title: routeTitle('stats'),
+    description:
+      'ASM BOTS in numbers: users, bots by weight class, every server match, round, death, and cycle, the records, and each hill.',
+    label: 'stats',
+    headline: 'the site in numbers',
+  },
   '/docs': {
     title: routeTitle('docs'),
     description:

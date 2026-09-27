@@ -102,6 +102,7 @@ for (const theme of THEMES) {
         '/hills',
         '/hills/main',
         '/hills/melee',
+        '/stats',
         '/bots/roster-dwarf',
         '/u/system',
         '/docs',

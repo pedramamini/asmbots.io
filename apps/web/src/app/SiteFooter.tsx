@@ -33,6 +33,7 @@ const COLUMNS: readonly Column[] = [
     links: [
       { label: 'hills', to: '/hills' },
       { label: 'tournaments', to: '/tournaments' },
+      { label: 'stats', to: '/stats' },
     ],
   },
   {

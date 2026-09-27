@@ -132,3 +132,16 @@ Theme (nine swatches, live preview), arena effects (bloom, scanlines, vignette, 
 - Every roster bot assembles, formats idempotently, and has a golden.
 - All nine themes pass the contrast script.
 - `bun run golden` reproduces identical results in Bun, Chrome, and Miniflare.
+
+## 12. Stats `/stats`
+
+The site in numbers (asked for by Pedram, 2026-09-27: how long it has run, the battles, the deaths, the bots and their weight classes, the users). One read, `GET /api/stats`, at most 5 minutes old (KV); the page reads nothing else.
+
+- The site in numbers: uptime (`3d 04h`, since the database was made), users (signed in with GitHub; those with a bot), bots (not deleted; the house's; versions), matches (melees), rounds (a match), deaths (a round), cycles (a round), tournaments finished (championships). Users, bots, and matches carry their line over time.
+- Activity: a bar a day, at least the last 30 and at most the last 90, of matches, rounds, deaths, or cycles (a segmented control). Today's bar, or the hovered one, is bright; the readout above names its day and value.
+- Life and death: every bot in every round split into died and lived; the matches split into melees and duels; bots a round, deaths a match, cycles a round.
+- Weight classes: the bots in each class, and a histogram of their sizes (the latest version's), a bar per power of two from 1 byte to 4 KB, the classes marked under the bins they span.
+- Records: fastest kill (the fewest cycles a duel's loser lived), longest fight (the most cycles a duel ran before a death), each with `watch`; the longest reign of a king now on a hill; the bot in the most matches.
+- Hills: each hill in the hill list's order, its class, entrants, matches, challenges, crowns (challengers that took rank 1), king, and reign.
+- Only the server's matches count: hills, tournaments, championships. A battle run in a browser is not recorded. Deaths and cycles come from each match's kept rounds; the launch seed's matches got theirs from their replays (`apps/api/scripts/backfill-rounds.ts`).
+- The footer's `compete` column links it.

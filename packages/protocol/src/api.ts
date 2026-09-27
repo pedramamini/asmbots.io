@@ -13,6 +13,7 @@ import {
   Hill,
   HillEntry,
   HillEvent,
+  HillScoring,
   HillSubmission,
   Match,
   SubmissionStatus,
@@ -23,7 +24,7 @@ import {
   User,
   Visibility,
 } from './models'
-import { BASE64, Id, matching, NAME, SHA256, Slug, Timestamp, whole } from './schema'
+import { BASE64, Id, matching, NAME, SHA256, Slug, Timestamp, UINT32, whole } from './schema'
 
 /** A bot version as a table names it: its bot, its version number, and whose it is. */
 export const BotLabel = z.object({
@@ -588,3 +589,97 @@ export const AdminStats = z.object({
   spectators: COUNT,
 })
 export type AdminStats = z.output<typeof AdminStats>
+
+/** A day of the site's life (UTC), what happened on it: its matches and what they came to. */
+export const StatsDay = z.object({
+  /** `YYYY-MM-DD`, UTC. */
+  day: z.string().check(z.regex(/^\d{4}-\d{2}-\d{2}$/)),
+  matches: COUNT,
+  rounds: COUNT,
+  /** The bots that died in its rounds: each round's entrants less its survivors. */
+  deaths: COUNT,
+  /** The engine cycles its rounds ran. */
+  cycles: COUNT,
+  /** Users who signed up, and bots saved (not since deleted). */
+  users: COUNT,
+  bots: COUNT,
+})
+export type StatsDay = z.output<typeof StatsDay>
+
+/** A hill as the stats page counts it: its band, how busy it is, and its king. */
+export const StatsHill = z.object({
+  slug: Slug,
+  name: z.string(),
+  scoring: HillScoring,
+  minBotBytes: whole('minBotBytes', 1, UINT32),
+  maxBotBytes: whole('maxBotBytes', 1, UINT32),
+  entrants: COUNT,
+  matches: COUNT,
+  /** Finished submissions. */
+  challenges: COUNT,
+  /** The times a challenger entered at rank 1 and took the hill. */
+  crowns: COUNT,
+  king: z.nullable(BotLabel),
+  /** The challenges the king has held the hill through; null with no king. */
+  reign: z.nullable(COUNT),
+})
+export type StatsHill = z.output<typeof StatsHill>
+
+/** A record: whose it is, what it is (cycles or a count), and where it was set. */
+export const StatsRecord = z.object({
+  bot: BotLabel,
+  /** The other bot, for a kill. */
+  other: z.nullable(BotLabel),
+  value: COUNT,
+  hill: z.nullable(z.object({ slug: Slug, name: z.string() })),
+  /** The replay of the match it was set in (`/arena/$replayKey`); null for no one match. */
+  replayKey: z.nullable(matching(SHA256)),
+})
+export type StatsRecord = z.output<typeof StatsRecord>
+
+/**
+ * `GET /api/stats`: the site in numbers (PRODUCT_SPEC §12). Counts of users (signed in with
+ * GitHub), bots (saved, not deleted; `rosterBots` are the house's), and every server match (hill
+ * and tournament) and its rounds; `sizes`, the size of each bot's latest version and how many bots
+ * are that size; `days`, every day with anything in it, oldest first; each hill; and the records.
+ * `since` is when the database was made. The server reads it again at most every
+ * `STATS_TTL_SECONDS`; `at` is when it last did.
+ */
+export const SiteStats = z.object({
+  at: Timestamp,
+  since: z.nullable(Timestamp),
+  users: COUNT,
+  /** Users with a bot. */
+  builders: COUNT,
+  bots: COUNT,
+  rosterBots: COUNT,
+  versions: COUNT,
+  sizes: z.array(z.object({ size: whole('size', 1, UINT32), bots: COUNT })),
+  matches: COUNT,
+  /** Matches of more than two bots. */
+  melees: COUNT,
+  rounds: COUNT,
+  deaths: COUNT,
+  /** Bots alive at the end of their rounds. */
+  survivals: COUNT,
+  cycles: COUNT,
+  challenges: COUNT,
+  tournaments: COUNT,
+  championships: COUNT,
+  days: z.array(StatsDay),
+  hills: z.array(StatsHill),
+  records: z.object({
+    /** The fewest cycles a duel's loser lived through; `bot` the killer, `other` the killed. */
+    fastestKill: z.nullable(StatsRecord),
+    /** The most cycles a duel ran before one bot died. */
+    longestFight: z.nullable(StatsRecord),
+    /** The longest reign of a king now on a hill, in challenges. */
+    longestReign: z.nullable(StatsRecord),
+    /** The bot in the most matches, all its versions together. */
+    mostMatches: z.nullable(StatsRecord),
+  }),
+})
+export type SiteStats = z.output<typeof SiteStats>
+
+/** How long the server answers the stats from its cache before it reads them again, seconds. */
+export const STATS_TTL_SECONDS = 300

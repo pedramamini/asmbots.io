@@ -32,6 +32,7 @@ import { matches } from './routes/matches'
 import { me } from './routes/me'
 import { pages } from './routes/pages'
 import { replays } from './routes/replays'
+import { stats } from './routes/stats'
 import { ticker } from './routes/ticker'
 import { tournaments } from './routes/tournaments'
 import { users } from './routes/users'
@@ -73,6 +74,7 @@ app.route('/api/live', live)
 app.route('/api/matches', matches)
 app.route('/api/pages', pages)
 app.route('/api/replays', replays)
+app.route('/api/stats', stats)
 app.route('/api/ticker', ticker)
 app.route('/api/tournaments', tournaments)
 app.route('/api/users', users)

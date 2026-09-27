@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as GalleryRouteImport } from './routes/[_]gallery'
 import { Route as DocsRouteImport } from './routes/docs'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as StatsRouteImport } from './routes/stats'
 import { Route as ArenaIndexRouteImport } from './routes/arena/index'
 import { Route as ArenaReplayIdRouteImport } from './routes/arena/$replayId'
 import { Route as BotsIdRouteImport } from './routes/bots/$id'
@@ -46,6 +47,11 @@ const DocsRoute = DocsRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StatsRoute = StatsRouteImport.update({
+  id: '/stats',
+  path: '/stats',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ArenaIndexRoute = ArenaIndexRouteImport.update({
@@ -124,6 +130,7 @@ export interface FileRoutesByFullPath {
   '/_gallery': typeof GalleryRoute
   '/docs': typeof DocsRouteWithChildren
   '/settings': typeof SettingsRoute
+  '/stats': typeof StatsRoute
   '/arena/$replayId': typeof ArenaReplayIdRoute
   '/bots/$id': typeof BotsIdRoute
   '/docs/$': typeof DocsSplatRoute
@@ -143,6 +150,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/_gallery': typeof GalleryRoute
   '/settings': typeof SettingsRoute
+  '/stats': typeof StatsRoute
   '/arena/$replayId': typeof ArenaReplayIdRoute
   '/bots/$id': typeof BotsIdRoute
   '/docs/$': typeof DocsSplatRoute
@@ -164,6 +172,7 @@ export interface FileRoutesById {
   '/_gallery': typeof GalleryRoute
   '/docs': typeof DocsRouteWithChildren
   '/settings': typeof SettingsRoute
+  '/stats': typeof StatsRoute
   '/arena/$replayId': typeof ArenaReplayIdRoute
   '/bots/$id': typeof BotsIdRoute
   '/docs/$': typeof DocsSplatRoute
@@ -186,6 +195,7 @@ export interface FileRouteTypes {
     | '/_gallery'
     | '/docs'
     | '/settings'
+    | '/stats'
     | '/arena/$replayId'
     | '/bots/$id'
     | '/docs/$'
@@ -205,6 +215,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_gallery'
     | '/settings'
+    | '/stats'
     | '/arena/$replayId'
     | '/bots/$id'
     | '/docs/$'
@@ -225,6 +236,7 @@ export interface FileRouteTypes {
     | '/_gallery'
     | '/docs'
     | '/settings'
+    | '/stats'
     | '/arena/$replayId'
     | '/bots/$id'
     | '/docs/$'
@@ -246,6 +258,7 @@ export interface RootRouteChildren {
   GalleryRoute: typeof GalleryRoute
   DocsRoute: typeof DocsRouteWithChildren
   SettingsRoute: typeof SettingsRoute
+  StatsRoute: typeof StatsRoute
   ArenaReplayIdRoute: typeof ArenaReplayIdRoute
   BotsIdRoute: typeof BotsIdRoute
   EditorBotIdRoute: typeof EditorBotIdRoute
@@ -288,6 +301,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/stats': {
+      id: '/stats'
+      path: '/stats'
+      fullPath: '/stats'
+      preLoaderRoute: typeof StatsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/arena/': {
@@ -408,6 +428,7 @@ const rootRouteChildren: RootRouteChildren = {
   GalleryRoute: GalleryRoute,
   DocsRoute: DocsRouteWithChildren,
   SettingsRoute: SettingsRoute,
+  StatsRoute: StatsRoute,
   ArenaReplayIdRoute: ArenaReplayIdRoute,
   BotsIdRoute: BotsIdRoute,
   EditorBotIdRoute: EditorBotIdRoute,

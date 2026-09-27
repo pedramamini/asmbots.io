@@ -127,6 +127,7 @@ const WALK = [
   '/tournaments',
   '/hills',
   '/hills/main',
+  '/stats',
   '/bots/roster-dwarf',
   '/u/system',
   '/docs',

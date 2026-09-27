@@ -2,7 +2,7 @@
  * The site's art (DESIGN_SYSTEM §10), one chunk that loads after the page paints: `./lazy`
  * holds the stand-ins a page renders.
  */
-import { arenaFloor, bracket, disk, manual, summit, terminal } from './banners'
+import { arenaFloor, bracket, chart, disk, manual, summit, terminal } from './banners'
 import { DitherPlate } from './DitherPlate'
 import { chip, footerRange, podium, trophy } from './scenes'
 
@@ -14,6 +14,7 @@ export { ScopeTrace } from './ScopeTrace'
 const SCENES = {
   arena: arenaFloor,
   bracket,
+  chart,
   chip,
   disk,
   footer: footerRange('/').scene,

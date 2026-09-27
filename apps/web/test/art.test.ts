@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { fillsScreen, hasFooter } from '../src/app/Frame'
-import { arenaFloor, bracket, disk, manual, summit, terminal } from '../src/art/banners'
+import { arenaFloor, bracket, chart, disk, manual, summit, terminal } from '../src/art/banners'
 import { BRIGHT, ditherCells, LIT, OFF, ON, type Scene } from '../src/art/dither'
 import { bandBytes, litCells } from '../src/art/HexBand'
 import { tracePoints } from '../src/art/ScopeTrace'
@@ -52,6 +52,7 @@ describe('the scenes', () => {
       [bracket, 160, 40],
       [disk, 160, 40],
       [arenaFloor, 160, 40],
+      [chart, 160, 40],
       [manual, 112, 72],
       [terminal, 180, 80],
     ] as const) {
@@ -87,7 +88,7 @@ describe('the scenes', () => {
 
 describe('the banners', () => {
   it('keep their subject at the right end, clear of the intro text', () => {
-    for (const scene of [summit, bracket, disk, arenaFloor]) {
+    for (const scene of [summit, bracket, disk, arenaFloor, chart]) {
       const cells = ditherCells(scene, { cols: 160, rows: 40 })
       let left = 0
       let right = 0

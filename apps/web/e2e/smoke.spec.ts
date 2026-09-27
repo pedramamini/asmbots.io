@@ -15,6 +15,7 @@ const ROUTES: readonly (readonly [path: string, title: string])[] = [
   ['/tournaments/t-7', 'ASM BOTS // TOURNAMENTS · t-7'],
   ['/hills', 'ASM BOTS // HILLS'],
   ['/hills/main', 'ASM BOTS // HILLS · main'],
+  ['/stats', 'ASM BOTS // STATS'],
   ['/bots/b-42', 'ASM BOTS // BOTS · b-42'],
   ['/u/pedram', 'ASM BOTS // PROFILE · pedram'],
   ['/docs', 'ASM BOTS // DOCS'],

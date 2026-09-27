@@ -23,6 +23,7 @@ import { Route as EmbedRoute } from '../src/routes/embed/arena/index'
 import { Route as HillsRoute } from '../src/routes/hills/index'
 import { Route as HomeRoute } from '../src/routes/index'
 import { Route as SettingsRoute } from '../src/routes/settings'
+import { Route as StatsRoute } from '../src/routes/stats'
 import { Route as TournamentsRoute } from '../src/routes/tournaments/index'
 
 /** The tab title a route's `head` writes. */
@@ -51,6 +52,7 @@ describe('the pages manifest', () => {
       '/editor': EditorRoute,
       '/tournaments': TournamentsRoute,
       '/hills': HillsRoute,
+      '/stats': StatsRoute,
       '/docs': DocsRoute,
       '/settings': SettingsRoute,
       '/embed/arena': EmbedRoute,
