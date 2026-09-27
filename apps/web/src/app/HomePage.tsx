@@ -219,7 +219,7 @@ function MainHill() {
   const link = useLinkAction()
   return (
     <Panel
-      className="col-span-12 xl:col-span-6"
+      className="col-span-12 xl:col-span-5"
       title="main hill"
       data-tour="home-hill"
       status={readStatus(data, error, (d) => `${d.standings.length} of ${d.hill.size}`)}
@@ -248,7 +248,7 @@ function RecentMatches() {
   const { data, error } = read
   return (
     <Panel
-      className="col-span-12 md:col-span-6 xl:col-span-3"
+      className="col-span-12 md:col-span-6 xl:col-span-4"
       title="recent matches"
       status={readStatus(data, error, () => MAIN_HILL)}
     >

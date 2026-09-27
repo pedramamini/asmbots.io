@@ -104,7 +104,7 @@ const columns = (compact: boolean): TableColumn<MatchSummary>[] => [
         <VerifyMatch id={m.match.id} label={matchTitle(m)} compact={compact} />
       ) : null,
     align: 'right',
-    className: compact ? 'w-8' : 'w-24',
+    className: compact ? 'w-10' : 'w-24',
   },
   {
     id: 'watch',
