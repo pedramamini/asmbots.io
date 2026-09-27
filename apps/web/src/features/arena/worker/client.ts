@@ -121,7 +121,7 @@ export type Schedule = (callback: () => void) => () => void
 /**
  * The User Timing entries a frame's trip from the Worker leaves on the page's timeline: a mark as
  * it arrives, and a measure from its `sentAt` to that mark. DevTools shows both under Timings; the
- * perf spec holds the measure under 1 ms (web README "Budgets"). Only the latest of each stays on
+ * perf spec holds the measure under 1 ms (apps/web/guide/budgets.md). Only the latest of each stays on
  * the timeline, so a long battle does not grow it; a `PerformanceObserver` still sees every one.
  */
 export const TRANSFER_MARK = 'arena:frame-received'

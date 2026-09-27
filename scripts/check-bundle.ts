@@ -1,6 +1,6 @@
 /**
  * `bun run bundle` builds the web app (Vite alone: `check` type-checks first) and checks
- * `apps/web/dist` against its budgets (web README "Budgets", PRODUCT_SPEC §11). `bun run check`
+ * `apps/web/dist` against its budgets (apps/web/guide/budgets.md, PRODUCT_SPEC §11). `bun run check`
  * runs it, and CI runs it on its own ahead of `check`, so a miss fails CI. It checks:
  *
  * - each page's cold JS: what a browser fetches before the page draws, the entry's static imports
@@ -64,7 +64,7 @@ export interface Budgets {
 
 /**
  * The pages and their budgets. `/arena`'s is PRODUCT_SPEC §11's; each other sits about 5% over
- * what the page loads now, so a change that adds to it is a choice, made in the README too.
+ * what the page loads now, so a change that adds to it is a choice, made in apps/web/guide/budgets.md too.
  */
 const PAGE_BUDGETS: readonly PageBudget[] = [
   { page: '/', route: 'src/routes/index.tsx', kb: 185 },
@@ -86,7 +86,7 @@ const PAGE_BUDGETS: readonly PageBudget[] = [
   { page: '/embed/arena', route: 'src/routes/embed/arena/index.tsx', kb: 225 },
 ]
 
-/** The web app's budgets (web README "Budgets"). */
+/** The web app's budgets (apps/web/guide/budgets.md). */
 export const BUDGETS: Budgets = {
   pages: PAGE_BUDGETS,
   shellKb: 175,

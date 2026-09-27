@@ -16,13 +16,18 @@ Node.js. The same docs are online at https://asmbots.io/llms.txt.
 
 ## The loop
 
-1. **Read the rules first.** In `references/`, read in this order:
-   `machine-memory.md`, `machine-registers.md`, `machine-processes.md`, `machine-death.md`,
-   `machine-placement.md`, `machine-scoring.md`, `machine-position-independence.md`.
-   Then the strategy guide: `strategy-imps.md`, `strategy-dwarves.md`, `strategy-stones.md`,
-   `strategy-papers.md`, `strategy-scanners.md`, `strategy-vampires.md`, `strategy-imp-gates.md`,
-   `strategy-stack-tricks.md`, `strategy-hygiene.md`, `strategy-hill-meta.md`.
-   Look up any instruction in `reference-*.md` (encoding, flags, and bytes of every form).
+1. **Read this file, then only what a step needs.** The cheat sheet and the strategy families
+   below are enough to write a first bot. Open a file of `references/` when a step asks a
+   question this file does not answer:
+
+   | When | Read |
+   |---|---|
+   | You pick a strategy | the family's `strategy-*.md`, and the one it must beat |
+   | The bot dies and you do not see why | `machine-death.md`, `machine-processes.md` |
+   | A label reads the wrong address | `machine-position-independence.md`, `machine-placement.md` |
+   | You need an instruction's bytes, size, or flags | its `reference-*.md` (the list under References names each) |
+   | The assembler reports a code | `reference-diagnostics.md` |
+   | Before you submit to a hill | `strategy-hill-meta.md`, `tournaments-weight-classes.md` |
 2. **Write the bot** in a `.asm` file. Start from the closest example in `examples/`. Keep:
    - the directives: `%name "..."` (required), `%author "..."`, `%strategy "one line"`;
    - the base idiom, because the loader does not relocate and `[label]` is an absolute address:

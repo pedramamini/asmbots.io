@@ -26,7 +26,7 @@ export const WORKER_COMMAND = [
  * The runtime budgets' specs: the frame rate, and the 10-minute soak (opt-in, `SOAK=1`). They run
  * alone, since specs beside them on the same CPU slow the frames, and on the real GPU where there
  * is one (Metal on a Mac, as PRODUCT_SPEC §11's "Chrome, M1"): headless Chromium's default GL is
- * SwiftShader, whose work on the CPU holds the page's thread (web README "Budgets").
+ * SwiftShader, whose work on the CPU holds the page's thread (apps/web/guide/budgets.md).
  * `PERF_GL=software` keeps SwiftShader, as a machine with no GPU has it.
  */
 const PERF = /arena-(perf|soak)\.spec\.ts$/

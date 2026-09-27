@@ -1,5 +1,5 @@
 /**
- * The arena's runtime budgets (web README "Budgets", PRODUCT_SPEC §11, DESIGN_SYSTEM §5): a
+ * The arena's runtime budgets (apps/web/guide/budgets.md, PRODUCT_SPEC §11, DESIGN_SYSTEM §5): a
  * 16-bot melee of roster bots at 2,000 cycles a frame, every post effect on, holds 60 fps (the
  * 95th percentile of the gaps between display frames at most 20 ms, over 5 s), and a frame's trip
  * from the Worker to the page (the `arena:frame-transfer` measure, `TRANSFER_MEASURE` in

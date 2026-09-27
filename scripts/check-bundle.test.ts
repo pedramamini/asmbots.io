@@ -261,9 +261,8 @@ describe('check-bundle: the budgets', () => {
     expect(BUDGETS.fontsKb).toBe(120)
   })
 
-  it('are the ones the web README lists', () => {
-    const readme = readFileSync(join(import.meta.dir, '../apps/web/README.md'), 'utf8')
-    const section = readme.slice(readme.indexOf('## Budgets'))
+  it('are the ones apps/web/guide/budgets.md lists', () => {
+    const section = readFileSync(join(import.meta.dir, '../apps/web/guide/budgets.md'), 'utf8')
     const rows = [
       ['shell, every page', BUDGETS.shellKb],
       ...BUDGETS.pages.map((p) => [`\`${p.page}\``, p.kb]),

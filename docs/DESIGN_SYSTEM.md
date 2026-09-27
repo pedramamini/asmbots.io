@@ -161,4 +161,4 @@ Rules:
 4. **Its test.** Add the scene and its grid to the coverage case in `apps/web/test/art.test.ts` (something drawn, room left), and a banner to `keep their subject at the right end`.
 5. **The budget.** `bun run bundle`. On a page within 1 KB of its budget (`/arena`), load the art there with `lazy()` behind a placeholder of the same box, as `ArenaSetup.tsx` does: CI measures about 0.2 KB over a local build.
 
-Review it in two themes, a dark one and `paper`. Canvases are masked in the theme screenshots, but a box that changes a page's layout changes its baselines: remake them (apps/web README, "Screenshots").
+Review it in two themes, a dark one and `paper`. Canvases are masked in the theme screenshots, but a box that changes a page's layout changes its baselines: remake them ([apps/web/guide/e2e.md](../apps/web/guide/e2e.md#screenshots)).

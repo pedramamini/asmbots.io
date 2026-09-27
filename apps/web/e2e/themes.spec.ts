@@ -8,7 +8,7 @@
  * canvas, the home demo (its bots and seed are random), and the next championship (a date).
  *
  * Baselines are per platform (`-darwin`, `-linux`): fonts and GPU raster differ between them. CI's
- * are the Playwright image's; make them with the command in the web README ("Screenshots").
+ * are the Playwright image's; make them with the commands in apps/web/guide/e2e.md ("Screenshots").
  */
 import { THEMES } from '@asmbots/ui/themes'
 import { expect, type Page, test } from '@playwright/test'

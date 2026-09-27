@@ -7,7 +7,7 @@
 import type { Context } from 'hono'
 import type { AppEnv } from './env'
 
-/** How long the hills and their standings stay cached, s (web README "Budgets"). */
+/** How long the hills and their standings stay cached, s (apps/web/guide/budgets.md). */
 export const HILLS_CACHE_SECONDS = 30
 
 /**

@@ -11,10 +11,10 @@ ASM Bots is Core War in a real 8086 subset (x16c v1): a Bun monorepo, a React we
 | A picture: a dither plate, a banner, the footer | [docs/DESIGN_SYSTEM.md](./docs/DESIGN_SYSTEM.md) §10, "Add a plate" |
 | A theme | [packages/ui/README.md](./packages/ui/README.md), "Add a theme" |
 | A UI primitive | [packages/ui/README.md](./packages/ui/README.md) |
-| A page of the web app | [apps/web/README.md](./apps/web/README.md), the page's section (Arena, Editor and debugger, Tournaments, …) |
-| A bundle, runtime, or Lighthouse budget | [apps/web/README.md](./apps/web/README.md), "Budgets" and "Lighthouse" |
-| An end-to-end spec or a screenshot baseline | [apps/web/README.md](./apps/web/README.md), "End to end" and "Screenshots" |
-| The docs site, `llms.txt`, the agent skill | [apps/web/README.md](./apps/web/README.md), "Docs" and "Docs for agents" |
+| A page of the web app | [apps/web/README.md](./apps/web/README.md): its guide table names the one file for each part (arena, editor, tournaments, …) |
+| A bundle, runtime, or Lighthouse budget | [apps/web/guide/budgets.md](./apps/web/guide/budgets.md), [apps/web/guide/lighthouse.md](./apps/web/guide/lighthouse.md) |
+| An end-to-end spec or a screenshot baseline | [apps/web/guide/e2e.md](./apps/web/guide/e2e.md) |
+| The docs site, `llms.txt`, the agent skill | [apps/web/guide/docs-site.md](./apps/web/guide/docs-site.md) |
 | The API, D1, Durable Objects | [apps/api/README.md](./apps/api/README.md) |
 | The CLI | [apps/cli/README.md](./apps/cli/README.md) |
 | An instruction, the encoder, the engine | [docs/ISA_SPEC.md](./docs/ISA_SPEC.md) (frozen), [packages/codec/README.md](./packages/codec/README.md), [packages/engine/README.md](./packages/engine/README.md) |

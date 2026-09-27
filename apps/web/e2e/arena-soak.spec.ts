@@ -1,5 +1,5 @@
 /**
- * Memory over a long autoplay (web README "Budgets"): the production build's battle page
+ * Memory over a long autoplay (apps/web/guide/budgets.md): the production build's battle page
  * (PREVIEW_URL, default http://localhost:4173) plays a 16-bot melee of 10 rounds at 2,000 cycles a
  * frame with autoplay on, and a rematch at each match's end, for SOAK_MINUTES (10). At the first
  * match's end and at the last one's it collects the garbage and reads the heaps as a heap snapshot

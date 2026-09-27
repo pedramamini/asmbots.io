@@ -14,7 +14,7 @@ jobs:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
       - run: sudo apt-get install -y nasm
-      # The web build against its budgets (apps/web/README.md "Budgets"), on its own ahead of
+      # The web build against its budgets (apps/web/guide/budgets.md), on its own ahead of
       # `check`: a build over them fails CI here whatever the steps after it do.
       - run: bun run bundle
       - run: bun run check

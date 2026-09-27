@@ -1,5 +1,5 @@
 /**
- * The network budgets (web README "Budgets"), end to end through the Worker as production has it:
+ * The network budgets (apps/web/guide/budgets.md), end to end through the Worker as production has it:
  * the e2e Worker (`wrangler dev` on WORKER) serves the build and the API on one origin. The hashed
  * files are kept a year and the pictures a day (`public/_headers`); a replay for good; the hills
  * and their standings 30 s; a page that shows a GitHub avatar opens that origin first; and the
