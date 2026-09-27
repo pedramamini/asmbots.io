@@ -2,19 +2,16 @@ import { cx, Input, Panel, PanelGrid, useMediaQuery, WIDE } from '@asmbots/ui'
 import { Link, useRouter, useRouterState } from '@tanstack/react-router'
 import { ArrowLeft, ArrowRight, ChevronRight, Menu as MenuIcon, X } from 'lucide-react'
 import {
-  createContext,
   type KeyboardEvent,
   type ReactNode,
   type RefObject,
   useCallback,
-  useContext,
   useEffect,
   useId,
   useMemo,
   useRef,
   useState,
 } from 'react'
-import { createPortal } from 'react-dom'
 import {
   DOCS,
   type DocEntry,
@@ -32,6 +29,7 @@ import {
   searchIndex,
 } from '../docs/search'
 import { sectionAnchor, sectionMeta } from '../docs/sections'
+import { DocsAsideCards } from './DocsCards'
 import { ROUTE_SEARCH } from './keys'
 
 const FOCUS = 'focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-accent'
@@ -71,23 +69,12 @@ function useDocSlug(): string {
   })
 }
 
-/** The box under the sidebar that `DocsAside` fills; null until it mounts. */
-const AsideSlot = createContext<HTMLElement | null>(null)
-
-/**
- * Puts `children` in the left column under the sidebar, from `md` up, while the page that renders
- * it is shown. Under `md` the column stacks over the page, so they stay where the page puts them.
- */
-export function DocsAside({ children }: { children: ReactNode }) {
-  const slot = useContext(AsideSlot)
-  const wide = useMediaQuery(WIDE)
-  return wide && slot !== null ? createPortal(children, slot) : children
-}
-
 /**
  * The docs' page (PRODUCT_SPEC §7): the sidebar on the left (the search `/` focuses, and the
- * sections, the reader's open), with what a page puts under it (`DocsAside`), and the page on the
- * right. The left column sticks as one, and scrolls itself when it is taller than the window.
+ * sections, the reader's open), the changelog's card and the files for AI agents under it from
+ * `md` up (`DocsAsideCards`; under `md` the column stacks over the page, and the docs home shows
+ * them last), and the page on the right. The left column sticks as one, and scrolls itself when it
+ * is taller than the window.
  */
 export function DocsFrame({
   children,
@@ -99,7 +86,7 @@ export function DocsFrame({
   /** The search index; the built one by default (tests hand their own). */
   loadIndex?: () => Promise<SearchIndex>
 }) {
-  const [aside, setAside] = useState<HTMLElement | null>(null)
+  const wide = useMediaQuery(WIDE)
   return (
     <PanelGrid className="items-start p-3">
       <div
@@ -111,11 +98,9 @@ export function DocsFrame({
         <Panel title="docs" status={`${docEntries(docs).length} pages`} data-tour="docs-nav" dense>
           <DocsSidebar docs={docs} loadIndex={loadIndex} />
         </Panel>
-        <div ref={setAside} className="flex flex-col gap-3 empty:hidden" />
+        {wide && <DocsAsideCards docs={docs} />}
       </div>
-      <div className="col-span-12 min-w-0 md:col-span-8 lg:col-span-9">
-        <AsideSlot.Provider value={aside}>{children}</AsideSlot.Provider>
-      </div>
+      <div className="col-span-12 min-w-0 md:col-span-8 lg:col-span-9">{children}</div>
     </PanelGrid>
   )
 }

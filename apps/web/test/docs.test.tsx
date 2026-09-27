@@ -23,8 +23,9 @@ import type { MDXContent } from 'mdx/types'
 import type { ReactNode } from 'react'
 import * as runtime from 'react/jsx-runtime'
 import { useDom, window } from '../../../packages/ui/test/dom'
+import { CARD_PAGES } from '../src/app/DocsCards'
 import { DocsArticle, DocsFrame } from '../src/app/DocsFrame'
-import { CARD_PAGES, DocsHome } from '../src/app/DocsHome'
+import { DocsHome } from '../src/app/DocsHome'
 import { focusRouteSearch } from '../src/app/keys'
 import {
   DOCS,
@@ -722,6 +723,12 @@ describe('the docs home', () => {
         .getAllByRole('link')
         .map((a) => a.getAttribute('href')),
     ).toEqual(['/llms.txt', '/llms-full.txt', '/skill/asm-bots.zip', '/docs/tools/agents'])
+  })
+
+  it("keeps the changelog's card and the files for agents under the sidebar on a page", async () => {
+    await renderDocs('/docs/tools/agents')
+    expect(screen.getByRole('region', { name: 'changelog section' })).toBeTruthy()
+    expect(screen.getByRole('region', { name: 'for AI agents' })).toBeTruthy()
   })
 
   it("points its ways in at real pages, and its search button at the sidebar's field", async () => {
