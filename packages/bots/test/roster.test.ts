@@ -156,17 +156,20 @@ describe('roster: entries', () => {
   it(`keeps every bot at ${MAX_BOT_BYTES_ALL} bytes or under, the top of super-heavy`, () => {
     expect(MAX_BOT_BYTES).toBe(MAX_BOT_BYTES_ALL)
     for (const e of ROSTER) {
-      expect({ slug: e.slug, fits: botOf(e.slug).assembled.bytes.length <= MAX_BOT_BYTES_ALL })
-        .toEqual({ slug: e.slug, fits: true })
+      expect({
+        slug: e.slug,
+        fits: botOf(e.slug).assembled.bytes.length <= MAX_BOT_BYTES_ALL,
+      }).toEqual({ slug: e.slug, fits: true })
     }
   })
 
   for (const slug of FILLED_CLASSES) {
-    it(`has two or more fighters in the ${slug} class`, () => {
+    it(`has ten or more fighters in the ${slug} class`, () => {
       const fighters = ROSTER.filter(
-        (e) => e.tier !== 'test' && weightClassOf(botOf(e.slug).assembled.bytes.length)?.slug === slug,
+        (e) =>
+          e.tier !== 'test' && weightClassOf(botOf(e.slug).assembled.bytes.length)?.slug === slug,
       )
-      expect(fighters.length).toBeGreaterThanOrEqual(2)
+      expect(fighters.length).toBeGreaterThanOrEqual(10)
     })
   }
 

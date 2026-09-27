@@ -1,10 +1,11 @@
 /**
  * The roster's entries (roster/README.md): each bot's slug, file, name, author, family, tier, and
  * blurb. No sources here, so a page can list the roster without them: `sources.ts` holds the text
- * of each file, and `images.ts` what each assembles to.
+ * of each file, and `images.ts` what each assembles to. The bots past lightweight have their rows
+ * in `entries-large.ts`, which loads with their images (`large.ts`).
  *
  * A new bot is a file under roster/, its import in `sources.ts` (`sources-large.ts` past 512
- * bytes), a row here, and `bun run roster-images`.
+ * bytes), a row here (`entries-large.ts` past 512 bytes), and `bun run roster-images`.
  */
 
 /**
@@ -42,7 +43,8 @@ export interface RosterEntry {
   blurb: string
 }
 
-export const ROSTER: readonly RosterEntry[] = [
+/** The lightweight bots and the test bots. `ROSTER` (`entries-large.ts`) is every bot. */
+export const ROSTER_LIGHT: readonly RosterEntry[] = [
   {
     slug: 'imp',
     file: 'roster/imp.asm',
@@ -98,46 +100,6 @@ export const ROSTER: readonly RosterEntry[] = [
     blurb: 'Covers 2 KB around itself with mov noise, then bombs as an unrolled dwarf.',
   },
   {
-    slug: 'bastion',
-    file: 'roster/bastion.asm',
-    name: 'Bastion',
-    author: 'ASM Bots',
-    family: 'dwarf',
-    tier: 'solid',
-    blurb:
-      'A middleweight dwarf, 128 bombs a pass between two fields of fake code: beats dwarf 8-2, imp 9-0-1, scanner 8-2; loses to paper 0-10.',
-  },
-  {
-    slug: 'mender',
-    file: 'roster/mender.asm',
-    name: 'Mender',
-    author: 'ASM Bots',
-    family: 'dwarf',
-    tier: 'solid',
-    blurb:
-      'A heavyweight bomber that mends its loop from a spare copy: beats dwarf 9-1, scanner 9-1; loses to bastion 3-7, paper 0-8-2, hybrid 0-8-2, twins 0-10.',
-  },
-  {
-    slug: 'citadel',
-    file: 'roster/citadel.asm',
-    name: 'Citadel',
-    author: 'ASM Bots',
-    family: 'dwarf',
-    tier: 'solid',
-    blurb:
-      'A super-heavy of three bombers that rebuild each other: beats dwarf 9-1, scanner 10-0, bastion 8-2, mender 10-0, hydra 7-3; loses to paper 0-5-5, hybrid 1-8-1, twins 1-7-2.',
-  },
-  {
-    slug: 'swarm',
-    file: 'roster/swarm.asm',
-    name: 'Swarm',
-    author: 'ASM Bots',
-    family: 'dwarf',
-    tier: 'solid',
-    blurb:
-      'A super-heavy of 64 bombers, one process and one lane each: beats dwarf 9-1, scanner 10-0, hybrid 9-0-1, bastion 7-3, mender 9-1, hydra 7-3; ties paper 10/10; splits twins 3-4-3.',
-  },
-  {
     slug: 'stone',
     file: 'roster/stone.asm',
     name: 'Stone',
@@ -165,16 +127,6 @@ export const ROSTER: readonly RosterEntry[] = [
     blurb: 'Starts each copy on a jmp $ pad first, then writes the copy over the pad.',
   },
   {
-    slug: 'twins',
-    file: 'roster/twins.asm',
-    name: 'Twins',
-    author: 'ASM Bots',
-    family: 'paper',
-    tier: 'solid',
-    blurb:
-      'Middleweight paper whose copies take turns with a dense and a wide burst: beats dwarf 9-0-1, imp 9-0-1, scanner 10-0; ties paper 8 of 10.',
-  },
-  {
     slug: 'scanner',
     file: 'roster/scanner.asm',
     name: 'Scanner',
@@ -191,16 +143,6 @@ export const ROSTER: readonly RosterEntry[] = [
     family: 'scanner',
     tier: 'solid',
     blurb: 'A scanner that turns to paper when bombs land in a guard 768 bytes over its body.',
-  },
-  {
-    slug: 'hydra',
-    file: 'roster/hydra.asm',
-    name: 'Hydra',
-    author: 'ASM Bots',
-    family: 'scanner',
-    tier: 'solid',
-    blurb:
-      'A heavyweight that scans a lap, bombs four laps, then walks as an imp ring: beats dwarf 10-0, scanner 10-0, bastion 8-2; loses to paper 0-9-1, hybrid 0-9-1, twins 0-10.',
   },
   {
     slug: 'vampire',

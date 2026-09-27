@@ -29,16 +29,40 @@ In x16c the classic families do not form the Redcode triangle. Over seeds 1..200
 
 ## Weight classes
 
-A hill can take bots of one size class (`packages/protocol/src/weight.ts`), and the roster carries two or more fighters in each: `test/roster.test.ts` checks it. The first 14 fighters and painters are lightweights. The six heavier ones:
+A hill can take bots of one size class (`packages/protocol/src/weight.ts`), and the roster carries ten or more fighters in each: `test/roster.test.ts` checks it. The first 14 fighters and painters are lightweights. The 30 heavier ones, lightest class first:
 
 | Bot | Bytes | Class | Tactic |
 |---|---|---|---|
 | `bastion` | 548 | middleweight | A dwarf with 128 unrolled bombs a pass, between two fields of fake code |
 | `twins` | 524 | middleweight | Paper whose copies alternate a dense and a wide unrolled burst |
+| `legion` | 587 | middleweight | 12 imps and 48 lane bombers that turn gate when an imp comes |
+| `mortar` | 859 | middleweight | Lays spl traps for a lap, then DAT over them |
+| `sentinel` | 577 | middleweight | A 126-bomb unrolled bomber that starts an imp gate when a wire trips |
+| `quarry` | 723 | middleweight | Four unrolled bombers, four strides, one process each |
+| `origami` | 678 | middleweight | Paper in two folds that mends the live fold from the spare |
+| `sweeper` | 625 | middleweight | Scans with an unrolled fold, carpets each hit and sweeps 1.5 KB under it |
+| `harrier` | 603 | middleweight | Scans and carpets; bombs blind when a lap is crowded or empty |
+| `leech` | 599 | middleweight | Bites wide with 64 identical jmp fangs, holds the bitten in a pit |
 | `hydra` | 1,288 | heavyweight | Scans a lap, bombs four laps, then walks as an imp ring |
 | `mender` | 1,443 | heavyweight | A bomber that mends its loop from a spare copy |
+| `wraith` | 1,226 | heavyweight | Bombs one lap, then walks off as a large imp that bombs two lines |
+| `juggernaut` | 1,064 | heavyweight | Two bomb fronts, one up and one down, 256 bombs a pass |
+| `garrison` | 1,140 | heavyweight | An upward bomber and an imp gate, mended by a vote of three copies |
+| `colossus` | 1,196 | heavyweight | Six unrolled bombers with prime strides, four up and two down |
+| `phalanx` | 1,322 | heavyweight | Eight bombers side by side that bomb out from the body both ways |
+| `labyrinth` | 1,056 | heavyweight | Paper whose big copies each bomb a 16 KB field |
+| `kraken` | 1,218 | heavyweight | Three scanner arms in parallel, each striking what it finds |
+| `basilisk` | 1,116 | heavyweight | A vampire whose bite is a 928-byte fang table; the pit sets the bitten on their own bot |
 | `citadel` | 2,138 | super-heavy | Three bomber cells, each rebuilding the next when it dies |
 | `swarm` | 2,334 | super-heavy | 64 bombers side by side, one process and one lane each |
+| `titan` | 3,381 | super-heavy | A 400-bomb loop that moves between two homes and rewrites the other one |
+| `dreadnought` | 2,872 | super-heavy | Three unrolled bomb loops that mend from a spare copy |
+| `monolith` | 2,411 | super-heavy | Eight bombers in eight cells, four up and four down, strides 6 to 116 |
+| `fortress` | 2,137 | super-heavy | Three bombers between two imp gates; a tripwire floods the low one |
+| `behemoth` | 2,088 | super-heavy | Paper that drops 520 bombs on each landing place, then copies itself there |
+| `hive` | 2,179 | super-heavy | 24 small papers side by side, each with a step of its own |
+| `leviathan` | 2,298 | super-heavy | Four scanner cells, two up and two down, each folding 1,536 bytes with 128 or's |
+| `overlord` | 2,265 | super-heavy | Bites 1 KB with fangs, zeros 2 KB from the pit, gates imps |
 
 ## House style
 

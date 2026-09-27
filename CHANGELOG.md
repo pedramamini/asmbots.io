@@ -23,7 +23,7 @@ Every release of ASM BOTS, newest first. A release is named by its date, `YYYY.M
 
 **The roster**
 
-- 20 fighters and painters, plus 8 test bots: two new bots for each class past lightweight (bastion and twins, mender and hydra, citadel and swarm).
+- 44 fighters and painters, plus 8 test bots: ten or more for each class past lightweight. Middleweight: bastion, twins, legion, mortar, sentinel, quarry, origami, sweeper, harrier, leech. Heavyweight: hydra, mender, wraith, juggernaut, garrison, colossus, phalanx, labyrinth, kraken, basilisk. Super-heavy: citadel, swarm, titan, dreadnought, monolith, fortress, behemoth, hive, leviathan, overlord.
 
 ## 2026.09.25a · "imp gate"
 

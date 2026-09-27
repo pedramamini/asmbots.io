@@ -1,0 +1,934 @@
+; Titan is a dwarf with a huge unrolled loop and two homes, and it moves from one home to the other.
+; A pass drops 400 DAT words for one jump: 200 up through di, 8 bytes apart, and 200 down through
+; bp, 16 bytes apart. The dense side bombs up, where a dwarf's bombs come down from, and the wide
+; side gets round the rest of the core fast. Each lap starts 2 bytes on from the last one.
+; After 12 passes the bomber writes its home over the other home with rep movsw and jumps there.
+; So each move wipes out the bombs that landed in the home it goes to, and a hit on the home that
+; is not running never kills the bot.
+; The two homes are what make Titan a super-heavy: they are 3,348 of its 3,381 bytes, and both run
+; in turn.
+; vs imp.asm, seeds 1..20: 13 W / 7 T / 0 L
+; vs dwarf.asm, seeds 1..20: 18 W / 0 T / 2 L
+
+%name     "Titan"
+%author   "ASM Bots"
+%strategy "A huge bomb loop that jumps between two homes and rewrites the one it left"
+
+UP_S    equ     8                       ; bytes between bombs going up
+DOWN_S  equ     16                      ; bytes between bombs going down
+BOMBS   equ     200                     ; bombs a pointer drops in a pass
+UREACH  equ     BOMBS * UP_S            ; bytes the up pointer covers in a pass
+DREACH  equ     BOMBS * DOWN_S          ; bytes the down pointer covers in a pass
+TURN    equ     12                      ; passes in a home before the bomber moves
+SIZE    equ     end - start
+LAP     equ     (0x10000 - SIZE - 8 + UREACH + DREACH - 1) / (UREACH + DREACH) ; passes in a lap
+CELL    equ     hb - ha                 ; bytes in a home
+UP      equ     ha.up - ha              ; where a home keeps its data, from its base
+DOWN    equ     ha.down - ha
+SDI     equ     ha.sdi - ha
+SSI     equ     ha.ssi - ha
+RESUME  equ     ha.resume - ha
+DRIFT   equ     ha.drift - ha
+
+; Setup: the base idiom puts our base address in bx. Home A runs first, and home B is the other.
+start:  call    .here
+.here:  pop     bx
+        sub     bx, .here
+        lea     di, [bx+SIZE+2]         ; the up pointer starts over the body
+        mov     bp, bx                  ; the down pointer starts under it
+        lea     dx, [bx+hb]
+        add     bx, ha
+        mov     [bx+UP], di
+        mov     [bx+DOWN], bp
+        mov     si, LAP
+        xor     ax, ax                  ; ax = 0 is the bomb
+
+; Home A: the bomber runs here first. Home B, after it, holds the same bytes.
+ha:
+.turn:  mov     cx, TURN
+
+; Pass: bombs up through di and down through bp, one step on, and one jump.
+.pass:
+        mov     [di], ax
+        mov     [di+8], ax
+        mov     [di+16], ax
+        mov     [di+24], ax
+        mov     [di+32], ax
+        mov     [di+40], ax
+        mov     [di+48], ax
+        mov     [di+56], ax
+        mov     [di+64], ax
+        mov     [di+72], ax
+        mov     [di+80], ax
+        mov     [di+88], ax
+        mov     [di+96], ax
+        mov     [di+104], ax
+        mov     [di+112], ax
+        mov     [di+120], ax
+        mov     [di+128], ax
+        mov     [di+136], ax
+        mov     [di+144], ax
+        mov     [di+152], ax
+        mov     [di+160], ax
+        mov     [di+168], ax
+        mov     [di+176], ax
+        mov     [di+184], ax
+        mov     [di+192], ax
+        mov     [di+200], ax
+        mov     [di+208], ax
+        mov     [di+216], ax
+        mov     [di+224], ax
+        mov     [di+232], ax
+        mov     [di+240], ax
+        mov     [di+248], ax
+        mov     [di+256], ax
+        mov     [di+264], ax
+        mov     [di+272], ax
+        mov     [di+280], ax
+        mov     [di+288], ax
+        mov     [di+296], ax
+        mov     [di+304], ax
+        mov     [di+312], ax
+        mov     [di+320], ax
+        mov     [di+328], ax
+        mov     [di+336], ax
+        mov     [di+344], ax
+        mov     [di+352], ax
+        mov     [di+360], ax
+        mov     [di+368], ax
+        mov     [di+376], ax
+        mov     [di+384], ax
+        mov     [di+392], ax
+        mov     [di+400], ax
+        mov     [di+408], ax
+        mov     [di+416], ax
+        mov     [di+424], ax
+        mov     [di+432], ax
+        mov     [di+440], ax
+        mov     [di+448], ax
+        mov     [di+456], ax
+        mov     [di+464], ax
+        mov     [di+472], ax
+        mov     [di+480], ax
+        mov     [di+488], ax
+        mov     [di+496], ax
+        mov     [di+504], ax
+        mov     [di+512], ax
+        mov     [di+520], ax
+        mov     [di+528], ax
+        mov     [di+536], ax
+        mov     [di+544], ax
+        mov     [di+552], ax
+        mov     [di+560], ax
+        mov     [di+568], ax
+        mov     [di+576], ax
+        mov     [di+584], ax
+        mov     [di+592], ax
+        mov     [di+600], ax
+        mov     [di+608], ax
+        mov     [di+616], ax
+        mov     [di+624], ax
+        mov     [di+632], ax
+        mov     [di+640], ax
+        mov     [di+648], ax
+        mov     [di+656], ax
+        mov     [di+664], ax
+        mov     [di+672], ax
+        mov     [di+680], ax
+        mov     [di+688], ax
+        mov     [di+696], ax
+        mov     [di+704], ax
+        mov     [di+712], ax
+        mov     [di+720], ax
+        mov     [di+728], ax
+        mov     [di+736], ax
+        mov     [di+744], ax
+        mov     [di+752], ax
+        mov     [di+760], ax
+        mov     [di+768], ax
+        mov     [di+776], ax
+        mov     [di+784], ax
+        mov     [di+792], ax
+        mov     [di+800], ax
+        mov     [di+808], ax
+        mov     [di+816], ax
+        mov     [di+824], ax
+        mov     [di+832], ax
+        mov     [di+840], ax
+        mov     [di+848], ax
+        mov     [di+856], ax
+        mov     [di+864], ax
+        mov     [di+872], ax
+        mov     [di+880], ax
+        mov     [di+888], ax
+        mov     [di+896], ax
+        mov     [di+904], ax
+        mov     [di+912], ax
+        mov     [di+920], ax
+        mov     [di+928], ax
+        mov     [di+936], ax
+        mov     [di+944], ax
+        mov     [di+952], ax
+        mov     [di+960], ax
+        mov     [di+968], ax
+        mov     [di+976], ax
+        mov     [di+984], ax
+        mov     [di+992], ax
+        mov     [di+1000], ax
+        mov     [di+1008], ax
+        mov     [di+1016], ax
+        mov     [di+1024], ax
+        mov     [di+1032], ax
+        mov     [di+1040], ax
+        mov     [di+1048], ax
+        mov     [di+1056], ax
+        mov     [di+1064], ax
+        mov     [di+1072], ax
+        mov     [di+1080], ax
+        mov     [di+1088], ax
+        mov     [di+1096], ax
+        mov     [di+1104], ax
+        mov     [di+1112], ax
+        mov     [di+1120], ax
+        mov     [di+1128], ax
+        mov     [di+1136], ax
+        mov     [di+1144], ax
+        mov     [di+1152], ax
+        mov     [di+1160], ax
+        mov     [di+1168], ax
+        mov     [di+1176], ax
+        mov     [di+1184], ax
+        mov     [di+1192], ax
+        mov     [di+1200], ax
+        mov     [di+1208], ax
+        mov     [di+1216], ax
+        mov     [di+1224], ax
+        mov     [di+1232], ax
+        mov     [di+1240], ax
+        mov     [di+1248], ax
+        mov     [di+1256], ax
+        mov     [di+1264], ax
+        mov     [di+1272], ax
+        mov     [di+1280], ax
+        mov     [di+1288], ax
+        mov     [di+1296], ax
+        mov     [di+1304], ax
+        mov     [di+1312], ax
+        mov     [di+1320], ax
+        mov     [di+1328], ax
+        mov     [di+1336], ax
+        mov     [di+1344], ax
+        mov     [di+1352], ax
+        mov     [di+1360], ax
+        mov     [di+1368], ax
+        mov     [di+1376], ax
+        mov     [di+1384], ax
+        mov     [di+1392], ax
+        mov     [di+1400], ax
+        mov     [di+1408], ax
+        mov     [di+1416], ax
+        mov     [di+1424], ax
+        mov     [di+1432], ax
+        mov     [di+1440], ax
+        mov     [di+1448], ax
+        mov     [di+1456], ax
+        mov     [di+1464], ax
+        mov     [di+1472], ax
+        mov     [di+1480], ax
+        mov     [di+1488], ax
+        mov     [di+1496], ax
+        mov     [di+1504], ax
+        mov     [di+1512], ax
+        mov     [di+1520], ax
+        mov     [di+1528], ax
+        mov     [di+1536], ax
+        mov     [di+1544], ax
+        mov     [di+1552], ax
+        mov     [di+1560], ax
+        mov     [di+1568], ax
+        mov     [di+1576], ax
+        mov     [di+1584], ax
+        mov     [di+1592], ax
+        mov     [bp-16], ax
+        mov     [bp-32], ax
+        mov     [bp-48], ax
+        mov     [bp-64], ax
+        mov     [bp-80], ax
+        mov     [bp-96], ax
+        mov     [bp-112], ax
+        mov     [bp-128], ax
+        mov     [bp-144], ax
+        mov     [bp-160], ax
+        mov     [bp-176], ax
+        mov     [bp-192], ax
+        mov     [bp-208], ax
+        mov     [bp-224], ax
+        mov     [bp-240], ax
+        mov     [bp-256], ax
+        mov     [bp-272], ax
+        mov     [bp-288], ax
+        mov     [bp-304], ax
+        mov     [bp-320], ax
+        mov     [bp-336], ax
+        mov     [bp-352], ax
+        mov     [bp-368], ax
+        mov     [bp-384], ax
+        mov     [bp-400], ax
+        mov     [bp-416], ax
+        mov     [bp-432], ax
+        mov     [bp-448], ax
+        mov     [bp-464], ax
+        mov     [bp-480], ax
+        mov     [bp-496], ax
+        mov     [bp-512], ax
+        mov     [bp-528], ax
+        mov     [bp-544], ax
+        mov     [bp-560], ax
+        mov     [bp-576], ax
+        mov     [bp-592], ax
+        mov     [bp-608], ax
+        mov     [bp-624], ax
+        mov     [bp-640], ax
+        mov     [bp-656], ax
+        mov     [bp-672], ax
+        mov     [bp-688], ax
+        mov     [bp-704], ax
+        mov     [bp-720], ax
+        mov     [bp-736], ax
+        mov     [bp-752], ax
+        mov     [bp-768], ax
+        mov     [bp-784], ax
+        mov     [bp-800], ax
+        mov     [bp-816], ax
+        mov     [bp-832], ax
+        mov     [bp-848], ax
+        mov     [bp-864], ax
+        mov     [bp-880], ax
+        mov     [bp-896], ax
+        mov     [bp-912], ax
+        mov     [bp-928], ax
+        mov     [bp-944], ax
+        mov     [bp-960], ax
+        mov     [bp-976], ax
+        mov     [bp-992], ax
+        mov     [bp-1008], ax
+        mov     [bp-1024], ax
+        mov     [bp-1040], ax
+        mov     [bp-1056], ax
+        mov     [bp-1072], ax
+        mov     [bp-1088], ax
+        mov     [bp-1104], ax
+        mov     [bp-1120], ax
+        mov     [bp-1136], ax
+        mov     [bp-1152], ax
+        mov     [bp-1168], ax
+        mov     [bp-1184], ax
+        mov     [bp-1200], ax
+        mov     [bp-1216], ax
+        mov     [bp-1232], ax
+        mov     [bp-1248], ax
+        mov     [bp-1264], ax
+        mov     [bp-1280], ax
+        mov     [bp-1296], ax
+        mov     [bp-1312], ax
+        mov     [bp-1328], ax
+        mov     [bp-1344], ax
+        mov     [bp-1360], ax
+        mov     [bp-1376], ax
+        mov     [bp-1392], ax
+        mov     [bp-1408], ax
+        mov     [bp-1424], ax
+        mov     [bp-1440], ax
+        mov     [bp-1456], ax
+        mov     [bp-1472], ax
+        mov     [bp-1488], ax
+        mov     [bp-1504], ax
+        mov     [bp-1520], ax
+        mov     [bp-1536], ax
+        mov     [bp-1552], ax
+        mov     [bp-1568], ax
+        mov     [bp-1584], ax
+        mov     [bp-1600], ax
+        mov     [bp-1616], ax
+        mov     [bp-1632], ax
+        mov     [bp-1648], ax
+        mov     [bp-1664], ax
+        mov     [bp-1680], ax
+        mov     [bp-1696], ax
+        mov     [bp-1712], ax
+        mov     [bp-1728], ax
+        mov     [bp-1744], ax
+        mov     [bp-1760], ax
+        mov     [bp-1776], ax
+        mov     [bp-1792], ax
+        mov     [bp-1808], ax
+        mov     [bp-1824], ax
+        mov     [bp-1840], ax
+        mov     [bp-1856], ax
+        mov     [bp-1872], ax
+        mov     [bp-1888], ax
+        mov     [bp-1904], ax
+        mov     [bp-1920], ax
+        mov     [bp-1936], ax
+        mov     [bp-1952], ax
+        mov     [bp-1968], ax
+        mov     [bp-1984], ax
+        mov     [bp-2000], ax
+        mov     [bp-2016], ax
+        mov     [bp-2032], ax
+        mov     [bp-2048], ax
+        mov     [bp-2064], ax
+        mov     [bp-2080], ax
+        mov     [bp-2096], ax
+        mov     [bp-2112], ax
+        mov     [bp-2128], ax
+        mov     [bp-2144], ax
+        mov     [bp-2160], ax
+        mov     [bp-2176], ax
+        mov     [bp-2192], ax
+        mov     [bp-2208], ax
+        mov     [bp-2224], ax
+        mov     [bp-2240], ax
+        mov     [bp-2256], ax
+        mov     [bp-2272], ax
+        mov     [bp-2288], ax
+        mov     [bp-2304], ax
+        mov     [bp-2320], ax
+        mov     [bp-2336], ax
+        mov     [bp-2352], ax
+        mov     [bp-2368], ax
+        mov     [bp-2384], ax
+        mov     [bp-2400], ax
+        mov     [bp-2416], ax
+        mov     [bp-2432], ax
+        mov     [bp-2448], ax
+        mov     [bp-2464], ax
+        mov     [bp-2480], ax
+        mov     [bp-2496], ax
+        mov     [bp-2512], ax
+        mov     [bp-2528], ax
+        mov     [bp-2544], ax
+        mov     [bp-2560], ax
+        mov     [bp-2576], ax
+        mov     [bp-2592], ax
+        mov     [bp-2608], ax
+        mov     [bp-2624], ax
+        mov     [bp-2640], ax
+        mov     [bp-2656], ax
+        mov     [bp-2672], ax
+        mov     [bp-2688], ax
+        mov     [bp-2704], ax
+        mov     [bp-2720], ax
+        mov     [bp-2736], ax
+        mov     [bp-2752], ax
+        mov     [bp-2768], ax
+        mov     [bp-2784], ax
+        mov     [bp-2800], ax
+        mov     [bp-2816], ax
+        mov     [bp-2832], ax
+        mov     [bp-2848], ax
+        mov     [bp-2864], ax
+        mov     [bp-2880], ax
+        mov     [bp-2896], ax
+        mov     [bp-2912], ax
+        mov     [bp-2928], ax
+        mov     [bp-2944], ax
+        mov     [bp-2960], ax
+        mov     [bp-2976], ax
+        mov     [bp-2992], ax
+        mov     [bp-3008], ax
+        mov     [bp-3024], ax
+        mov     [bp-3040], ax
+        mov     [bp-3056], ax
+        mov     [bp-3072], ax
+        mov     [bp-3088], ax
+        mov     [bp-3104], ax
+        mov     [bp-3120], ax
+        mov     [bp-3136], ax
+        mov     [bp-3152], ax
+        mov     [bp-3168], ax
+        mov     [bp-3184], ax
+        mov     [bp-3200], ax
+        add     di, UREACH
+        sub     bp, DREACH
+        dec     si
+        jz      .lap
+.on:    loop    .next
+        jmp     .swap
+.next:  jmp     .pass
+
+; Lap: start again at the ends of the body, 2 bytes on from the last lap: four laps leave no gap.
+.lap:   add     word [bx+DRIFT], 2
+        and     word [bx+DRIFT], UP_S - 2
+        mov     di, [bx+UP]
+        add     di, [bx+DRIFT]
+        mov     bp, [bx+DOWN]
+        sub     bp, [bx+DRIFT]
+        mov     si, LAP
+        jmp     .on
+
+; Swap: keep di and si in the home, write the home over the other one, and jump there.
+.swap:  mov     [bx+SDI], di
+        mov     [bx+SSI], si
+        mov     si, bx
+        mov     di, dx
+        mov     cx, CELL / 2
+        cld                             ; rep movsw copies up
+        rep     movsw
+        xchg    bx, dx
+        lea     cx, [bx+RESUME]
+        jmp     cx
+.resume: mov    di, [bx+SDI]
+        mov     si, [bx+SSI]
+        jmp     .turn
+
+; Data: where the laps start, di and si while the bomber moves, and the drift of this lap.
+.up:    dw      0
+.down:  dw      0
+.sdi:   dw      0
+.ssi:   dw      0
+.drift: dw      0
+
+; Home B: the same bytes as home A.
+hb:
+.turn:  mov     cx, TURN
+
+.pass:
+        mov     [di], ax
+        mov     [di+8], ax
+        mov     [di+16], ax
+        mov     [di+24], ax
+        mov     [di+32], ax
+        mov     [di+40], ax
+        mov     [di+48], ax
+        mov     [di+56], ax
+        mov     [di+64], ax
+        mov     [di+72], ax
+        mov     [di+80], ax
+        mov     [di+88], ax
+        mov     [di+96], ax
+        mov     [di+104], ax
+        mov     [di+112], ax
+        mov     [di+120], ax
+        mov     [di+128], ax
+        mov     [di+136], ax
+        mov     [di+144], ax
+        mov     [di+152], ax
+        mov     [di+160], ax
+        mov     [di+168], ax
+        mov     [di+176], ax
+        mov     [di+184], ax
+        mov     [di+192], ax
+        mov     [di+200], ax
+        mov     [di+208], ax
+        mov     [di+216], ax
+        mov     [di+224], ax
+        mov     [di+232], ax
+        mov     [di+240], ax
+        mov     [di+248], ax
+        mov     [di+256], ax
+        mov     [di+264], ax
+        mov     [di+272], ax
+        mov     [di+280], ax
+        mov     [di+288], ax
+        mov     [di+296], ax
+        mov     [di+304], ax
+        mov     [di+312], ax
+        mov     [di+320], ax
+        mov     [di+328], ax
+        mov     [di+336], ax
+        mov     [di+344], ax
+        mov     [di+352], ax
+        mov     [di+360], ax
+        mov     [di+368], ax
+        mov     [di+376], ax
+        mov     [di+384], ax
+        mov     [di+392], ax
+        mov     [di+400], ax
+        mov     [di+408], ax
+        mov     [di+416], ax
+        mov     [di+424], ax
+        mov     [di+432], ax
+        mov     [di+440], ax
+        mov     [di+448], ax
+        mov     [di+456], ax
+        mov     [di+464], ax
+        mov     [di+472], ax
+        mov     [di+480], ax
+        mov     [di+488], ax
+        mov     [di+496], ax
+        mov     [di+504], ax
+        mov     [di+512], ax
+        mov     [di+520], ax
+        mov     [di+528], ax
+        mov     [di+536], ax
+        mov     [di+544], ax
+        mov     [di+552], ax
+        mov     [di+560], ax
+        mov     [di+568], ax
+        mov     [di+576], ax
+        mov     [di+584], ax
+        mov     [di+592], ax
+        mov     [di+600], ax
+        mov     [di+608], ax
+        mov     [di+616], ax
+        mov     [di+624], ax
+        mov     [di+632], ax
+        mov     [di+640], ax
+        mov     [di+648], ax
+        mov     [di+656], ax
+        mov     [di+664], ax
+        mov     [di+672], ax
+        mov     [di+680], ax
+        mov     [di+688], ax
+        mov     [di+696], ax
+        mov     [di+704], ax
+        mov     [di+712], ax
+        mov     [di+720], ax
+        mov     [di+728], ax
+        mov     [di+736], ax
+        mov     [di+744], ax
+        mov     [di+752], ax
+        mov     [di+760], ax
+        mov     [di+768], ax
+        mov     [di+776], ax
+        mov     [di+784], ax
+        mov     [di+792], ax
+        mov     [di+800], ax
+        mov     [di+808], ax
+        mov     [di+816], ax
+        mov     [di+824], ax
+        mov     [di+832], ax
+        mov     [di+840], ax
+        mov     [di+848], ax
+        mov     [di+856], ax
+        mov     [di+864], ax
+        mov     [di+872], ax
+        mov     [di+880], ax
+        mov     [di+888], ax
+        mov     [di+896], ax
+        mov     [di+904], ax
+        mov     [di+912], ax
+        mov     [di+920], ax
+        mov     [di+928], ax
+        mov     [di+936], ax
+        mov     [di+944], ax
+        mov     [di+952], ax
+        mov     [di+960], ax
+        mov     [di+968], ax
+        mov     [di+976], ax
+        mov     [di+984], ax
+        mov     [di+992], ax
+        mov     [di+1000], ax
+        mov     [di+1008], ax
+        mov     [di+1016], ax
+        mov     [di+1024], ax
+        mov     [di+1032], ax
+        mov     [di+1040], ax
+        mov     [di+1048], ax
+        mov     [di+1056], ax
+        mov     [di+1064], ax
+        mov     [di+1072], ax
+        mov     [di+1080], ax
+        mov     [di+1088], ax
+        mov     [di+1096], ax
+        mov     [di+1104], ax
+        mov     [di+1112], ax
+        mov     [di+1120], ax
+        mov     [di+1128], ax
+        mov     [di+1136], ax
+        mov     [di+1144], ax
+        mov     [di+1152], ax
+        mov     [di+1160], ax
+        mov     [di+1168], ax
+        mov     [di+1176], ax
+        mov     [di+1184], ax
+        mov     [di+1192], ax
+        mov     [di+1200], ax
+        mov     [di+1208], ax
+        mov     [di+1216], ax
+        mov     [di+1224], ax
+        mov     [di+1232], ax
+        mov     [di+1240], ax
+        mov     [di+1248], ax
+        mov     [di+1256], ax
+        mov     [di+1264], ax
+        mov     [di+1272], ax
+        mov     [di+1280], ax
+        mov     [di+1288], ax
+        mov     [di+1296], ax
+        mov     [di+1304], ax
+        mov     [di+1312], ax
+        mov     [di+1320], ax
+        mov     [di+1328], ax
+        mov     [di+1336], ax
+        mov     [di+1344], ax
+        mov     [di+1352], ax
+        mov     [di+1360], ax
+        mov     [di+1368], ax
+        mov     [di+1376], ax
+        mov     [di+1384], ax
+        mov     [di+1392], ax
+        mov     [di+1400], ax
+        mov     [di+1408], ax
+        mov     [di+1416], ax
+        mov     [di+1424], ax
+        mov     [di+1432], ax
+        mov     [di+1440], ax
+        mov     [di+1448], ax
+        mov     [di+1456], ax
+        mov     [di+1464], ax
+        mov     [di+1472], ax
+        mov     [di+1480], ax
+        mov     [di+1488], ax
+        mov     [di+1496], ax
+        mov     [di+1504], ax
+        mov     [di+1512], ax
+        mov     [di+1520], ax
+        mov     [di+1528], ax
+        mov     [di+1536], ax
+        mov     [di+1544], ax
+        mov     [di+1552], ax
+        mov     [di+1560], ax
+        mov     [di+1568], ax
+        mov     [di+1576], ax
+        mov     [di+1584], ax
+        mov     [di+1592], ax
+        mov     [bp-16], ax
+        mov     [bp-32], ax
+        mov     [bp-48], ax
+        mov     [bp-64], ax
+        mov     [bp-80], ax
+        mov     [bp-96], ax
+        mov     [bp-112], ax
+        mov     [bp-128], ax
+        mov     [bp-144], ax
+        mov     [bp-160], ax
+        mov     [bp-176], ax
+        mov     [bp-192], ax
+        mov     [bp-208], ax
+        mov     [bp-224], ax
+        mov     [bp-240], ax
+        mov     [bp-256], ax
+        mov     [bp-272], ax
+        mov     [bp-288], ax
+        mov     [bp-304], ax
+        mov     [bp-320], ax
+        mov     [bp-336], ax
+        mov     [bp-352], ax
+        mov     [bp-368], ax
+        mov     [bp-384], ax
+        mov     [bp-400], ax
+        mov     [bp-416], ax
+        mov     [bp-432], ax
+        mov     [bp-448], ax
+        mov     [bp-464], ax
+        mov     [bp-480], ax
+        mov     [bp-496], ax
+        mov     [bp-512], ax
+        mov     [bp-528], ax
+        mov     [bp-544], ax
+        mov     [bp-560], ax
+        mov     [bp-576], ax
+        mov     [bp-592], ax
+        mov     [bp-608], ax
+        mov     [bp-624], ax
+        mov     [bp-640], ax
+        mov     [bp-656], ax
+        mov     [bp-672], ax
+        mov     [bp-688], ax
+        mov     [bp-704], ax
+        mov     [bp-720], ax
+        mov     [bp-736], ax
+        mov     [bp-752], ax
+        mov     [bp-768], ax
+        mov     [bp-784], ax
+        mov     [bp-800], ax
+        mov     [bp-816], ax
+        mov     [bp-832], ax
+        mov     [bp-848], ax
+        mov     [bp-864], ax
+        mov     [bp-880], ax
+        mov     [bp-896], ax
+        mov     [bp-912], ax
+        mov     [bp-928], ax
+        mov     [bp-944], ax
+        mov     [bp-960], ax
+        mov     [bp-976], ax
+        mov     [bp-992], ax
+        mov     [bp-1008], ax
+        mov     [bp-1024], ax
+        mov     [bp-1040], ax
+        mov     [bp-1056], ax
+        mov     [bp-1072], ax
+        mov     [bp-1088], ax
+        mov     [bp-1104], ax
+        mov     [bp-1120], ax
+        mov     [bp-1136], ax
+        mov     [bp-1152], ax
+        mov     [bp-1168], ax
+        mov     [bp-1184], ax
+        mov     [bp-1200], ax
+        mov     [bp-1216], ax
+        mov     [bp-1232], ax
+        mov     [bp-1248], ax
+        mov     [bp-1264], ax
+        mov     [bp-1280], ax
+        mov     [bp-1296], ax
+        mov     [bp-1312], ax
+        mov     [bp-1328], ax
+        mov     [bp-1344], ax
+        mov     [bp-1360], ax
+        mov     [bp-1376], ax
+        mov     [bp-1392], ax
+        mov     [bp-1408], ax
+        mov     [bp-1424], ax
+        mov     [bp-1440], ax
+        mov     [bp-1456], ax
+        mov     [bp-1472], ax
+        mov     [bp-1488], ax
+        mov     [bp-1504], ax
+        mov     [bp-1520], ax
+        mov     [bp-1536], ax
+        mov     [bp-1552], ax
+        mov     [bp-1568], ax
+        mov     [bp-1584], ax
+        mov     [bp-1600], ax
+        mov     [bp-1616], ax
+        mov     [bp-1632], ax
+        mov     [bp-1648], ax
+        mov     [bp-1664], ax
+        mov     [bp-1680], ax
+        mov     [bp-1696], ax
+        mov     [bp-1712], ax
+        mov     [bp-1728], ax
+        mov     [bp-1744], ax
+        mov     [bp-1760], ax
+        mov     [bp-1776], ax
+        mov     [bp-1792], ax
+        mov     [bp-1808], ax
+        mov     [bp-1824], ax
+        mov     [bp-1840], ax
+        mov     [bp-1856], ax
+        mov     [bp-1872], ax
+        mov     [bp-1888], ax
+        mov     [bp-1904], ax
+        mov     [bp-1920], ax
+        mov     [bp-1936], ax
+        mov     [bp-1952], ax
+        mov     [bp-1968], ax
+        mov     [bp-1984], ax
+        mov     [bp-2000], ax
+        mov     [bp-2016], ax
+        mov     [bp-2032], ax
+        mov     [bp-2048], ax
+        mov     [bp-2064], ax
+        mov     [bp-2080], ax
+        mov     [bp-2096], ax
+        mov     [bp-2112], ax
+        mov     [bp-2128], ax
+        mov     [bp-2144], ax
+        mov     [bp-2160], ax
+        mov     [bp-2176], ax
+        mov     [bp-2192], ax
+        mov     [bp-2208], ax
+        mov     [bp-2224], ax
+        mov     [bp-2240], ax
+        mov     [bp-2256], ax
+        mov     [bp-2272], ax
+        mov     [bp-2288], ax
+        mov     [bp-2304], ax
+        mov     [bp-2320], ax
+        mov     [bp-2336], ax
+        mov     [bp-2352], ax
+        mov     [bp-2368], ax
+        mov     [bp-2384], ax
+        mov     [bp-2400], ax
+        mov     [bp-2416], ax
+        mov     [bp-2432], ax
+        mov     [bp-2448], ax
+        mov     [bp-2464], ax
+        mov     [bp-2480], ax
+        mov     [bp-2496], ax
+        mov     [bp-2512], ax
+        mov     [bp-2528], ax
+        mov     [bp-2544], ax
+        mov     [bp-2560], ax
+        mov     [bp-2576], ax
+        mov     [bp-2592], ax
+        mov     [bp-2608], ax
+        mov     [bp-2624], ax
+        mov     [bp-2640], ax
+        mov     [bp-2656], ax
+        mov     [bp-2672], ax
+        mov     [bp-2688], ax
+        mov     [bp-2704], ax
+        mov     [bp-2720], ax
+        mov     [bp-2736], ax
+        mov     [bp-2752], ax
+        mov     [bp-2768], ax
+        mov     [bp-2784], ax
+        mov     [bp-2800], ax
+        mov     [bp-2816], ax
+        mov     [bp-2832], ax
+        mov     [bp-2848], ax
+        mov     [bp-2864], ax
+        mov     [bp-2880], ax
+        mov     [bp-2896], ax
+        mov     [bp-2912], ax
+        mov     [bp-2928], ax
+        mov     [bp-2944], ax
+        mov     [bp-2960], ax
+        mov     [bp-2976], ax
+        mov     [bp-2992], ax
+        mov     [bp-3008], ax
+        mov     [bp-3024], ax
+        mov     [bp-3040], ax
+        mov     [bp-3056], ax
+        mov     [bp-3072], ax
+        mov     [bp-3088], ax
+        mov     [bp-3104], ax
+        mov     [bp-3120], ax
+        mov     [bp-3136], ax
+        mov     [bp-3152], ax
+        mov     [bp-3168], ax
+        mov     [bp-3184], ax
+        mov     [bp-3200], ax
+        add     di, UREACH
+        sub     bp, DREACH
+        dec     si
+        jz      .lap
+.on:    loop    .next
+        jmp     .swap
+.next:  jmp     .pass
+
+.lap:   add     word [bx+DRIFT], 2
+        and     word [bx+DRIFT], UP_S - 2
+        mov     di, [bx+UP]
+        add     di, [bx+DRIFT]
+        mov     bp, [bx+DOWN]
+        sub     bp, [bx+DRIFT]
+        mov     si, LAP
+        jmp     .on
+
+.swap:  mov     [bx+SDI], di
+        mov     [bx+SSI], si
+        mov     si, bx
+        mov     di, dx
+        mov     cx, CELL / 2
+        cld                             ; rep movsw copies up
+        rep     movsw
+        xchg    bx, dx
+        lea     cx, [bx+RESUME]
+        jmp     cx
+.resume: mov    di, [bx+SDI]
+        mov     si, [bx+SSI]
+        jmp     .turn
+
+.up:    dw      0
+.down:  dw      0
+.sdi:   dw      0
+.ssi:   dw      0
+.drift: dw      0
+
+end:

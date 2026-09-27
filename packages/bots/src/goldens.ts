@@ -13,7 +13,8 @@ import {
   HashSink,
   resultHash,
 } from '@asmbots/engine'
-import { fighter, ROSTER } from './roster'
+import { ROSTER_LIGHT } from './entries'
+import { fighter } from './roster'
 
 /** The hill rules: 80,000 cycles (ISA §5.5), everything else at its default. */
 export const HILL_RULES: BattleConfigInput = { maxCycles: 80_000 }
@@ -37,7 +38,9 @@ const matchup = (bots: readonly string[], seeds: readonly number[]): GoldenMatch
 const PAIR_SEEDS = [1, 2, 3, 4, 5]
 const MELEE_SEEDS = [1, 2, 3]
 
-const SHOWCASE = ROSTER.filter((e) => e.tier === 'showcase').map((e) => e.slug)
+// The showcase bots are all lightweights: the rows past lightweight stay out of the pages that
+// take the hill rules from here.
+const SHOWCASE = ROSTER_LIGHT.filter((e) => e.tier === 'showcase').map((e) => e.slug)
 
 /**
  * Every pair of showcase bots, in roster order, at seeds 1..5. Then, at seeds 1..3, three 4-bot

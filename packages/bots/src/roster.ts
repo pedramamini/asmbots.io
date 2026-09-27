@@ -1,13 +1,14 @@
 import { type Assembled, assemble } from '@asmbots/asm'
 import type { LoadedBot } from '@asmbots/engine'
-import { ROSTER } from './entries'
+import { ROSTER, ROSTER_LARGE } from './entries-large'
 import { LARGE_IMAGE_DATA } from './images-large.gen'
 import { addLargeRoster } from './large'
 import { rosterSource } from './sources'
 import { LARGE_SOURCES } from './sources-large'
 
 export type { RosterEntry, RosterFamily, RosterTier } from './entries'
-export { ROSTER, ROSTER_FAMILIES, ROSTER_TIERS } from './entries'
+export { ROSTER_FAMILIES, ROSTER_LIGHT, ROSTER_TIERS } from './entries'
+export { ROSTER, ROSTER_LARGE } from './entries-large'
 
 /** A roster bot: the text of its file and what `assemble` made of it. */
 export interface RosterBot {
@@ -24,7 +25,7 @@ let loaded: ReadonlyMap<string, RosterBot> | undefined
  * once (`large.ts`), so `rosterImage` and `rosterSource` have every bot after it.
  */
 export function loadRoster(): ReadonlyMap<string, RosterBot> {
-  addLargeRoster(LARGE_IMAGE_DATA, LARGE_SOURCES)
+  addLargeRoster(LARGE_IMAGE_DATA, LARGE_SOURCES, ROSTER_LARGE)
   loaded ??= new Map(
     ROSTER.map(({ slug }) => {
       const source = rosterSource(slug)

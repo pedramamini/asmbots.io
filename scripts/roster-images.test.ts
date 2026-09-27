@@ -2,6 +2,7 @@ import { afterAll, describe, expect, it } from 'bun:test'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { LARGE_SOURCES } from '../packages/bots/src/sources-large'
 import { IMAGE_FILES, imageSlugs, imagesModule, literal, rosterImages } from './roster-images'
 
 const DIR = mkdtempSync(join(tmpdir(), 'asmbots-roster-images-'))
@@ -25,9 +26,8 @@ describe('roster-images: the file', () => {
   })
 
   it('puts the bots past lightweight in a module of their own', () => {
-    expect(imageSlugs('large').sort()).toEqual(
-      ['bastion', 'citadel', 'hydra', 'mender', 'swarm', 'twins'].sort(),
-    )
+    expect(imageSlugs('large').sort()).toEqual(Object.keys(LARGE_SOURCES).sort())
+    expect(imageSlugs('large')).toContain('bastion')
     expect(imageSlugs('light')).toContain('imp')
     expect(imageSlugs('light')).not.toContain('bastion')
   })
@@ -53,7 +53,7 @@ describe('roster-images: check and write', () => {
     expect(rosterImages(false, (line) => lines.push(line), files)).toBe(0)
     expect(lines).toEqual([
       expect.stringMatching(/fresh\.ts: 22 bots$/),
-      expect.stringMatching(/fresh-large\.ts: 6 bots$/),
+      expect.stringMatching(/fresh-large\.ts: 30 bots$/),
     ])
     expect(readFileSync(files.light, 'utf8')).toBe(imagesModule('light'))
     expect(readFileSync(files.large, 'utf8')).toBe(imagesModule('large'))
