@@ -306,11 +306,24 @@ BattleConfig {
   coreSize: 65536          // fixed in v1
   maxCycles: 100000        // hill default 80000
   maxProcesses: 64         // per bot
-  minSpacing: 1024         // bytes between bot images, no overlap allowed
-  maxBotBytes: 512         // per bot, hill-configurable
+  minSpacing: 1024         // bytes between bot images, no overlap allowed; 2048 or 4096 on the heavier hills
+  minBotBytes: 1           // per bot, hill-configurable: a weight class's floor
+  maxBotBytes: 4096        // per bot, hill-configurable: 4096 is the absolute cap
   seed: uint32             // placement PRNG
 }
 ```
+
+Weight classes (decision 2026-09-26, Pedram). Bots come in variable sizes, up to 4,096 bytes, and a hill or tournament takes one size band through `minBotBytes` and `maxBotBytes` (`packages/protocol/src/weight.ts`):
+
+| class | bytes | `minSpacing` | format |
+|---|---|---|---|
+| lightweight | 1..512 | 1024 | duels and melees |
+| middleweight | 513..1024 | 1024 | duels and melees |
+| heavyweight | 1025..2048 | 2048 | duels only |
+| super-heavy | 2049..4096 | 4096 | duels only |
+| open weight | 1..4096 | 4096 | duels only, every class mixed |
+
+Each class has a floor, because a smaller bot is a smaller target: without one, the small bots win every class, and a bigger bot must spend its bytes on real work (decoys, repair, more than one strategy). Above middleweight, eight bots and their spacing do not fit, so those classes run duels only. The core stays 64 KB: it is the whole 16-bit address space, and a 4,096-byte bot is 6% of it. A `replay.v1` config without `minBotBytes` reads as 1.
 
 Loading: for bots 0..N-1 in submission order, draw a base address from PCG32(seed) such that `[base, base+size)` neither overlaps nor comes within `minSpacing` of any placed bot, wrapping considered. Reject the seed (draw again, up to 1000 tries) rather than allow overlap; if N bots cannot fit, the battle is invalid. Write the bot's bytes at base with owner tags. Initial registers: `IP = base`, `SP = base` (the stack grows into the free space below the bot), `FLAGS = 0x0002`, all others 0.
 

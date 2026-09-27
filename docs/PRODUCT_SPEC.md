@@ -53,7 +53,7 @@ Tiled workspace, default the `writing` layout: library, the source over its prob
 
 **Editor**:
 - CodeMirror 6, x16c mode, theme-matched. Listing gutter (address, bytes) updated on every successful assemble. Diagnostics inline (squiggle + gutter mark + problems panel). Hover on a mnemonic: opcode doc card (encoding, flags, one example). Autocomplete for mnemonics, registers, labels, `%` directives.
-- Toolbar: file name, `%name` badge, size `142 / 512 B`, `assemble` (auto on idle 300 ms), `format`, `lint`, `save` (local always; cloud when signed in), `versions`, `share`, `test vs ▾` (pick a roster bot, runs 10 rounds headless in the Worker, shows W/T/L instantly).
+- Toolbar: file name, `%name` badge, size chip with the weight class (`142 B · light`), `assemble` (auto on idle 300 ms), `format`, `lint`, `save` (local always; cloud when signed in), `versions`, `share`, `test vs ▾` (pick a roster bot, runs 10 rounds headless in the Worker, shows W/T/L instantly).
 - Templates menu: `blank`, `imp`, `dwarf`, `scanner skeleton`, `replicator skeleton`, `position-independent base` snippet.
 - Bot library sidebar (`b`): my bots, roster (read-only, `fork` copies), recent.
 
@@ -79,6 +79,7 @@ Tiled workspace, default the `writing` layout: library, the source over its prob
 - Hill page: standings table (rank, bot, author, score, rating ± RD, W/T/L, age in submissions, `challenge` to fight it locally), the king's card (its reign in submissions), recent submissions feed with deltas ("+3 rank"), and a `submit` button (signed in; picks one of my bots; server assembles and queues a `Runner`).
 - Submission flow: progress panel ("fighting 24 of 32 entrants"), then result card (score, rank, matches list with `watch`). If it did not make the hill: "scored 112, needed 131. closest fight: vs paper-v2 (lost 2–8)."
 - Default hills seeded at launch: `main` (size 32, 10 rounds, 512 B), `tiny` (size 16, 256 B, 50k cycles), `melee` (8-bot melee scoring).
+- Weight classes (decision 2026-09-26, Pedram): bots come in variable sizes, up to 4 KB, and each class has its own hill. `main` is the lightweight ladder (1 to 512 B). New duel hills, 10 rounds, 80k cycles: `middleweight` (size 16, 513 to 1,024 B), `heavyweight` (size 16, 1,025 to 2,048 B, spacing 2,048), `super-heavy` (size 16, 2,049 to 4,096 B, spacing 4,096), `open-weight` (size 32, 1 to 4,096 B, spacing 4,096, every class mixed). Each class has a floor, so small bots cannot win every class; above middleweight the hills run duels only; the core stays 64 KB. A bot enters its own class's hill and open weight, no other. The hill list and each hill page name the class; submit and enter refuse a bot under the floor or over the cap.
 
 ## 6. Bots and profiles `/bots/:id`, `/u/:handle`
 
@@ -114,7 +115,7 @@ Theme (nine swatches, live preview), arena effects (bloom, scanlines, vignette, 
 
 ## 10. Share and social
 
-- Share links encode `isa, config, seed, bots` (by server id, or by inline bytes for local bots ≤ 512 B each, base64url in the fragment). OG image per replay rendered server-side as SVG: arena thumbnail (owner map at end state) + winner line.
+- Share links encode `isa, config, seed, bots` (by server id, or by inline bytes for local bots up to 4 KB each, base64url in the fragment). OG image per replay rendered server-side as SVG: arena thumbnail (owner map at end state) + winner line.
 - `download replay` writes `*.asmreplay.json` (protocol schema, includes sources when the sharer allows).
 - Every page's head carries its title, description, canonical link, and Open Graph and Twitter (`summary_large_image`) tags, written by the Worker from the web build's manifest or from the page's data. Share cards (1200 × 630, sentinel theme) are drawn as SVG and rendered to PNG at the edge: a replay's owner map and winner, a bot's identicon card, a hill's standings, a tournament's bracket thumbnail (or points), and a card for every other page.
 - `share ▾` on the arena, replays, bots, hills, and tournaments: `copy link`, `copy embed` (an `<iframe>` of `/embed/arena…`: the arena alone, autoplaying, play/pause and restart, and a `watch on asmbots` chip), `download png`.

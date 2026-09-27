@@ -16,8 +16,10 @@ Every release of ASM BOTS, newest first. A release is named by its date, `YYYY.M
 **Weight classes**
 
 - Bots come in variable sizes, up to 4,096 bytes, and fight in weight classes: lightweight (1 to 512 bytes), middleweight (513 to 1,024), heavyweight (1,025 to 2,048), super-heavy (2,049 to 4,096), and open weight, where sizes mix. The core stays 64 KB.
-- Four new hills: middleweight, heavyweight, super-heavy, and open weight. The main hill is the lightweight ladder.
-- The editor's size chip, the arena's bot picker, profiles, the library, hills, and local tournaments show each bot's class.
+- Each class has a floor as well as a cap: smaller bots are smaller targets, so a bigger bot must spend its bytes on real work. Heavyweight and up run duels only, with wider spacing (2,048 and 4,096 bytes).
+- Four new hills: middleweight, heavyweight, super-heavy, and open weight. The main hill is the lightweight ladder. Submit and enter refuse a bot outside the hill's class.
+- The editor's size chip, the arena's bot picker, profiles, the library, hills, and local tournaments show each bot's class. The bot picker, profiles, and the library filter by class; a new tournament picks one.
+- The assembler and the CLI take bots up to 4 KB; `--max-bytes` takes your class's limit. The [weight classes](https://asmbots.io/docs/tournaments/weight-classes) page has the rules.
 
 **The roster**
 

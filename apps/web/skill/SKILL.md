@@ -5,8 +5,8 @@ description: Write, test, and submit Core War bots for ASM Bots (asmbots.io), wr
 
 # ASM Bots
 
-ASM Bots is Core War in real 8086 machine code ("x16c v1"). A bot is at most 512 bytes of
-NASM-syntax assembly. The loader places every bot at a random address in one shared 64 KB core
+ASM Bots is Core War in real 8086 machine code ("x16c v1"). A bot is NASM-syntax assembly of
+variable size, 1 to 4,096 bytes, and fights in its weight class. The loader places every bot at a random address in one shared 64 KB core
 that starts zeroed. Each cycle every living bot runs one instruction. A process that runs a
 zero byte (DAT) dies, a bot with no process left is dead, and the last bot alive wins the round.
 
@@ -32,12 +32,26 @@ Node.js. The same docs are online at https://asmbots.io/llms.txt.
              sub     bx, .here           ; bx = this bot's base address
              lea     di, [bx+bomb]       ; reach your own bytes as [bx+label]
      ```
-   - the size cap: 512 bytes (256 on the `tiny` hill). Smaller bots are harder to hit.
+   - the size of your weight class. A bot's size sets its class, and it enters only that class's
+     hill and open weight:
+
+     | class | bytes | spacing | hill |
+     |---|---|---|---|
+     | lightweight | 1 to 512 | 1,024 | `main` (duels), `melee` (8 bots), `tiny` (1 to 256) |
+     | middleweight | 513 to 1,024 | 1,024 | `middleweight` (duels) |
+     | heavyweight | 1,025 to 2,048 | 2,048 | `heavyweight` (duels) |
+     | super-heavy | 2,049 to 4,096 | 4,096 | `super-heavy` (duels) |
+     | open weight | 1 to 4,096 | 4,096 | `open-weight` (duels, every class mixed) |
+
+     Each class has a floor: smaller bots are harder to hit, so a bigger bot must spend its bytes
+     on real work (decoys, repair, more than one strategy). The core stays 64 KB for every class.
+     `tournaments-weight-classes.md` has the rules and the example bots of each class.
 3. **Assemble** and read every diagnostic (`file:line:col: severity: message [code]`):
    ```sh
-   node bin/asmbots.js asm bot.asm --listing --max-bytes 512
+   node bin/asmbots.js asm bot.asm --listing --max-bytes 1024
    ```
-   `--listing` prints each line's address and bytes. Exit code 2 means the source has errors.
+   `--listing` prints each line's address and bytes. `--max-bytes` fails a bot over your class's
+   limit (512, 1024, 2048, or 4096; 4096 by default). Exit code 2 means the source has errors.
 4. **Fight** every example and iterate until the bot wins more than it loses:
    ```sh
    node bin/asmbots.js tourney roundrobin bot.asm examples/imp.asm --rounds 20
@@ -67,8 +81,11 @@ Node.js. The same docs are online at https://asmbots.io/llms.txt.
    node bin/asmbots.js submit main bot.asm --wait
    node bin/asmbots.js hills
    ```
-   The hills: `main` (32 entries, duels of 10 rounds, 80,000 cycles, up to 512 bytes), `tiny`
-   (16 entries, 50,000 cycles, up to 256 bytes). A challenger stays only if it scores more than
+   The hills: `main`, the lightweight ladder (32 entries, duels of 10 rounds, 80,000 cycles, 1 to
+   512 bytes); `tiny` (16 entries, 50,000 cycles, up to 256 bytes); `melee` (8 entries, eight bots
+   in one core); `middleweight`, `heavyweight`, `super-heavy` (16 entries each, duels of 10 rounds,
+   80,000 cycles, the class's bytes); `open-weight` (32 entries, duels, 1 to 4,096 bytes). A
+   challenger stays only if it scores more than
    the lowest entry. One submission runs on a hill at a time, five an hour. `logout` forgets the
    token.
 
@@ -92,7 +109,8 @@ From `references/` and the ISA spec; check a detail there before relying on it.
 - **Death:** running `00` (DAT), `F4` (`hlt`), `CC` (`int3`), an undefined opcode (`0F`, segment
   prefixes, `rep` before a non-string instruction, far jumps, ...), or a failing `div`/`idiv`.
   Writing, reading, and jumping anywhere never kill.
-- **Placement:** a random base from the round's seed, at least 1,024 bytes from every other bot.
+- **Placement:** a random base from the round's seed, at least the spacing from every other bot:
+  1,024 bytes, or 2,048 and 4,096 on the heavier hills (see the class table).
   The stack starts at your base and grows down into the free core below you.
 - **Scoring (pMARS):** with N bots and S survivors, each survivor scores `floor((N*N - 1) / S)`,
   the dead 0. A round ends when one bot or none is alive, or at the cycle cap (100,000 by default,
