@@ -257,6 +257,7 @@ describe('tools/cli', () => {
     }
   })
 
+  // Five CLI runs, `golden` among them: about 5 s on a CI runner, past the default timeout.
   it('the exit codes, and the gaps the page warns of', () => {
     expect(run('fight', 'roster:nope', 'roster:imp').code).toBe(3)
     expect(run('fight', 'roster:imp', 'roster:dwarf', '--trace-bot', 'Nobody').code).toBe(1)
@@ -265,7 +266,7 @@ describe('tools/cli', () => {
     expect(run('golden').code).toBe(0)
     expect(run('asm', '--help').text).toContain('(not yet implemented)')
     expect(MAX_BOT_BYTES).toBe(4096)
-  })
+  }, 30_000)
 })
 
 describe('tools/keys', () => {
