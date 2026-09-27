@@ -10,7 +10,6 @@ import {
   EmptyState,
   Input,
   Kbd,
-  KeyHelp,
   Modal,
   Panel,
   PanelGrid,
@@ -54,7 +53,6 @@ import {
   type SoundCue,
   useSettings,
 } from '../store/settings'
-import { useKeyBindings } from './keys'
 
 /** Each theme's swatch colors from tokens.css; none under bun test, where Vite defines nothing. */
 const SWATCHES: Record<string, Record<string, string>> = typeof __THEME_SWATCHES__ === 'object'
@@ -79,9 +77,9 @@ export function SettingsPage() {
       <EffectsPanel />
       <SoundPanel />
       <AccountPanel />
-      <DataPanel />
+      <ProfilePanel />
       <ApiTokensPanel />
-      <KeysPanel />
+      <DataPanel />
     </PanelGrid>
   )
 }
@@ -278,7 +276,6 @@ function AccountPanel() {
             <UserLink handle={me.user.handle} />. local bots stay in this browser too.
           </p>
           <HandleForm key={me.user.handle} me={me} />
-          <ProfileName me={me} />
           <div className="flex flex-wrap gap-2">
             <Button icon={LogOut} onClick={() => void signOut()}>
               sign out
@@ -309,9 +306,31 @@ const NAME_SHOWN = [
 ] as const satisfies readonly { value: NameShown; label: string }[]
 
 /**
- * Whether the profile and every public page show the GitHub name, login, and avatar, or only the
- * handle (PRODUCT_SPEC §6): `PATCH /api/me` `{ anonymous }`. Shown unless the user says so.
+ * The public profile (PRODUCT_SPEC §6): how it names the user, and whether it shows the GitHub
+ * name, login, and avatar or only the handle (`PATCH /api/me` `{ anonymous }`, shown unless the
+ * user says so). Signed out, there is no profile to set.
  */
+function ProfilePanel() {
+  const { data: me } = useMe()
+  return (
+    <Panel
+      className="col-span-12 lg:col-span-6"
+      title="profile"
+      status={me ? (me.user.anonymous === true ? 'anonymous' : 'name shown') : 'signed out'}
+    >
+      {me ? (
+        <ProfileName me={me} />
+      ) : (
+        <div className="flex flex-col items-start gap-3">
+          <p className="text-muted">signed out. sign in to have a public profile.</p>
+          <SignInButton />
+        </div>
+      )}
+    </Panel>
+  )
+}
+
+/** The profile's name, shown or anonymous, and what the public sees now. */
 function ProfileName({ me }: { me: Me }) {
   const client = useQueryClient()
   const { toast } = useToast()
@@ -336,8 +355,17 @@ function ProfileName({ me }: { me: Me }) {
     setSaving(false)
   }
 
+  const hidden = value === 'anonymous'
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col items-start gap-3">
+      <p className="text-muted">
+        the public sees:{' '}
+        <span className="text-bright">
+          {hidden || me.user.name === undefined ? me.user.handle : me.user.name}
+        </span>
+        {!hidden && me.user.github !== undefined && ` · github.com/${me.user.github}`}. your page:{' '}
+        <UserLink handle={me.user.handle} />.
+      </p>
       <div className="flex items-center gap-3">
         <span className="text-panel-status text-muted">name on your profile</span>
         <Segmented<NameShown>
@@ -348,8 +376,8 @@ function ProfileName({ me }: { me: Me }) {
         />
       </div>
       <p className="text-data text-muted">
-        anonymous hides your github name, login, and avatar from your{' '}
-        <UserLink handle={me.user.handle} /> page and every public page. your handle still shows.
+        anonymous hides your github name, login, and avatar from every public page. your handle
+        still shows.
       </p>
     </div>
   )
@@ -525,7 +553,7 @@ function DataPanel() {
   }
 
   return (
-    <Panel className="col-span-12 lg:col-span-6" title="data" status={count}>
+    <Panel className="col-span-12" title="data" status={count}>
       <div className="flex flex-wrap items-center gap-2">
         <Button icon={Download} disabled={bots.length === 0} onClick={() => downloadZip(bots)}>
           export zip
@@ -786,15 +814,6 @@ function RevokeToken({ token, onClose }: { token: ApiToken; onClose: () => void 
         401 from then on.
       </p>
     </Modal>
-  )
-}
-
-function KeysPanel() {
-  const bindings = useKeyBindings()
-  return (
-    <Panel className="col-span-12" title="keyboard" status={`${bindings.length} keys`}>
-      <KeyHelp bindings={bindings} />
-    </Panel>
   )
 }
 

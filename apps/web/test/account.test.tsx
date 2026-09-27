@@ -213,8 +213,8 @@ describe('the settings account panel', () => {
       answerPatch({ ...me, user: { ...me.user, anonymous: true } }, 200, seen),
     )
     renderWith(() => <SettingsPage />)
-    const account = await screen.findByRole('region', { name: 'account' })
-    const name = await within(account).findByRole('radiogroup', { name: 'name on your profile' })
+    const profile = await screen.findByRole('region', { name: 'profile' })
+    const name = await within(profile).findByRole('radiogroup', { name: 'name on your profile' })
     const shown = within(name).getByRole('radio', { name: 'shown' })
     expect(shown.getAttribute('aria-checked')).toBe('true')
     fireEvent.click(within(name).getByRole('radio', { name: 'anonymous' }))

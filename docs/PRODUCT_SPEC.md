@@ -87,7 +87,7 @@ Tiled workspace, default the `writing` layout: library, the source over its prob
 
 - Bot page: name, author, strategy blurb, identicon, size, first seen, fights, versions (diff between versions), hill placements, rating history sparkline, recent matches, source (if public), `fork`, `challenge`, `share`.
 - Profile: pictures, not lists. The avatar (an identicon of the handle when there is none), the GitHub display name and login, the handle, when they joined, how long they have been here, when they were last active, and on how many days. Headline tiles: bots (a line over time), versions, server matches (bars a day), rounds, cycles lived, best rank. Gauges: win rate, survival (rounds still running at the end), hill standing (the best place in a field), championships won. A W/T/L bar; an activity calendar (a week a column, matches, saves, or wins a day); bots and versions over time; the bots by weight class (a ring) and by size; a tile for each hill (rank, a strip of the field, rating, W/T/L) and each championship; a wall of bot cards filtered by class. The numbers count the bots the reader may list: the public ones, all of them for the user themself.
-- Name or anonymous: a user shows their GitHub name, login, and avatar unless they choose `anonymous` in settings (the default is shown). Anonymous keeps all three off every public record; the handle still shows, and the profile says `anonymous`.
+- Name or anonymous: a user shows their GitHub name, login, and avatar unless they choose `anonymous` in the settings' profile panel (the default is shown). Anonymous keeps all three off every public record; the handle still shows, and the profile says `anonymous`.
 
 ## 7. Docs `/docs/*`
 
@@ -105,7 +105,7 @@ Every code block has `copy` and `open in editor`.
 
 ## 8. Settings `/settings`
 
-Theme (nine swatches, live preview), arena effects (bloom, scanlines, vignette, reduced motion), sound, keyboard map (view), account (GitHub link/unlink, handle, name on the profile: shown or anonymous), data (export my bots as a zip, delete account).
+Theme (nine swatches, live preview), arena effects (bloom, scanlines, vignette, reduced motion), sound, account (GitHub link/unlink, handle), profile (what the public sees; the name shown or anonymous), api tokens, data (export my bots as a zip, delete account).
 
 ## 9. Auth and onboarding
 
