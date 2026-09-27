@@ -53,7 +53,8 @@ function MatchCell({ match }: { match: MatchSummary }) {
   const title = matchTitle(match)
   const winner = matchWinner(match)
   const names = match.bots.length === 2 ? match.bots.map(nameOf) : null
-  const said = winner === null ? title : `${title} · ${winner === 'draw' ? 'draw' : `${winner} won`}`
+  const said =
+    winner === null ? title : `${title} · ${winner === 'draw' ? 'draw' : `${winner} won`}`
   if (names === null || winner === null || winner === 'draw') {
     return (
       <span className="text-bright" title={said} aria-label={said}>
