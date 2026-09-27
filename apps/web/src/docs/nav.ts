@@ -194,6 +194,12 @@ export const DOCS: readonly DocSection[] = [
         load: () => import('./tournaments/hills.mdx'),
       },
       {
+        slug: 'tournaments/weight-classes',
+        title: 'weight classes',
+        blurb: 'bots of variable sizes: the classes, their floors, and open weight.',
+        load: () => import('./tournaments/weight-classes.mdx'),
+      },
+      {
         slug: 'tournaments/ratings',
         title: 'ratings',
         blurb: 'glicko-2 in plain words, with examples.',

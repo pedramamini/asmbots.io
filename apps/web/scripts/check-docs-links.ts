@@ -7,7 +7,8 @@
  *   `#anchor` one of this page's;
  * - a file the build writes for agents (`src/docs/agent-files.ts`: `/llms.txt`, the skill) is
  *   fine, and `/docs/<slug>.md` names a page of the tree;
- * - any other app path (`/editor`, `/hills/<slug>`) matches a route of `src/routeTree.gen.ts`;
+ * - any other app path (`/editor`, `/hills/<slug>`) matches a route of `src/routeTree.gen.ts`,
+ *   less its query (`/arena?b=…`: the page reads it);
  * - a link to the canonical site (`https://asmbots.io/docs/...`, which the app follows as its own
  *   path: CHANGELOG.md reads on GitHub too) is checked as that path;
  * - any other outside link is `https://` (or `mailto:`), well formed; the network is not asked;
@@ -133,7 +134,9 @@ export function linkProblem(slug: string, link: PageLink, ctx: LinkContext): str
     }
   }
   const at = url.indexOf('#')
-  const path = at < 0 ? url : url.slice(0, at)
+  const target = at < 0 ? url : url.slice(0, at)
+  // A query (`/arena?b=roster:dwarf`) is the page's to read: only the path must match.
+  const path = target.split('?')[0] ?? target
   const hash = at < 0 ? undefined : decodeURIComponent(url.slice(at + 1))
   if (path !== '' && !path.startsWith('/')) {
     return `${url}: a relative link; write the path from the root (/docs/…)`

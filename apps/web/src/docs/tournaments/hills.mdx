@@ -22,13 +22,19 @@ So a challenger stays only if it scores more than the lowest entry, and a tie wi
 
 A challenger with the same bytes as an entry replaces that entry: the old one and its matches go, and the challenger fights the rest and keeps the old entry's age. The server's hills refuse such a submission, since it would take another bot's place and age: change the code to challenge it. A version already on the hill is refused too.
 
-## The hills at launch
+## The hills
 
 | hill | entries | rules |
 |---|---|---|
-| `main` | 32 | duels of 10 rounds, 80,000 cycles a round, bots up to 512 bytes |
+| `main` | 32 | the lightweight ladder: duels of 10 rounds, 80,000 cycles a round, bots of 1 to 512 bytes |
 | `tiny` | 16 | duels of 50,000 cycles a round, bots up to 256 bytes |
-| `melee` | 8 | 8-bot melees of 10 rounds, scored as a melee |
+| `melee` | 8 | 8-bot melees of 10 rounds, scored as a melee, bots up to 512 bytes |
+| `middleweight` | 16 | duels as on `main`, bots of 513 to 1,024 bytes |
+| `heavyweight` | 16 | duels as on `main`, bots of 1,025 to 2,048 bytes, spaced 2,048 apart |
+| `super-heavy` | 16 | duels as on `main`, bots of 2,049 to 4,096 bytes, spaced 4,096 apart |
+| `open-weight` | 32 | duels as on `main`, bots of 1 to 4,096 bytes, every class mixed, spaced 4,096 apart |
+
+A class hill takes bots from its floor to its cap: see [weight classes](/docs/tournaments/weight-classes) for why.
 
 The `hill rules` preset of the arena and the tournament form is `main`'s rules: 10 rounds of 80,000 cycles.
 
@@ -44,4 +50,4 @@ Every hill match is a match like any other, with seeds, an order, and result has
 
 A hill rewards points taken from every entry, not match wins; [hill meta](/docs/strategy/hill-meta) works through a hill of the roster's fighters.
 
-See also: [ratings](/docs/tournaments/ratings), and [formats](/docs/tournaments/formats).
+See also: [weight classes](/docs/tournaments/weight-classes), [ratings](/docs/tournaments/ratings), and [formats](/docs/tournaments/formats).

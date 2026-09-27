@@ -1,0 +1,60 @@
+# Weight classes
+
+## Bots of variable sizes
+
+A bot is 1 to 4,096 bytes. Bots fight in **weight classes**: each class takes one band of sizes, and each has its own hill. A 15-byte imp and a 4 KB fortress do not share a ladder, unless they meet in open weight.
+
+| class | hill | bytes | spacing | battles |
+|---|---|---|---|---|
+| lightweight | [`main`](/hills/main) | 1 to 512 | 1,024 | melees and duels |
+| middleweight | [`middleweight`](/hills/middleweight) | 513 to 1,024 | 1,024 | melees and duels |
+| heavyweight | [`heavyweight`](/hills/heavyweight) | 1,025 to 2,048 | 2,048 | duels only |
+| super-heavy | [`super-heavy`](/hills/super-heavy) | 2,049 to 4,096 | 4,096 | duels only |
+| open weight | [`open-weight`](/hills/open-weight) | 1 to 4,096 | 4,096 | duels only |
+
+**Spacing** is the least count of free bytes between two bots at the start (see [placement](/docs/machine/placement)). The heavier classes space their bots wider, so a big bot still starts with empty core around it. Eight bots of 2 KB and their gaps would fill half the core, so the classes above middleweight fight duels only.
+
+The `tiny` hill (1 to 256 bytes) and the `melee` hill (lightweights, 8 bots in one core) stay as they were. See [hills](/docs/tournaments/hills) for every hill's rules.
+
+## Why a class has a floor
+
+A smaller bot is a smaller target. A bomb that lands at random hits a 100-byte bot less often than a 2,000-byte bot. With a cap and no floor, the small bots would win every class.
+
+So each class takes bots from its floor to its cap. A heavyweight is at least 1,025 bytes, and it must spend those bytes on real work: decoys, repair, more than one strategy. Padding counts toward the floor, but padding only makes the bot a bigger target.
+
+## Why the core does not grow
+
+The core is 64 KB because that is the whole 16-bit address space: every address a register can hold is in the core, and every pointer wraps inside it. A bigger core would break that. The bots grow, and the core stays the same.
+
+A 4 KB bot is 6% of the core. Two of them, with 4,096 free bytes on each side, use a quarter of it. That leaves room to search, to bomb, and to miss.
+
+## Open weight
+
+Open weight takes any bot from 1 to 4,096 bytes, every class mixed, in duels. It is where a size meets its counter: a small bot is hard to find and a big bot is hard to kill. Its spacing is the widest, 4,096 bytes, so the biggest bots fit.
+
+## A bot's class
+
+A bot's class is set by its size: the bytes it assembles to. The editor, your profile, and the arena's bot picker show it. A bot enters its own class's hill and open weight, and no other: a 300-byte bot cannot enter middleweight, and a 600-byte bot cannot enter the `main` hill. To move a bot to another class, change its code.
+
+A hill refuses a bot outside its bounds, with the reason. A tournament takes one class too: the form filters the bots by the class you pick.
+
+## The example bots
+
+The roster carries two fighters in each class above lightweight. Each name opens the bot's page; `watch` plays the pair in the arena at their class's spacing.
+
+| bot | bytes | class | tactic |
+|---|---|---|---|
+| [`bastion`](/bots/roster-bastion) | 548 | middleweight | a dwarf with 128 unrolled bombs a pass, between two fields of fake code |
+| [`twins`](/bots/roster-twins) | 524 | middleweight | paper whose copies alternate a dense and a wide unrolled burst |
+| [`hydra`](/bots/roster-hydra) | 1,288 | heavyweight | scans a lap, bombs four laps, then walks as an imp ring |
+| [`mender`](/bots/roster-mender) | 1,443 | heavyweight | a bomber that mends its loop from a spare copy |
+| [`citadel`](/bots/roster-citadel) | 2,138 | super-heavy | three bomber cells, each rebuilding the next when it dies |
+| [`swarm`](/bots/roster-swarm) | 2,334 | super-heavy | 64 bombers side by side, one process and one lane each |
+
+- middleweight: [watch bastion vs twins](/arena?b=roster:bastion,roster:twins&spacing=1024)
+- heavyweight: [watch hydra vs mender](/arena?b=roster:hydra,roster:mender&spacing=2048)
+- super-heavy: [watch citadel vs swarm](/arena?b=roster:citadel,roster:swarm&spacing=4096)
+
+The first 14 fighters and painters of the roster are lightweights.
+
+See also: [hills](/docs/tournaments/hills), [formats](/docs/tournaments/formats), and [placement](/docs/machine/placement).

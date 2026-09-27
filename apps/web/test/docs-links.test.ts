@@ -99,7 +99,7 @@ describe('check-docs-links: the rules', () => {
     for (const url of ['/docs/b/c', '/docs/b/c#why-spl', '#first', '/docs', '/docs/a#']) {
       expect(problem(url)).toBeUndefined()
     }
-    for (const url of ['/', '/editor', '/arena', '/hills/core', '/tournaments/', '/settings']) {
+    for (const url of ['/', '/editor', '/arena', '/hills/core', '/tournaments/', '/settings', '/arena?b=roster:imp&spacing=2048']) {
       expect(problem(url)).toBeUndefined()
     }
     expect(problem('https://bun.sh')).toBeUndefined()
@@ -118,6 +118,7 @@ describe('check-docs-links: the rules', () => {
     expect(problem('#nope')).toBe('#nope: a has no heading #nope')
     expect(problem('/nowhere')).toBe('/nowhere: no route matches /nowhere')
     expect(problem('/hills/a/b')).toBe('/hills/a/b: no route matches /hills/a/b')
+    expect(problem('/nowhere?b=1')).toBe('/nowhere?b=1: no route matches /nowhere')
     expect(problem('/docs#top')).toBe('/docs#top: the contents page has no headings to link to')
     expect(problem('../b/c')).toMatch(/a relative link/)
     expect(problem('http://bun.sh')).toMatch(/must be https/)
