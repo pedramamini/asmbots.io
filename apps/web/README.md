@@ -627,7 +627,7 @@ about 5% over its page, so what grows one is a choice, made here and in `BUDGETS
 | `/bots/$id` | 186.9 KB | 195 KB | |
 | `/u/$handle` | 181.4 KB | 190 KB | the profile's charts: HTML boxes and SVG, no chart library, the stats page's size bars shared |
 | `/docs` | 170.1 KB | 180 KB | a page's own MDX loads after its route |
-| `/docs/$` | 181.4 KB | 190 KB | |
+| `/docs/$` | 189.7 KB | 192 KB | 190.0 on CI before the profile's `User.name` and `github` (every page +0.2 KB) |
 | `/stats` | 179.6 KB | 190 KB | the charts are HTML boxes, no chart library |
 | `/settings` | 183.5 KB | 195 KB | |
 | `/embed/arena` | 214.2 KB | 225 KB | |

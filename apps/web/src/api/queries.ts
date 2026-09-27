@@ -21,7 +21,6 @@ import {
   Ticker,
   TournamentDetail,
   TournamentList,
-  UserDetail,
 } from '@asmbots/protocol'
 import {
   type QueryClient,
@@ -207,13 +206,6 @@ export const tournamentQuery = (id: string, poll = false) =>
       poll && query.state.data?.tournament.status === 'running' ? TOURNAMENT_POLL_MS : false,
   })
 
-export const userQuery = (handle: string) =>
-  queryOptions({
-    queryKey: ['users', handle.toLowerCase()],
-    queryFn: ({ signal }) =>
-      apiGet(`/users/${segment(handle)}`, (v) => parse(UserDetail, v, 'the user'), signal),
-  })
-
 /**
  * The cookie the API sets beside the session, which the page may read: someone may be signed in.
  * Without it `meQuery` asks nothing, so a signed-out visit makes no request and logs no 401.
@@ -278,10 +270,6 @@ export const useTournaments = () => useQuery(tournamentsQuery())
 /** One tournament, polled while it runs when `poll` is on; waits while `id` is null. */
 export const useTournament = (id: string | null, poll = false) =>
   useQuery({ ...tournamentQuery(id ?? '', poll), enabled: id !== null })
-export const useUser = (handle: string) => useQuery(userQuery(handle))
-/** A profile; waits while `handle` is null. */
-export const useMaybeUser = (handle: string | null) =>
-  useQuery({ ...userQuery(handle ?? ''), enabled: handle !== null })
 export const useMe = () => useQuery(meQuery())
 /** The signed-in user's cloud bots; asks nothing while nobody is signed in. */
 export function useMyBots() {

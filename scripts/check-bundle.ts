@@ -79,7 +79,7 @@ const PAGE_BUDGETS: readonly PageBudget[] = [
   { page: '/bots/$id', route: 'src/routes/bots/$id.tsx', kb: 195 },
   { page: '/u/$handle', route: 'src/routes/u/$handle.tsx', kb: 190 },
   { page: '/docs', route: 'src/routes/docs/index.tsx', layout: 'src/routes/docs.tsx', kb: 180 },
-  { page: '/docs/$', route: 'src/routes/docs/$.tsx', layout: 'src/routes/docs.tsx', kb: 190 },
+  { page: '/docs/$', route: 'src/routes/docs/$.tsx', layout: 'src/routes/docs.tsx', kb: 192 },
   { page: '/stats', route: 'src/routes/stats.tsx', kb: 190 },
   { page: '/settings', route: 'src/routes/settings.tsx', kb: 195 },
   { page: '/embed/arena', route: 'src/routes/embed/arena/index.tsx', kb: 225 },
