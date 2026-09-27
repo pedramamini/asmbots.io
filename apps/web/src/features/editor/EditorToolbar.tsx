@@ -1,6 +1,17 @@
 import { MAX_BOT_BYTES } from '@asmbots/asm'
 import { weightClassOf } from '@asmbots/protocol'
-import { Button, Chip, type ChipVariant, cx, IconButton, Input, Menu, Toggle } from '@asmbots/ui'
+import {
+  Button,
+  Chip,
+  type ChipVariant,
+  cx,
+  IconButton,
+  Input,
+  Kbd,
+  Menu,
+  Toggle,
+  Tooltip,
+} from '@asmbots/ui'
 import {
   AlignLeft,
   Binary,
@@ -12,6 +23,7 @@ import {
   LayoutDashboard,
   LayoutTemplate,
   Link,
+  type LucideIcon,
   PanelLeft,
   Save,
   Swords,
@@ -146,13 +158,13 @@ export function EditorToolbar(props: EditorToolbarProps) {
       </Chip>
       <SizeChip result={result} pending={props.pending} />
       <Divider />
-      <IconButton
+      <ActionButton
         icon={Hammer}
         label="assemble"
         shortcut={`${mod} enter`}
         onClick={props.onAssemble}
       />
-      <IconButton
+      <ActionButton
         icon={AlignLeft}
         label="format"
         shortcut="shift alt f"
@@ -167,7 +179,7 @@ export function EditorToolbar(props: EditorToolbarProps) {
           fork
         </Button>
       ) : (
-        <IconButton
+        <ActionButton
           icon={Save}
           label="save"
           shortcut={`${mod} s`}
@@ -175,13 +187,13 @@ export function EditorToolbar(props: EditorToolbarProps) {
           onClick={props.onSave}
         />
       )}
-      <IconButton
+      <ActionButton
         icon={History}
         label="versions"
         disabled={!props.canVersions}
         onClick={props.onVersions}
       />
-      <IconButton icon={Link} label="share" onClick={props.onShare} />
+      <ActionButton icon={Link} label="share" onClick={props.onShare} />
       <Divider />
       <Menu
         trigger={
@@ -239,6 +251,48 @@ function LayoutMenu({ hiddenPanels, onPanelHidden, onPreset }: EditorToolbarProp
       trigger={<Button icon={LayoutDashboard}>layout ▾</Button>}
       items={[...toggles, 'separator', ...presets]}
     />
+  )
+}
+
+/**
+ * An action with its label beside the icon, like `fork`, from 1680 px wide (the room the labels and
+ * a `test vs` record need); narrower, the label hides and it is an `IconButton`'s square. The
+ * tooltip names it and its shortcut.
+ */
+function ActionButton({
+  icon,
+  label,
+  shortcut,
+  disabled,
+  onClick,
+}: {
+  icon: LucideIcon
+  label: string
+  shortcut?: string
+  disabled?: boolean
+  onClick: () => void
+}) {
+  return (
+    <Tooltip
+      content={
+        <>
+          {label}
+          {shortcut !== undefined && <Kbd>{shortcut}</Kbd>}
+        </>
+      }
+      placement="bottom"
+      describe={false}
+    >
+      <Button
+        icon={icon}
+        aria-label={label}
+        disabled={disabled}
+        onClick={onClick}
+        className="max-[1680px]:w-6 max-[1680px]:px-0 max-[1680px]:text-text max-[1680px]:[&_svg]:size-4"
+      >
+        <span className="max-[1680px]:hidden">{label}</span>
+      </Button>
+    </Tooltip>
   )
 }
 
