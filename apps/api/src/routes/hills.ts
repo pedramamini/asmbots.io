@@ -5,6 +5,7 @@ import {
   type HillHistory,
   type HillJob,
   type HillList,
+  type HillOverview,
   HillSubmitRequest,
   type HillSubmitted,
   liveRoomName,
@@ -18,6 +19,7 @@ import { type Context, Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { requireUser } from '../auth/session'
 import { jsonBody, limitBody } from '../body'
+import { readHillOverview } from '../db/hill-overview'
 import {
   auditInsert,
   findActiveSubmission,
@@ -245,8 +247,11 @@ async function submission(c: Context<AppEnv>): Promise<Response> {
 
 /**
  * `GET /api/hills`: every hill, its entrant count, and its king.
+ * `GET /api/hills/overview`: every hill's scores in rank order, matches, challenges, crowns, and
+ * last change, and the newest board changes on any hill (`db/hill-overview.ts`). Before `/:slug`,
+ * so it is no hill's slug.
  * `GET /api/hills/:slug`: the hill and its standings, each with its rating's RD.
- * Both are cached 30 s (`edgeCached`): a request with `Cache-Control: no-cache` gets them as they
+ * The three are cached 30 s (`edgeCached`): a request with `Cache-Control: no-cache` gets them as they
  * are, as the web app asks once it knows a board changed.
  * `GET /api/hills/:slug/matches?bot=&limit=`: its finished matches, newest first; with `bot` (a
  * bot version id), only the ones that version played. `limit` is 1..100, 50 when left out.
@@ -260,6 +265,11 @@ export const hills = new Hono<AppEnv>()
   .get('/', (c) =>
     edgeCached(c, HILLS_CACHE_SECONDS, async () =>
       c.json({ hills: await listHillSummaries(c.env.DB) } satisfies HillList),
+    ),
+  )
+  .get('/overview', (c) =>
+    edgeCached(c, HILLS_CACHE_SECONDS, async () =>
+      c.json((await readHillOverview(c.env.DB, new Date())) satisfies HillOverview),
     ),
   )
   .get('/:slug', (c) =>

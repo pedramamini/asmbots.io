@@ -14,14 +14,14 @@ import { ago, BotLink, count, day } from './links'
 const EVENTS = 20
 
 /** One submission's line: its challenger's event, then what it did to the others. */
-export interface FeedItem {
+export interface FeedItem<T extends HillEventSummary = HillEventSummary> {
   readonly key: string
-  readonly events: readonly HillEventSummary[]
+  readonly events: readonly T[]
 }
 
 /** `events` (newest first, each submission's in the order written) as one line per submission. */
-export function feedItems(events: readonly HillEventSummary[]): FeedItem[] {
-  const items: { key: string; events: HillEventSummary[] }[] = []
+export function feedItems<T extends HillEventSummary>(events: readonly T[]): FeedItem<T>[] {
+  const items: { key: string; events: T[] }[] = []
   for (const e of events) {
     const last = items.at(-1)
     const submission = e.event.submissionId
@@ -45,7 +45,7 @@ function Bot({ summary }: { summary: HillEventSummary }) {
 }
 
 /** What one event says. */
-function eventText(summary: HillEventSummary): ReactNode {
+export function eventText(summary: HillEventSummary): ReactNode {
   const { event } = summary
   switch (event.kind) {
     case 'entered':

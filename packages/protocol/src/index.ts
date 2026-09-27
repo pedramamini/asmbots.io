@@ -103,6 +103,7 @@ export {
 } from './badges'
 export { fromBase64, fromBase64Url, sha256Hex, toBase64, toBase64Url } from './bytes'
 export { canonicalJson } from './canonical'
+export { HillOverview, HillPulse, OVERVIEW_EVENTS } from './hill-overview'
 export { ApiError, apiError, ERROR_STATUS, type ErrorCode } from './errors'
 export {
   HillJob,

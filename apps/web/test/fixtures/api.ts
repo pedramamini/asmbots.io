@@ -4,6 +4,7 @@ import type {
   BotLabel,
   HillDetail,
   HillList,
+  HillOverview,
   MatchList,
   ReplayConfig,
   Ticker,
@@ -85,6 +86,32 @@ export const HILLS: HillList = {
       },
       entrants: 0,
       king: null,
+    },
+  ],
+}
+
+/** `GET /api/hills/overview` for `HILLS`: main's scores and one board change, tiny untouched. */
+export const OVERVIEW: HillOverview = {
+  at: T,
+  hills: [
+    { slug: 'main', scores: [321, 145, 42], matches: 3, challenges: 1, crowns: 0, lastAt: T },
+    { slug: 'tiny', scores: [], matches: 0, challenges: 0, crowns: 0, lastAt: null },
+  ],
+  events: [
+    {
+      hill: { slug: 'main', name: 'main' },
+      event: {
+        id: 'e1',
+        hillId: 'hill-main',
+        submissionId: 's1',
+        kind: 'entered',
+        botVersionId: DWARF.versionId,
+        rank: 2,
+        score: 145,
+        delta: null,
+        at: T,
+      },
+      bot: DWARF,
     },
   ],
 }

@@ -27,13 +27,16 @@ export const liveRooms = ws.link('*/api/live/*')
 
 /**
  * An msw server for the file's tests: `handlers` by default, silent live rooms, and a ticker feed
- * that never comes (the frame's ticker keeps its quiet line); a test's own through `server.use`.
+ * and a hills overview that never come (the frame's ticker keeps its quiet line); a test's own
+ * through `server.use`.
  */
 export function useApiServer(...handlers: (RequestHandler | WebSocketHandler)[]) {
   const server = setupServer(
     liveRooms.addEventListener('connection', () => {}),
     ...handlers,
     hang('/ticker'),
+    // The hills page's overview: a test that reads it answers it.
+    hang('/hills/overview'),
   )
   beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
   afterEach(() => server.resetHandlers())

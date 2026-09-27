@@ -27,7 +27,7 @@ about 5% over its page, so what grows one is a choice, made here and in `BUDGETS
 | `/editor/$botId` | 418.8 KB | 440 KB | |
 | `/tournaments` | 224.7 KB | 235 KB | |
 | `/tournaments/$id` | 261.4 KB | 275 KB | the bracket, the watch's renderer, the assembler and engine a local run uses |
-| `/hills` | 170.3 KB | 180 KB | |
+| `/hills` | 178.7 KB | 180 KB | the cards and their skylines; the diagram, ruler, feed, and table load after the page (`HillsLower.tsx`) |
 | `/hills/$slug` | 192.2 KB | 200 KB | |
 | `/bots/$id` | 186.9 KB | 195 KB | |
 | `/u/$handle` | 185.3 KB | 190 KB | the profile's charts: HTML boxes and SVG, no chart library, the stats page's size bars shared; its badges |

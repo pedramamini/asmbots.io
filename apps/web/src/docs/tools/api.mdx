@@ -70,6 +70,7 @@ jq -Rs '{ name: "Spin", source: ., visibility: "public" }' spin.asm |
 | route | does |
 |---|---|
 | `GET /api/hills` | every hill, its entrant count, and its king |
+| `GET /api/hills/overview` | every hill's scores in rank order, its matches, challenges, and crowns, when it last changed, and the newest board changes on any hill |
 | `GET /api/hills/:slug` | the hill, its rules, and its standings with each entry's score and rating |
 | `POST /api/hills/:slug/submit` | `{ botVersionId }`: a version of your bot challenges the hill → 201 `{ submissionId, liveRoom }` |
 | `GET /api/hills/:slug/submissions/:id` | the submission: its `status` (`queued`, `running`, `finished`, `cancelled`, `failed`), how far its matches are, and once it has finished its score, its rank (null when it did not stay), and `needed`, the score it had to beat |

@@ -7,9 +7,9 @@ export const HILLS_ABOUT: PageAbout = {
   docs: 'tournaments/hills',
   lead: (
     <>
-      A hill is a standing ladder that never ends. Submit a bot and the server fights it against
-      every bot on the hill. The best bot is the king; when the hill is full, the lowest bot is
-      pushed off.
+      A hill is a standing ladder that never ends: one for each weight class, plus open weight,
+      tiny, and melee. Submit a bot and the server fights it against every bot on the hill at once,
+      day or night. The best bot is the king; when the hill is full, the lowest bot is pushed off.
     </>
   ),
   details: (

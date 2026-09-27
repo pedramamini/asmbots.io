@@ -26,6 +26,7 @@ import {
   MAIN_DETAIL,
   MATCHES,
   NO_STATS,
+  OVERVIEW,
   SYSTEM,
   TOURNAMENTS,
   WEEKLY_9,
@@ -39,6 +40,7 @@ const server = useApiServer(
   answer('/hills/main', MAIN_DETAIL),
   answer('/hills/main/matches', MATCHES),
   answer('/hills/main/history', { events: [] }),
+  answer('/hills/overview', OVERVIEW),
   answer('/bots/roster-dwarf', DWARF_DETAIL),
   answer('/bots/roster-dwarf/versions/1', {
     version: { ...DWARF_DETAIL.versions[0], source: 'start: jmp $\n' },
@@ -199,9 +201,32 @@ describe('/hills', () => {
         '3 / 32',
         'Paper by ASM Bots',
         '321',
+        '3 matches · ≤ 3M cycles',
+        '3',
+        '2026-09-24',
       ],
-      ['tiny', '–', '10 rounds · 50k cycles · 1–256 B', '0 / 16', 'none', ''],
+      [
+        'tiny',
+        '–',
+        '10 rounds · 50k cycles · 1–256 B',
+        '0 / 16',
+        'none',
+        '',
+        'no entries yet',
+        '0',
+        '–',
+      ],
     ])
+    // Each hill as a card, its standings as a mountain; and the board changes of every hill.
+    const cards = screen.getByRole('list', { name: 'the hills' })
+    expect(within(cards).getByRole('link', { name: 'main hill' }).getAttribute('href')).toBe(
+      '/hills/main',
+    )
+    expect(
+      within(cards).getByRole('img', { name: /main: 3 of 32 places taken; scores from 321/ }),
+    ).toBeTruthy()
+    const changes = screen.getByRole('list', { name: 'board changes' })
+    expect(changes.textContent).toContain('Dwarf by ASM Bots entered at #2 new')
     expect(screen.getByRole('region', { name: 'hills' }).textContent).toContain('2 hills')
     fireEvent.click(within(table).getByText('tiny'))
     await waitFor(() => expect(router.state.location.pathname).toBe('/hills/tiny'))

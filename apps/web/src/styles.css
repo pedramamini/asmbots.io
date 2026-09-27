@@ -31,3 +31,10 @@
     opacity: 0;
   }
 }
+
+/* The hills page's dither fill (DESIGN_SYSTEM §10): a 2 px square of the current color in each
+   3 px cell, the plates' 1-bit look at any size (a hill's skyline, the weight ruler's bars). */
+@utility dither {
+  background-image: conic-gradient(at 2px 2px, transparent 75%, currentColor 0);
+  background-size: 3px 3px;
+}

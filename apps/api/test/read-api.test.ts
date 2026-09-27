@@ -8,6 +8,7 @@ import {
   BotVersionDetail,
   HillDetail,
   HillList,
+  HillOverview,
   MatchList,
   parse,
   parseReplay,
@@ -182,6 +183,51 @@ describe('GET /api/hills/:slug', () => {
   it('answers 404 for a hill that is not there, and 400 for a bad slug', async () => {
     expect(await errorOf('/api/hills/nope')).toEqual({ status: 404, code: 'not_found' })
     expect(await errorOf('/api/hills/Not_A_Slug')).toEqual({ status: 400, code: 'bad_request' })
+  })
+})
+
+describe('GET /api/hills/overview', () => {
+  it("gives each hill's scores in rank order, its counts, and when it last changed", async () => {
+    const overview = await read<HillOverview>('/api/hills/overview', HillOverview)
+    expect(overview.hills).toHaveLength(7)
+    const main = overview.hills.find((h) => h.slug === 'main')
+    const { standings } = await read<HillDetail>('/api/hills/main', HillDetail)
+    expect(main?.scores).toEqual(standings.map((s) => s.entry.score))
+    expect(main?.matches).toBeGreaterThan(0)
+    expect(main?.lastAt).not.toBeNull()
+    // A hill nobody has fought on: no scores, no matches, no last change.
+    expect(overview.hills.find((h) => h.slug === 'heavyweight')).toMatchObject({
+      scores: [],
+      matches: 0,
+      challenges: 0,
+      crowns: 0,
+      lastAt: null,
+    })
+    expect(overview.events).toEqual([])
+  })
+
+  it('names the newest board changes on any hill, newest first', async () => {
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO hill_history (id, hill_id, event, bot_version_id, rank, score, delta, at) VALUES
+         ('ov-1', 'hill-main', 'entered', 'roster-spin-v1', 2, 30, NULL, '2026-09-01T00:00:00.000Z'),
+         ('ov-2', 'hill-tiny', 'rejected', 'roster-halt-v1', NULL, 4, NULL, '2026-09-02T00:00:00.000Z')`,
+      ),
+    ])
+    try {
+      const res = await worker.fetch(
+        new Request('https://asmbots.test/api/hills/overview', {
+          headers: { 'Cache-Control': 'no-cache' },
+        }),
+      )
+      const { events } = parse(HillOverview, await res.json(), 'overview')
+      expect(events.map((e) => [e.hill.slug, e.event.kind, e.bot?.name])).toEqual([
+        ['tiny', 'rejected', 'Halt'],
+        ['main', 'entered', 'Spin'],
+      ])
+    } finally {
+      await env.DB.prepare("DELETE FROM hill_history WHERE id IN ('ov-1', 'ov-2')").run()
+    }
   })
 })
 

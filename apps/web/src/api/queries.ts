@@ -40,7 +40,7 @@ const segment = encodeURIComponent
  * first read may come from that cache; a read again (a job ended, a submission finished, the tab
  * came back) asks past it, so a board the page knows has changed shows as it is.
  */
-const refetching = ({ client, queryKey }: { client: QueryClient; queryKey: QueryKey }) =>
+export const refetching = ({ client, queryKey }: { client: QueryClient; queryKey: QueryKey }) =>
   client.getQueryData(queryKey) !== undefined
 
 export const hillsQuery = () =>
