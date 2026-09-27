@@ -50,7 +50,7 @@ import { TournamentPage } from '../src/features/tournaments/TournamentPage'
 import { TournamentsPage } from '../src/features/tournaments/TournamentsPage'
 import { answer, answerPost, renderAt, useApiServer, WithQueries } from './api-server'
 import { stubCanvas } from './fake-canvas'
-import { FakeSockets, LIVE_CONFIG } from './live-fakes'
+import { FakeSockets, LIVE_CONFIG, liveDuel } from './live-fakes'
 import { manualSchedule, type SessionWorker, sessionClient } from './session-worker'
 
 useDom()
@@ -395,6 +395,8 @@ describe('the tournament list', () => {
     const live = screen.getByRole('listitem', { name: 'live league' })
     expect(live.textContent).toContain('server')
     expect(live.textContent).toContain('running · 2 / 10')
+    // A running server tournament offers its live room; a local one has none.
+    expect(live.textContent).toContain('live now · tune in')
     expect(live.textContent).not.toContain('championship')
     expect(live.querySelector('a')?.getAttribute('href')).toBe('/tournaments/r1')
     const weekly = screen.getByRole('listitem', { name: 'weekly 2026-09-19' })
@@ -405,6 +407,7 @@ describe('the tournament list', () => {
     expect(open.textContent).toContain('3 bots')
     const local = screen.getByRole('listitem', { name: 'my local cup' })
     expect(local.textContent).not.toContain('server')
+    expect(local.querySelector('[data-tune-in]')).toBeNull()
     expect(screen.getByRole('region', { name: 'tournaments' }).textContent).toContain('4 of 4')
 
     // The filters and the search take the server's cards too: a champion's name finds its cup.
@@ -593,12 +596,62 @@ describe('a server tournament’s page', () => {
     const say = (message: LiveMessage) => act(() => sockets.last.receive(message))
     act(() => sockets.last.open())
     say({ type: 'hello', protocol: 1, room: { kind: 'tournament', id: 't1' }, now: T })
-    const live = screen.getByRole('region', { name: 'live' })
+    const live = screen.getByRole('region', { name: 'live now' })
     await waitFor(() => expect(live.querySelector('[data-status="live"]')).not.toBeNull())
     say({ type: 'progress', job: 'tournament:t1', status: 'running', done: 3, of: 5 })
     await waitFor(() => expect(reads).toBe(before + 1))
     say({ type: 'progress', job: 'tournament:t1', status: 'running', done: 4, of: 5 })
     await waitFor(() => expect(reads).toBe(before + 2))
+  })
+
+  it('puts a running one on the live stage: the ring, the scoreboard, and tune in', async () => {
+    const running: TournamentDetail = {
+      ...FINISHED,
+      tournament: record({ status: 'running', bracket: PLAYED }),
+      matches: FINISHED.matches.slice(0, 2),
+    }
+    server.use(answer('/tournaments/t1', running))
+    await page()
+    const stage = await screen.findByRole('region', { name: 'live now' })
+    // Under way, the header takes the full width, and the side rail's live panel is gone.
+    expect(screen.queryByRole('region', { name: 'live' })).toBeNull()
+    await waitFor(() => expect(sockets.all).toHaveLength(1))
+    const say = (message: LiveMessage) => act(() => sockets.last.receive(message))
+    act(() => sockets.last.open())
+    say({ type: 'hello', protocol: 1, room: { kind: 'tournament', id: 't1' }, now: T })
+    const duel = await liveDuel('m9')
+    const match = { ...duel.match, participants: ['v0', 'v1'] }
+    say({ type: 'progress', job: 'tournament:t1', status: 'running', done: 2, of: 5 })
+    say({ type: 'matchStarted', job: 'tournament:t1', match })
+    const standing = (v: string, rank: number, score: number) => ({
+      botVersionId: v,
+      rank,
+      score,
+      wins: rank === 1 ? 2 : 0,
+      ties: 0,
+      losses: rank === 1 ? 0 : 1,
+    })
+    say({
+      type: 'standings',
+      entries: [standing('v2', 1, 600), standing('v0', 2, 300), standing('v1', 3, 0)],
+    })
+    await waitFor(() => expect(stage.textContent).toContain('match 3 of 5'))
+    expect(within(stage).getByRole('list', { name: 'in the ring' }).textContent).toContain('Dat')
+    const board = within(stage).getByRole('list', { name: 'scoreboard' })
+    const rows = within(board).getAllByRole('listitem')
+    expect(rows.map((row) => row.getAttribute('aria-label'))).toEqual([
+      'Spin',
+      'Loop (alice)',
+      'Dat',
+    ])
+    expect(rows[0]?.textContent).toContain('2-0-0')
+    expect(rows.map((row) => row.dataset.fighting === 'true')).toEqual([false, true, true])
+    // The job ends: nothing left to run, so tuning in loads no arena here.
+    say({ type: 'progress', job: 'tournament:t1', status: 'finished', done: 5, of: 5 })
+    fireEvent.click(within(stage).getByRole('button', { name: /tune in live/ }))
+    expect(await screen.findByRole('region', { name: 'live arena' })).toBeTruthy()
+    fireEvent.click(within(stage).getByRole('button', { name: /leave the arena/ }))
+    expect(screen.queryByRole('region', { name: 'live arena' })).toBeNull()
   })
 
   it('enters an open one with a version of my bot, or asks a stranger to sign in', async () => {

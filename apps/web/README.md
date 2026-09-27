@@ -407,6 +407,7 @@ headless, and `@asmbots/tourney` schedules and scores them. The code is in
 | `TournamentsPage.tsx`, `TournamentTile.tsx` | `/tournaments`: tiles of one height (a glyph of the kind, a stripe of the status's color, the champion, the live match count or the entry window, a bar of the matches played), kind and status filters, search. |
 | `TournamentPage.tsx`, `TournamentHeader.tsx` | `/tournaments/$id`: the header (name, kind, status, controls, `share`, entrants with the champion in accent) over the view of the kind. |
 | `BracketView.tsx`, `RoundRobinView.tsx`, `MeleeView.tsx` | The views: `BracketSvg` (the CLI's `bracketSvg`, themed), `ResultsMatrix` and `StandingsTable`, the melee's survival histograms. Each has its `MatchPanel`. |
+| `LiveStage.tsx` | A running server tournament's live stage over its page (`ServerTournament.tsx`): the `LIVE NOW` strip with `tune in live`, the ring, and the scoreboard from the room's standings. Tuned in, `live/LiveArena.tsx` runs the match in the ring's place. |
 | `TournamentControls.tsx` | The status chip, `start` / `pause` / `resume` / `cancel`, and `auto-watch`. |
 | `watch.ts`, `WatchModal.tsx` | A round rebuilt from its inputs and played in the arena; a recorded round checks its result hash. |
 | `export.ts` | `results.json`, `bracket.svg`, `standings.csv`. |

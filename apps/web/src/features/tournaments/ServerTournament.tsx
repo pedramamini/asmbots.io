@@ -15,7 +15,7 @@ import {
 import { Button, Chip, Identicon, Panel, PanelGrid, useToast } from '@asmbots/ui'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Cloud, Play, Trophy } from 'lucide-react'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { isNotFound } from '../../api/client'
 import { useMe, useTournament } from '../../api/queries'
 import { startTournament } from '../../api/writes'
@@ -34,6 +34,7 @@ import { embedTitle, embedUrl } from '../share/share'
 import { BracketView } from './BracketView'
 import { EnterButton } from './EnterModal'
 import { takesEntries, utcTime } from './entry'
+import { LiveStage } from './LiveStage'
 import { MeleeView } from './MeleeView'
 import { RoundRobinView } from './RoundRobinView'
 import { fromServer } from './server'
@@ -71,6 +72,13 @@ export function ServerTournamentPage({ id, live, createArenaClient }: ServerTour
   }, [client, id, done, status])
   const detail = read.data
   const t = useMemo(() => (detail === undefined ? undefined : fromServer(detail)), [detail])
+  // `tune in live` puts the arena on the stage, and brings the stage into view.
+  const [tuned, setTuned] = useState(false)
+  const stage = useRef<HTMLDivElement>(null)
+  const tune = (on: boolean) => {
+    setTuned(on)
+    if (on) requestAnimationFrame(() => stage.current?.scrollIntoView?.({ block: 'start' }))
+  }
   if (isNotFound(read.error)) {
     return (
       <Placeholder title="tournaments" status={id} action={OPEN_LIST}>
@@ -93,25 +101,41 @@ export function ServerTournamentPage({ id, live, createArenaClient }: ServerTour
   }
   const View = VIEWS[t.kind]
   const ended = t.status === 'finished' || t.status === 'cancelled'
+  // A tournament under way has the live stage at the top, and its header takes the full width.
+  const onAir = t.status === 'running' || t.status === 'paused'
   return (
     <PanelGrid className="p-3">
       <PageIntro about={TOURNAMENTS_ABOUT} art={<IntroArt name="bracket" />} />
-      <div className="col-span-12 flex min-w-0 flex-col gap-3 xl:col-span-8">
+      {onAir && (
+        <div ref={stage} className="col-span-12 min-w-0 scroll-mt-3">
+          <LiveStage
+            live={room}
+            detail={detail}
+            tournament={t}
+            tuned={tuned}
+            onTune={tune}
+            createClient={createArenaClient}
+          />
+        </div>
+      )}
+      <div className={`col-span-12 flex min-w-0 flex-col gap-3 ${onAir ? '' : 'xl:col-span-8'}`}>
         <ServerHeader detail={detail} tournament={t} />
       </div>
-      <div className="col-span-12 flex min-w-0 flex-col gap-3 xl:col-span-4">
-        {ended ? (
-          <Panel title="live" status={t.status}>
-            <p className="text-data text-muted">
-              {t.status === 'finished'
-                ? 'every match is played: watch any round below, and check it.'
-                : 'it was cancelled: nothing more plays.'}
-            </p>
-          </Panel>
-        ) : (
-          <LivePanel live={room} createClient={createArenaClient} />
-        )}
-      </div>
+      {!onAir && (
+        <div className="col-span-12 flex min-w-0 flex-col gap-3 xl:col-span-4">
+          {ended ? (
+            <Panel title="live" status={t.status}>
+              <p className="text-data text-muted">
+                {t.status === 'finished'
+                  ? 'every match is played: watch any round below, and check it.'
+                  : 'it was cancelled: nothing more plays.'}
+              </p>
+            </Panel>
+          ) : (
+            <LivePanel live={room} createClient={createArenaClient} />
+          )}
+        </div>
+      )}
       <div className="col-span-12 flex min-w-0 flex-col gap-3">
         <View tournament={t} />
       </div>

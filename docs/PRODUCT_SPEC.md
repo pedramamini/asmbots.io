@@ -74,6 +74,7 @@ Tiled workspace, default the `writing` layout: library, the source over its prob
 - **Round robin view**: results matrix (entrants × entrants, cell = points, hue-tinted), standings table with W/T/L and points, sortable.
 - **Melee view**: standings with survival cycle histograms across rounds; `watch round N`.
 - **Live mode**: when the runner is executing, a `LIVE` chip pulses and the next match auto-opens in the arena for spectators, simulating locally from the inputs pushed over the WebSocket. Spectator count shown.
+- **Live stage**: a server tournament under way (running or paused) opens with a full-width stage in the accent's glow: `LIVE NOW`, the match being fought (`fighting · Dwarf v Imp`), `match 9 of 15` with a bar, the `LIVE` chip, the spectators, and `tune in live`. Under the strip: the ring (the bots in their hues, big, and `watch it here`) and the scoreboard (the room's standings: place, identicon, bot, W-T-L, points; the leader in accent; the bots in the ring marked with a glowing dot and a tint; before any match is scored, the entrants unranked). Tuning in scrolls to the stage and runs the match in the arena in the ring's place, beside the scoreboard; `leave the arena` goes back. A running server tournament's tile in the list says `live now · tune in →`.
 - Export: `results.json`, `bracket.svg`, standings CSV.
 
 ## 5. Hills `/hills`, `/hills/:slug`

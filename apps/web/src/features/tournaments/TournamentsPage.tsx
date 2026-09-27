@@ -275,6 +275,7 @@ function ServerTournamentCard({ card }: { card: ServerCard }) {
       rounds={t.config.rounds}
       progress={{ done: s.done, of: s.of }}
       champion={s.champion === null ? undefined : { value: s.champion.name, name: s.champion.name }}
+      live
       entryUntil={
         takesEntries(t) && t.entryClosesAt !== null ? utcTime(t.entryClosesAt) : undefined
       }

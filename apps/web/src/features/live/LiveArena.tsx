@@ -7,7 +7,7 @@
  * first match to watch, so a quiet room loads no arena.
  */
 import { bytesProblem, type LiveMatch, replayBots } from '@asmbots/protocol'
-import { HueSwatch } from '@asmbots/ui'
+import { cx, HueSwatch } from '@asmbots/ui'
 import { Link } from '@tanstack/react-router'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { useStore } from 'zustand'
@@ -32,6 +32,8 @@ export interface LiveArenaProps {
   rest: number
   /** Shown until the first match is on screen. */
   fallback: ReactNode
+  /** Classes of the arena's square box, past its full width: a cap on its size. */
+  stageClassName?: string | undefined
 }
 
 /** Its Worker starts with the first match, and ends with the arena. */
@@ -42,6 +44,7 @@ export function LiveArena({
   dwell,
   rest,
   fallback,
+  stageClassName,
 }: LiveArenaProps) {
   const make = useRef(createClient)
   make.current = createClient
@@ -126,7 +129,12 @@ export function LiveArena({
   const result = live.matches.find((m) => m.match.id === shown.id)?.result ?? null
   return (
     <div className="flex flex-col gap-2" data-live-match={shown.id}>
-      <div className="relative aspect-square w-full overflow-hidden rounded-md bg-black">
+      <div
+        className={cx(
+          'relative aspect-square w-full overflow-hidden rounded-md bg-black',
+          stageClassName,
+        )}
+      >
         <ArenaCanvas
           client={client}
           minimap={false}

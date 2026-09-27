@@ -97,10 +97,12 @@ export interface TournamentTileProps {
   readonly entryUntil?: string | undefined
   /** Chips before the kind's: `server`, `championship`. */
   readonly chips?: ReactNode
+  /** The server runs it, and has a live room: running, it offers `tune in live`. */
+  readonly live?: boolean | undefined
 }
 
 /** The middle row: the champion, the live count, or what a scheduled one waits for. */
-function Outcome({ status, progress, champion, entrants, entryUntil }: TournamentTileProps) {
+function Outcome({ status, progress, champion, entrants, entryUntil, live }: TournamentTileProps) {
   if (champion !== undefined) {
     return (
       <p className="flex min-w-0 items-center gap-3">
@@ -119,6 +121,15 @@ function Outcome({ status, progress, champion, entrants, entryUntil }: Tournamen
         <span className="text-body text-bright">
           match {Math.min(progress.done + 1, progress.of)} of {progress.of}
         </span>
+        {live && status === 'running' && (
+          <span className="mt-1 flex items-center gap-2 text-nav text-accent-fg" data-tune-in>
+            <span
+              aria-hidden="true"
+              className="size-1.5 rounded-full bg-accent shadow-[0_0_6px_var(--accent)] motion-safe:animate-skeleton"
+            />
+            live now · tune in →
+          </span>
+        )}
       </p>
     )
   }
