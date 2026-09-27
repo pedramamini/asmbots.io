@@ -160,11 +160,18 @@ for (const theme of THEMES) {
       await page.goto('/?boot=1')
       const boot = page.getByRole('dialog', { name: 'asm bots' })
       // Every line of the log is in the page from the start and fades in on its time: wait until
-      // all of them are opaque, so axe does not read a line's contrast mid-fade.
+      // all of them are opaque and done fading, so axe does not read a line's contrast mid-fade.
+      // No lines yet (the dialog's chunk still loading) is not done: `every` of none is true.
       const log = boot.getByRole('list', { name: 'boot log' }).getByRole('listitem')
       await expect
         .poll(() =>
-          log.evaluateAll((lines) => lines.every((l) => getComputedStyle(l).opacity === '1')),
+          log.evaluateAll(
+            (lines) =>
+              lines.length > 0 &&
+              lines.every(
+                (l) => getComputedStyle(l).opacity === '1' && l.getAnimations().length === 0,
+              ),
+          ),
         )
         .toBe(true)
       await expectClean(page, 'boot screen')
