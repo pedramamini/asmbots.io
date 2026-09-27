@@ -20,15 +20,14 @@ import {
   runMatch,
   updateRating,
 } from '@asmbots/tourney'
-import { ISA, NAV } from '../src/app/Frame'
 import {
-  ARENA_KEYS,
   DEBUG_FUNCTION_KEYS,
   DEBUG_KEYS,
   EDITOR_KEYS,
-  GLOBAL_KEYS,
   SOURCE_KEYS,
-} from '../src/app/keymaps'
+} from '../src/app/editor-keymaps'
+import { ISA, NAV } from '../src/app/Frame'
+import { ARENA_KEYS, GLOBAL_KEYS } from '../src/app/keymaps'
 import { allBindings } from '../src/docs/keymap'
 import { replayName } from '../src/features/arena/battle/files'
 import { readReplay } from '../src/features/arena/battle/replay'

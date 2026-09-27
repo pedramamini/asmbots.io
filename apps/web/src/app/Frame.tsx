@@ -236,7 +236,7 @@ function SkipLink() {
 /** The nav route `step` places from the page's own, wrapping. Off the nav, `+1` is the first. */
 export function cycleNav(pathname: string, step: 1 | -1): (typeof NAV)[number]['to'] {
   const at = NAV.findIndex(({ to }) => navActive(to, pathname))
-  const from = at === -1 ? (step === 1 ? -1 : NAV.length) : at
+  const from = at === -1 ? (step === 1 ? -1 : 0) : at
   return NAV[(from + step + NAV.length) % NAV.length]?.to ?? '/'
 }
 
@@ -252,14 +252,11 @@ function useGlobalKeys(toggleKeys: () => void, toggleMenu: () => void): void {
         ...goKey(key, label),
         run: () => void router.navigate({ to }),
       })),
-      {
-        ...CYCLE_KEYS.previous,
-        run: () => void router.navigate({ to: cycleNav(router.state.location.pathname, -1) }),
-      },
-      {
-        ...CYCLE_KEYS.next,
-        run: () => void router.navigate({ to: cycleNav(router.state.location.pathname, 1) }),
-      },
+      ...([CYCLE_KEYS.previous, CYCLE_KEYS.next] as const).map((binding, index) => ({
+        ...binding,
+        run: () =>
+          void router.navigate({ to: cycleNav(router.state.location.pathname, index ? 1 : -1) }),
+      })),
     ],
     [router, toggleKeys, toggleMenu],
   )

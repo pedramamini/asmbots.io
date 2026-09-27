@@ -1,22 +1,18 @@
 /**
  * The docs' keyboard map (`/docs/tools/keys`): every key the app binds, drawn by the key help's
- * own table from the same data the routes register (`app/keymaps.ts`), so the page cannot drift
+ * own table from the same data the routes register (`app/keymaps.ts`, `app/editor-keymaps.ts`), so the page cannot drift
  * from the keys.
  */
 import { type KeyBinding, KeyHelp } from '@asmbots/ui'
-import { NAV } from '../app/Frame'
 import {
-  ARENA_KEYS,
-  CYCLE_KEYS,
   DEBUG_FUNCTION_KEYS,
   DEBUG_KEYS,
-  DIGIT_BOTS,
   EDITOR_KEYS,
   functionKey,
-  GLOBAL_KEYS,
-  goKey,
   SOURCE_KEYS,
-} from '../app/keymaps'
+} from '../app/editor-keymaps'
+import { NAV } from '../app/Frame'
+import { ARENA_KEYS, CYCLE_KEYS, DIGIT_BOTS, GLOBAL_KEYS, goKey } from '../app/keymaps'
 
 /** Every binding, by group: what the key help shows on each route, all at once. */
 export function allBindings(): KeyBinding[] {

@@ -176,10 +176,7 @@ function keyName(key: string): string {
 
 /** An Alt key by its place on the keyboard, since on a Mac Alt changes the text: `⌥[` types `“`. */
 function codeName(code: string, key: string): string {
-  if (code === 'BracketLeft') return '['
-  if (code === 'BracketRight') return ']'
-  const letter = /^(?:Key|Digit)(.)$/.exec(code)?.[1]
-  return letter === undefined ? keyName(key) : letter.toLowerCase()
+  return code === 'BracketLeft' ? '[' : code === 'BracketRight' ? ']' : key
 }
 
 /** A control that takes typed text: its keys are the user's words, not commands. */

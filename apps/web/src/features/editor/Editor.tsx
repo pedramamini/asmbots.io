@@ -22,7 +22,7 @@ import {
   lineNumbers,
 } from '@codemirror/view'
 import { useEffect, useRef } from 'react'
-import { SOURCE_KEYS } from '../../app/keymaps'
+import { SOURCE_KEYS } from '../../app/editor-keymaps'
 import { x16c } from './cm'
 import { debugLines } from './cm/debug'
 import { changesProblems, type Problem, problemsOf } from './cm/diagnostics'

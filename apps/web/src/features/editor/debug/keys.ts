@@ -7,7 +7,7 @@
  * field while it has the focus, as every key of the app's keymap does.
  */
 import { type RefObject, useEffect, useMemo } from 'react'
-import { DEBUG_FUNCTION_KEYS, DEBUG_KEYS, functionKey } from '../../../app/keymaps'
+import { DEBUG_FUNCTION_KEYS, DEBUG_KEYS, functionKey } from '../../../app/editor-keymaps'
 import { type KeyCommand, useKeys } from '../../../app/keys'
 import type { ArenaCanvasHandle } from '../../arena/ArenaCanvas'
 import { spaceTaken } from '../../arena/battle/keys'
