@@ -1,19 +1,20 @@
 /**
  * A tournament's header (PRODUCT_SPEC §4): its name, kind, weight class, and status, the live controls,
- * `share ▾`, and the entrants as chips with their identicons, the champion's in accent. A shared
- * tournament (a link's snapshot, `share.ts`) has no controls: nothing runs it in this browser.
+ * `share ▾`, and the entrants as chips with their identicons and authors, the champion's in accent.
+ * A shared tournament (a link's snapshot, `share.ts`) has no controls: nothing runs it here.
  * `share ▾` copies the tournament's link (it carries the tournament) and saves a bracket as a PNG;
  * a tournament of this browser has no card or stored match on the server to share.
  */
 import { classOfRange } from '@asmbots/protocol'
 import { Chip, Identicon, Panel, useToast } from '@asmbots/ui'
+import { ByAuthor } from '../../app/author'
 import { WeightChip } from '../hills/WeightChip'
 import { ShareMenu } from '../share/ShareMenu'
 import { downloadBracketPng } from './export'
 import { copyTournamentLink } from './share'
 import { KIND_LABELS, type Tournament } from './store'
 import { StatusChip, TournamentControls } from './TournamentControls'
-import { identiconValue } from './TournamentsPage'
+import { identiconValue, useEntrantAuthors } from './TournamentsPage'
 
 export interface TournamentHeaderProps {
   tournament: Tournament
@@ -38,6 +39,7 @@ export function TournamentHeader({
       png={t.bracket === undefined ? undefined : () => void savePng()}
     />
   )
+  const authors = useEntrantAuthors(t.entrants)
   const n = t.entrants.length
   // A tournament made before weight classes has no band: no chip.
   const { minBotBytes = 1, maxBotBytes } = t.config
@@ -69,6 +71,7 @@ export function TournamentHeader({
               >
                 <Identicon value={identiconValue(entrant)} size={8} />
                 {entrant.name}
+                <ByAuthor author={authors[e]} />
               </Chip>
             </li>
           ))}

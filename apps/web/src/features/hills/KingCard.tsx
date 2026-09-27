@@ -4,7 +4,7 @@
  */
 import type { HillStanding } from '@asmbots/protocol'
 import { Identicon, Panel, Skeleton, Stat } from '@asmbots/ui'
-import { authorOf, BotLink, count, plural } from './links'
+import { BotAuthor, BotLink, count, plural } from './links'
 
 export interface KingCardProps {
   /** Undefined while the hill loads; null when nobody holds it. */
@@ -31,8 +31,8 @@ export function KingCard({ king, className }: KingCardProps) {
               <p className="truncate-ring text-modal-title text-accent-fg">
                 <BotLink bot={king.bot} />
               </p>
-              <p className="truncate text-data text-muted">
-                v{king.bot.version} · by {authorOf(king.bot)}
+              <p className="truncate-ring text-data text-muted">
+                v{king.bot.version} · by <BotAuthor bot={king.bot} />
               </p>
             </div>
           </div>

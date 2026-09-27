@@ -129,6 +129,7 @@ export function fromServer({ tournament: t, entrants, matches }: TournamentDetai
         source: 'server',
         ref: label.versionId,
         name: names[e] as string,
+        owner: label.owner,
       }),
     ),
     config,

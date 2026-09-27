@@ -197,7 +197,7 @@ describe('/hills', () => {
         'light',
         '10 rounds · 100k cycles · lightweight · 1–512 B',
         '3 / 32',
-        'Paper',
+        'Paper by ASM Bots',
         '321',
       ],
       ['tiny', '–', '10 rounds · 50k cycles · 1–256 B', '0 / 16', 'none', ''],
@@ -283,8 +283,10 @@ describe('/hills/$slug', () => {
       '2',
       'challenge ▾',
     ])
-    // With no %author, the owner is the author.
-    expect(cells(standings)[2]?.[2]).toBe('system')
+    // The author is the owner, the house as `ASM Bots`, with or without a %author.
+    expect(cells(standings)[2]?.[2]).toBe('ASM Bots')
+    const author = within(standings).getAllByRole('link', { name: 'ASM Bots' })[0]
+    expect(author?.getAttribute('href')).toBe('/u/system')
     expect(screen.getByText(/3 of 32 places taken/)).toBeTruthy()
     // The header names the class, in its rules and in a chip.
     const hill = screen.getByRole('region', { name: 'main' })
@@ -301,7 +303,8 @@ describe('/hills/$slug', () => {
     const matches = await screen.findByRole('table', { name: 'recent matches' })
     await waitFor(() => expect(cells(matches)).toHaveLength(2))
     expect(cells(matches)[0]).toEqual(['Dwarf vs Imp', 'Dwarf', '21–9', 'verify', 'watch'])
-    fireEvent.click(within(matches).getByText('Dwarf vs Imp'))
+    // The authors are in the title: a link past the cell's ellipsis would take focus out of sight.
+    fireEvent.click(within(matches).getByTitle('Dwarf by ASM Bots vs Imp by ASM Bots'))
     await waitFor(() => expect(router.state.location.pathname).toBe(`/arena/${KEY}`))
   })
 
@@ -320,7 +323,12 @@ describe('/bots/$id', () => {
     await renderAt('/bots/roster-dwarf', () => <BotPage id="roster-dwarf" />)
     expect((await screen.findByRole('heading', { level: 1 })).textContent).toBe('Dwarf')
     expect(screen.getByText('Bomb every 4th byte, walking backward')).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'system' }).getAttribute('href')).toBe('/u/system')
+    // The owner, the house as `ASM Bots`; its %author says the same, so it is said once.
+    const card = screen.getByRole('region', { name: 'bot' })
+    expect(within(card).getByRole('link', { name: 'ASM Bots' }).getAttribute('href')).toBe(
+      '/u/system',
+    )
+    expect(within(card).getByText(/^by/).textContent).toBe('by ASM Bots')
     expect(cells(screen.getByRole('table', { name: 'hill placements' }))).toEqual([
       ['main', 'v1', '2', '145', '1/0/1'],
     ])
@@ -329,7 +337,6 @@ describe('/bots/$id', () => {
       '23 B',
     ])
     // Its fights on the server, and the day it was first seen, with how long ago.
-    const card = screen.getByRole('region', { name: 'bot' })
     expect(within(card).getByText('fights').nextElementSibling?.textContent).toBe('1,204')
     const seen = within(card).getByText('first seen').nextElementSibling
     expect(seen?.textContent).toBe('2026-09-24')
@@ -573,7 +580,7 @@ describe('/ panels', () => {
     )
     await renderAt('/', () => <HomePage />)
     const cup = screen.getByRole('region', { name: 'championship' })
-    await waitFor(() => expect(cup.textContent).toContain('last: Dwarf won Weekly 8'))
+    await waitFor(() => expect(cup.textContent).toContain('last: Dwarf by ASM Bots won Weekly 8'))
     expect(await within(cup).findByRole('button', { name: 'sign in to enter' })).toBeTruthy()
   })
 

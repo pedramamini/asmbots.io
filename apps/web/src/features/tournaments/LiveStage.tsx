@@ -1,21 +1,22 @@
 /**
  * A running server tournament's live stage (PRODUCT_SPEC §4): a full-width band in the accent's
  * glow at the top of its page. Its strip says `LIVE`, the match count and a bar of it, the
- * spectators, and has `tune in live`; under it, the match being fought (its bots in their hues)
- * and the scoreboard, the room's standings with the bots in the ring marked. Tuned in, the match
- * runs in the arena in the ring's place (`LiveArena`), beside the scoreboard.
+ * spectators, and has `tune in live`; under it, the match being fought (its bots in their hues, by
+ * their owners) and the scoreboard, the room's standings with the bots in the ring marked. Tuned
+ * in, the match runs in the arena in the ring's place (`LiveArena`), beside the scoreboard.
  */
-import type { Standing, TournamentDetail } from '@asmbots/protocol'
+import type { BotLabel, Standing, TournamentDetail } from '@asmbots/protocol'
 import { entrantNames } from '@asmbots/protocol'
 import { Button, cx, HueSwatch, Identicon } from '@asmbots/ui'
 import { Play, Radio, X } from 'lucide-react'
 import { lazy, Suspense } from 'react'
+import { ByAuthor, ownerAuthor } from '../../app/author'
 import { useMotionReduced } from '../../store/settings'
 import type { ArenaClient } from '../arena/worker/client'
 import { count } from '../hills/links'
 import { LiveChip, SpectatorCount } from '../live/LiveChip'
 import { LIVE_DWELL_MS, ROUND_REST_MS } from '../live/LivePanel'
-import { currentMatch, type LiveRoomState, roomBusy } from '../live/room'
+import { currentMatch, type LiveRoomState, matchAuthors, roomBusy } from '../live/room'
 import type { Tournament } from './store'
 import { identiconValue } from './TournamentsPage'
 
@@ -108,20 +109,21 @@ export function LiveStage({
         <div className="col-span-12 min-w-0 lg:col-span-8">
           {tuned ? (
             <section aria-label="live arena" className="min-w-0">
-              <Suspense fallback={<Ring live={live} />}>
+              <Suspense fallback={<Ring live={live} labels={detail.entrants} />}>
                 <LiveArena
                   live={live}
                   current={current}
+                  labels={detail.entrants}
                   createClient={createClient}
                   dwell={LIVE_DWELL_MS}
                   rest={ROUND_REST_MS}
-                  fallback={<Ring live={live} />}
+                  fallback={<Ring live={live} labels={detail.entrants} />}
                   stageClassName="mx-auto max-w-[min(100%,70vh)]"
                 />
               </Suspense>
             </section>
           ) : (
-            <Ring live={live} onWatch={() => onTune(true)} />
+            <Ring live={live} labels={detail.entrants} onWatch={() => onTune(true)} />
           )}
         </div>
         <Scoreboard
@@ -137,10 +139,20 @@ export function LiveStage({
 }
 
 /**
- * The match in the ring, big: each bot's hue, name, and a `v` between them, and `watch it here`,
- * which tunes in. Tuned in, it holds the arena's place until the next match starts.
+ * The match in the ring, big: each bot's hue, name, and author, a `v` between them, and
+ * `watch it here`, which tunes in. Tuned in, it holds the arena's place until the next match
+ * starts.
  */
-function Ring({ live, onWatch }: { live: LiveRoomState; onWatch?: (() => void) | undefined }) {
+function Ring({
+  live,
+  labels,
+  onWatch,
+}: {
+  live: LiveRoomState
+  /** The tournament's entrants: their owners are the authors. */
+  labels: readonly BotLabel[]
+  onWatch?: (() => void) | undefined
+}) {
   const current = currentMatch(live)
   if (current === null) {
     return (
@@ -150,6 +162,7 @@ function Ring({ live, onWatch }: { live: LiveRoomState; onWatch?: (() => void) |
     )
   }
   const { bots, rounds } = current.match
+  const authors = matchAuthors(current.match, labels)
   return (
     <div className="flex h-full min-h-32 flex-col items-center justify-center gap-4 rounded-md border border-border bg-panel-2 p-6 text-center">
       <p className="text-panel-status text-muted">in the ring</p>
@@ -166,6 +179,7 @@ function Ring({ live, onWatch }: { live: LiveRoomState; onWatch?: (() => void) |
             )}
             <HueSwatch hue={i} size={14} />
             <span className="truncate text-stat text-bright">{bot.name}</span>
+            <ByAuthor author={authors[i]} className="shrink-0 text-data" />
           </li>
         ))}
       </ol>
@@ -182,8 +196,9 @@ function Ring({ live, onWatch }: { live: LiveRoomState; onWatch?: (() => void) |
 }
 
 /**
- * The room's standings as a scoreboard: place, bot, W-T-L, and points, the leader in the accent;
- * a bot in the ring has a glowing dot. Before the room has standings, the entrants, unranked.
+ * The room's standings as a scoreboard: place, bot and its author, W-T-L, and points, the leader
+ * in the accent; a bot in the ring has a glowing dot. Before the room has standings, the
+ * entrants, unranked.
  */
 function Scoreboard({
   standings,
@@ -219,6 +234,7 @@ function Scoreboard({
         {rows.map((row) => {
           const e = entrantOf.get(row.botVersionId)
           const entrant = e === undefined ? undefined : t.entrants[e]
+          const label = e === undefined ? undefined : detail.entrants[e]
           const leader = standings !== null && row.rank === 1
           const inRing = fighting.has(row.botVersionId)
           return (
@@ -235,10 +251,11 @@ function Scoreboard({
                 {row.rank > 0 ? row.rank : '·'}
               </span>
               {entrant !== undefined && <Identicon value={identiconValue(entrant)} size={12} />}
-              <span
-                className={cx('min-w-0 flex-1 truncate', leader ? 'text-accent-fg' : 'text-bright')}
-              >
-                {e === undefined ? 'a deleted bot' : names[e]}
+              <span className="min-w-0 flex-1 truncate">
+                <span className={leader ? 'text-accent-fg' : 'text-bright'}>
+                  {e === undefined ? 'a deleted bot' : names[e]}
+                </span>
+                {label !== undefined && <ByAuthor author={ownerAuthor(label.owner)} />}
               </span>
               {inRing && (
                 <span className="flex shrink-0 items-center" title="in the ring now">

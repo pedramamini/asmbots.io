@@ -228,6 +228,11 @@ describe('the stats page', () => {
     const records = await screen.findByRole('region', { name: 'records' })
     expect(await within(records).findByText('60 cycles')).toBeTruthy()
     expect(within(records).getByRole('link', { name: 'Stone' })).toBeTruthy()
+    // Each bot with its author, linked to their profile.
+    expect(records.textContent).toContain('Stone by ASM Bots killed Imp by ASM Bots on main')
+    expect(
+      within(records).getAllByRole('link', { name: 'ASM Bots' })[0]?.getAttribute('href'),
+    ).toBe('/u/system')
     expect(within(records).getByRole('link', { name: 'watch' }).getAttribute('href')).toBe(
       `/arena/${'ab'.repeat(32)}`,
     )
@@ -241,6 +246,7 @@ describe('the stats page', () => {
     const rows = await within(table).findAllByRole('row')
     expect(rows).toHaveLength(3)
     expect(within(rows[1] as HTMLElement).getByRole('link', { name: 'Paper' })).toBeTruthy()
+    expect(rows[1]?.textContent).toContain('Paper by ASM Bots')
     expect(within(rows[2] as HTMLElement).getByText('none')).toBeTruthy()
   })
 })

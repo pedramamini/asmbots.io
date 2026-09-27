@@ -1,4 +1,4 @@
-import { weightClassOf } from '@asmbots/protocol'
+import { HOUSE_HANDLE, type Me, weightClassOf } from '@asmbots/protocol'
 import {
   Button,
   Chip,
@@ -26,6 +26,8 @@ import {
   useRef,
   useState,
 } from 'react'
+import { useMe } from '../../api/queries'
+import { type Author, AuthorLink, ByAuthor, ownerAuthor, sourceAuthor } from '../../app/author'
 import { ARENA_ABOUT } from '../../app/intros/arena'
 import { ROUTE_SEARCH } from '../../app/keys'
 import { useLinkAction } from '../../app/link-action'
@@ -135,6 +137,7 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
   const arenaSpeed = useSettings((state) => state.arenaSpeed)
   const setArenaSpeed = useSettings((state) => state.setArenaSpeed)
   const localBots = useLocalBots()
+  const { data: me } = useMe()
   const records = useBotRecords((state) => state.records)
   const { save } = useLocalBotActions()
   const [source, setSource] = useState<Source>('roster')
@@ -470,6 +473,7 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
                 bots={listed}
                 records={records}
                 ranks={ranks}
+                me={me}
                 picked={spec.bots}
                 full={full}
                 onAdd={addBot}
@@ -493,6 +497,7 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
                 empty={`none of my ${kind}bots${matching}.`}
                 records={records}
                 ranks={ranks}
+                me={me}
                 picked={spec.bots}
                 full={full}
                 onAdd={addBot}
@@ -505,6 +510,7 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
               <Suspense fallback={null}>
                 <PasteBox
                   full={full}
+                  me={me}
                   assemble={assemble}
                   onAdd={async (assembledName, text, size) => {
                     // A bot outside the class is not saved either: the text stays to change.
@@ -557,6 +563,7 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
           >
             <Selection
               selection={selection}
+              me={me}
               onRemove={remove}
               onSave={(index) => void saveShared(index)}
               onErrors={showErrors}
@@ -634,6 +641,8 @@ interface GridProps {
   /** This browser's bot records, and each ranked bot's place, by ref. */
   records: Readonly<Record<string, BotRecord>>
   ranks: ReadonlyMap<string, number>
+  /** The signed-in user, whose own bots' authors link to them. */
+  me: Me | null | undefined
   picked: readonly BotRef[]
   /** The selection is at its cap: no `+`. */
   full: boolean
@@ -646,6 +655,7 @@ function BotGrid({
   bots,
   records,
   ranks,
+  me,
   picked,
   full,
   onAdd,
@@ -669,6 +679,7 @@ function BotGrid({
           bot={bot}
           record={records[formatRef(bot.ref)]}
           rank={ranks.get(formatRef(bot.ref))}
+          author={catalogAuthor(bot, me)}
           count={counts.get(formatRef(bot.ref)) ?? 0}
           full={full}
           onAdd={() => onAdd(bot)}
@@ -681,14 +692,25 @@ function BotGrid({
 }
 
 /**
- * A bot in the picker: its identicon, name, author, size and weight class, and tier (a roster bot) or `local`, and
- * `+`. A bot already picked shows how often; a bot that does not assemble shows `errors`. A bot
- * with a record shows its rank and its wins, losses, and draws: `#3 · 12-4-1 · 71%`.
+ * Who wrote a bot the setup lists: the house, for a roster bot; else its `%author`, linked when it
+ * is the reader's, and read as theirs when a local bot has none.
+ */
+function catalogAuthor(bot: CatalogBot, me: Me | null | undefined): Author {
+  if (bot.origin === 'roster') return ownerAuthor(HOUSE_HANDLE)
+  return sourceAuthor(bot.author, me, bot.origin === 'local')
+}
+
+/**
+ * A bot in the picker: its identicon, name, author (a link to their profile when the site knows
+ * it), size and weight class, and tier (a roster bot) or `local`, and `+`. A bot already picked
+ * shows how often; a bot that does not assemble shows `errors`. A bot with a record shows its rank
+ * and its wins, losses, and draws: `#3 · 12-4-1 · 71%`.
  */
 function BotCard({
   bot,
   record,
   rank,
+  author,
   count,
   full,
   onAdd,
@@ -698,6 +720,7 @@ function BotCard({
   bot: CatalogBot
   record: BotRecord | undefined
   rank: number | undefined
+  author: Author
   count: number
   full: boolean
   onAdd: () => void
@@ -731,7 +754,8 @@ function BotCard({
         <p className="flex min-w-0 items-center gap-2 text-data text-muted">
           {/* The author gives way first: the size stays whole beside the class chip. */}
           <span className="flex min-w-0">
-            <span className="truncate">{bot.author || 'anonymous'}</span>
+            {/* Out of the Tab order: every card has one, and `+` is the card's stop. */}
+            <AuthorLink author={author} className="truncate" untabbed />
             <span className="shrink-0 whitespace-pre">
               {' · '}
               {broken ? '—' : `${bytes.length} B`}
@@ -812,17 +836,20 @@ function MineGrid({
 }
 
 /**
- * The bots picked, in the order they load: each with its hue swatch, its battle name, where it
- * comes from, its size and weight class, and `remove`. A shared bot can be saved to my bots.
+ * The bots picked, in the order they load: each with its hue swatch, its battle name and author,
+ * where it comes from, its size and weight class, and `remove`. A shared bot can be saved to my
+ * bots.
  */
 function Selection({
   selection,
+  me,
   onRemove,
   onSave,
   onErrors,
   onStart,
 }: {
   selection: readonly SetupBot[]
+  me: Me | null | undefined
   onRemove: (index: number) => void
   onSave: (index: number) => void
   onErrors: (bot: CatalogBot) => void
@@ -847,7 +874,11 @@ function Selection({
           >
             <HueSwatch hue={index} />
             <span className="w-5 shrink-0 text-right text-data text-muted">{index + 1}</span>
-            <span className="min-w-0 flex-1 truncate text-bright">{name}</span>
+            {/* The author gives way first. */}
+            <span className="min-w-0 flex-1 truncate text-bright">
+              {name}
+              {bot !== null && <ByAuthor author={catalogAuthor(bot, me)} className="text-data" />}
+            </span>
             <SelectionState entry={entry} onErrors={onErrors} />
             {state === 'ready' && bot !== null && <SizeOf bytes={bot.assembled.bytes.length} />}
             {bot?.origin === 'shared' && (

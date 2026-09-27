@@ -4,6 +4,8 @@ import { useNavigate } from '@tanstack/react-router'
 import { Settings2, Trophy } from 'lucide-react'
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from 'zustand'
+import { useMe } from '../../api/queries'
+import { sourceAuthor } from '../../app/author'
 import { SITE_HOST } from '../../app/site'
 import { useRouteStat } from '../../app/slots'
 import { ShareMenu, type ShareTarget } from '../share/ShareMenu'
@@ -124,6 +126,9 @@ export function ArenaBattle({
   const [hidden, setHidden] = useState(false)
 
   const names = useMemo(() => meta.map((bot) => bot.name), [meta])
+  // Who wrote each bot, from its `%author`: the house's and the reader's link to their profiles.
+  const { data: me } = useMe()
+  const authors = useMemo(() => meta.map((bot) => sourceAuthor(bot.author ?? '', me)), [meta, me])
   const seed = fight.config.seed ?? 0
   const played = match?.rounds.length ?? 0
   const over = status === 'ended' && match !== null && result !== null && hash !== null
@@ -333,6 +338,7 @@ export function ArenaBattle({
                   hash={hash}
                   match={match}
                   names={names}
+                  authors={authors}
                   maxCycles={maxCycles}
                   check={replay?.check}
                   onDismiss={() => setHidden(true)}
@@ -370,6 +376,7 @@ export function ArenaBattle({
         className="col-span-12 max-h-[26rem] lg:col-span-4"
         client={client}
         log={log}
+        authors={authors}
         isolated={isolated}
         onIsolate={view.isolate}
       />
@@ -382,7 +389,12 @@ export function ArenaBattle({
         coach={intro === undefined ? coach : guide.events}
       />
       {rounds > 1 && (
-        <StandingsPanel className="col-span-12 lg:col-span-4" client={client} log={log} />
+        <StandingsPanel
+          className="col-span-12 lg:col-span-4"
+          client={client}
+          log={log}
+          authors={authors}
+        />
       )}
     </PanelGrid>
   )

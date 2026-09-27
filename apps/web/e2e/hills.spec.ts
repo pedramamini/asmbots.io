@@ -115,7 +115,10 @@ test('submits a dwarf to tiny, watches it fight the hill, and finds it on the bo
   await expect(standings.getByRole('row')).toHaveCount(16)
   await expect(standings.getByRole('link', { name, exact: true })).toBeVisible()
   const feed = page.getByRole('list', { name: 'recent submissions' })
-  await expect(feed.getByRole('listitem').first()).toContainText(`${name} entered at #`)
+  // The feed names the bot's author, the handle signed in.
+  await expect(feed.getByRole('listitem').first()).toContainText(
+    new RegExp(`${name} by \\S+ entered at #`),
+  )
   expect(errors).toEqual([])
 })
 

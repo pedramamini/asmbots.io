@@ -44,6 +44,16 @@ is a match: the Worker plays round i with `@asmbots/tourney`'s `roundOrder` and 
 scores it with `withRound`, so the arena's match equals `runMatch`'s. Frames name bots by their
 place in the load, whatever order a round fights them in.
 
+Wherever the arena names a bot, it names its author, a link to their profile when the site knows it
+(`app/author.tsx`). The setup's cards and picked bots link a roster bot to the house
+(`/u/system`), and a local or shared bot's `%author` to the reader when it is theirs (a local bot
+with none reads as theirs); the paste box's line says `name · by author · size`. The battle takes
+each bot's `%author` from the Worker's `botMeta` (`sourceAuthor`): the victory table links it; the
+bots panel and standings, too narrow for a link beside the name, put `name by author` in the name's
+title (`byline`). The hover tooltip, which takes no clicks, writes the `%author` after the name; the
+live region leaves it out. The embed's
+legend (`features/embed/EmbedArena.tsx`) opens the link in a new tab, as `watch on asmbots` does.
+
 `/arena/$replayId` is `ReplayPage.tsx`: a replay in the same battle view. The victory's
 `replay link` copies `/arena/<match key>#r=<base64url of the replay's JSON>`: `@asmbots/protocol`'s
 `Replay` (the `download replay` file), with the bots' bytes and SHA-256 but not their sources.

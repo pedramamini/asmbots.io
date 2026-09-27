@@ -1,19 +1,24 @@
+import type { Me } from '@asmbots/protocol'
 import { Button } from '@asmbots/ui'
 import { Plus } from 'lucide-react'
 import { useDeferredValue, useState } from 'react'
+import { sourceAuthor } from '../../../app/author'
 import type { Assemble } from './bots'
 import { Diagnostics } from './Diagnostics'
 
 /**
- * Raw source, pasted: assembled as it changes, its errors listed under the box, and `add` once it
- * assembles, which saves it to my bots and picks it.
+ * Raw source, pasted: assembled as it changes (`name · by author · size`), its errors listed under
+ * the box, and `add` once it assembles, which saves it to my bots and picks it.
  */
 export function PasteBox({
   full,
+  me,
   assemble,
   onAdd,
 }: {
   full: boolean
+  /** The signed-in user: a pasted bot goes to my bots, so one with no `%author` reads as theirs. */
+  me: Me | null | undefined
   /** Null while the assembler loads. */
   assemble: Assemble | null
   /** Resolves false when the bot was refused, so its text stays. */
@@ -45,7 +50,7 @@ export function PasteBox({
               : 'loading the assembler…'
             : errors.length > 0
               ? `${errors.length} ${errors.length === 1 ? 'error' : 'errors'}`
-              : `${assembled.name} · ${assembled.bytes.length} B`}
+              : `${assembled.name} · by ${sourceAuthor(assembled.author, me, true).name} · ${assembled.bytes.length} B`}
         </p>
         <Button
           variant="primary"

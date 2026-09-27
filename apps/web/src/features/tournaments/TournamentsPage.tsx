@@ -1,11 +1,12 @@
 /**
  * `/tournaments` (PRODUCT_SPEC §4): this browser's tournaments and the server's as tiles of one
- * height (`TournamentTile`: name, kind, entrants, status, matches played, and the champion once
- * there is one; a server one with the `server` chip, and its entry window while it takes entries),
- * running ones first, then the newest,
- * filtered by kind and status and searched by name and bot. Mounting it picks up the local
- * tournaments a reload left running.
+ * height (`TournamentTile`: name, kind, entrants, status, matches played, and the champion and its
+ * author once there is one; a server one with the `server` chip, and its entry window while it
+ * takes entries), running ones first, then the newest, filtered by kind and status and searched by
+ * name and bot. Mounting it picks up the local tournaments a reload left running.
  */
+
+import { HOUSE_AUTHOR, type Me } from '@asmbots/protocol'
 import {
   Button,
   Chip,
@@ -17,8 +18,9 @@ import {
   Segmented,
 } from '@asmbots/ui'
 import { Cloud, Plus, Trophy } from 'lucide-react'
-import { type ReactNode, useState } from 'react'
-import { useTournaments as useServerTournaments } from '../../api/queries'
+import { type ReactNode, useMemo, useState } from 'react'
+import { useMe, useTournaments as useServerTournaments } from '../../api/queries'
+import { type Author, ownerAuthor, sourceAuthor } from '../../app/author'
 import { IntroArt } from '../../app/IntroArt'
 import { TOURNAMENTS_ABOUT } from '../../app/intros/tournaments'
 import { LoadFailure } from '../../app/LoadFailure'
@@ -140,6 +142,36 @@ export function identiconValue(entrant: TournamentEntrant): Uint8Array | string 
         ? undefined
         : assembleCached(entrant.code)
   return assembled !== undefined && assembled.bytes.length > 0 ? assembled.bytes : entrant.name
+}
+
+/**
+ * Who wrote an entrant: a server bot's owner; a roster bot's `%author` (the house's); a local
+ * bot's, which reads as the signed-in reader's own when it has its `code` (a bot of this browser,
+ * not a link's). An entrant made before authors has its `%author` read from the roster or `code`.
+ * Null for a server bot whose owner the record lacks.
+ */
+export function entrantAuthor(
+  entrant: TournamentEntrant,
+  me: Me | null | undefined,
+): Author | null {
+  if (entrant.source === 'server') {
+    return entrant.owner === undefined ? null : ownerAuthor(entrant.owner)
+  }
+  const author =
+    entrant.author ??
+    (entrant.source === 'roster'
+      ? (rosterCatalog().find((b) => b.ref.kind === 'roster' && b.ref.slug === entrant.ref)
+          ?.author ?? HOUSE_AUTHOR)
+      : entrant.code === undefined
+        ? ''
+        : assembleCached(entrant.code).author)
+  return sourceAuthor(author, me, entrant.source === 'local' && entrant.code !== undefined)
+}
+
+/** Each of `entrants`' authors (`entrantAuthor`), as the signed-in reader reads them. */
+export function useEntrantAuthors(entrants: readonly TournamentEntrant[]): (Author | null)[] {
+  const me = useMe().data
+  return useMemo(() => entrants.map((e) => entrantAuthor(e, me)), [entrants, me])
 }
 
 export interface TournamentsPageProps {
@@ -274,7 +306,15 @@ function ServerTournamentCard({ card }: { card: ServerCard }) {
       entrants={s.entrants}
       rounds={t.config.rounds}
       progress={{ done: s.done, of: s.of }}
-      champion={s.champion === null ? undefined : { value: s.champion.name, name: s.champion.name }}
+      champion={
+        s.champion === null
+          ? undefined
+          : {
+              value: s.champion.name,
+              name: s.champion.name,
+              author: ownerAuthor(s.champion.owner),
+            }
+      }
       live
       entryUntil={
         takesEntries(t) && t.entryClosesAt !== null ? utcTime(t.entryClosesAt) : undefined
@@ -296,6 +336,7 @@ function ServerTournamentCard({ card }: { card: ServerCard }) {
 }
 
 function TournamentCard({ tournament: t }: { tournament: Tournament }) {
+  const me = useMe().data
   const winner = t.champion === null ? undefined : t.entrants[t.champion]
   return (
     <TournamentTile
@@ -309,7 +350,13 @@ function TournamentCard({ tournament: t }: { tournament: Tournament }) {
       rounds={t.rounds}
       progress={t.progress}
       champion={
-        winner === undefined ? undefined : { value: identiconValue(winner), name: winner.name }
+        winner === undefined
+          ? undefined
+          : {
+              value: identiconValue(winner),
+              name: winner.name,
+              author: entrantAuthor(winner, me),
+            }
       }
     />
   )

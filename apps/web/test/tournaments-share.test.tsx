@@ -8,7 +8,7 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
 import { type BattleConfigInput, DEFAULT_CONFIG } from '@asmbots/engine'
-import { toBase64Url } from '@asmbots/protocol'
+import { type Me, toBase64Url } from '@asmbots/protocol'
 import { bracket, meleeStandings, roundRobin, runMatch } from '@asmbots/tourney'
 import { ToastProvider } from '@asmbots/ui'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -44,6 +44,7 @@ import {
   type TournamentEntrant,
 } from '../src/features/tournaments/store'
 import { TournamentPage } from '../src/features/tournaments/TournamentPage'
+import { entrantAuthor } from '../src/features/tournaments/TournamentsPage'
 import { watchTarget } from '../src/features/tournaments/watch'
 import { refuse, testQueryClient, useApiServer } from './api-server'
 import { pickShare } from './share-menu'
@@ -244,6 +245,25 @@ describe('a tournament link', () => {
     expect(target.resultHash).toBe(result!.rounds[0]!.resultHash)
   })
 
+  it('carries a local bot’s `%author`, its own or its source’s; a link without one reads none', () => {
+    // Made before authors: the link reads the `%author` from the source.
+    const ada = { ...MINE, code: `%author "Ada"\n${MINE.code}` }
+    const t = roundRobinCup()
+    const withAda = { ...t, entrants: [...t.entrants.slice(0, 3), ada] }
+    expect(read(withAda).entrants.map((e) => e.author)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+      'Ada',
+    ])
+    const grace = { ...t, entrants: [...t.entrants.slice(0, 3), { ...ada, author: 'Grace' }] }
+    expect(read(grace).entrants[3]?.author).toBe('Grace')
+    // No `%author`, and an older link: none.
+    expect(read(t).entrants[3]?.author).toBeUndefined()
+    const old = readTournamentFragment(fragmentOf(linkJson(withAda)), 'rr')
+    expect(old.kind === 'ok' && old.tournament.entrants[3]?.author).toBeUndefined()
+  })
+
   it('carries 16 super-heavy local bots at the 4 KB cap, and their band', () => {
     const big = (i: number): TournamentEntrant => ({
       source: 'local',
@@ -338,6 +358,44 @@ async function renderPage(path: string) {
   return router
 }
 
+describe('entrantAuthor', () => {
+  const me = {
+    user: { id: 'u1', handle: 'ada', github: 'ada-l', avatarUrl: null, createdAt: '' },
+    onboarded: true,
+  } satisfies Me
+  const [dwarf] = roster('Dwarf')
+
+  it('reads a roster bot as the house’s, and a server bot as its owner’s', () => {
+    const house = { name: 'ASM Bots', handle: 'system' }
+    // Made before authors: the roster's.
+    expect(entrantAuthor(dwarf as TournamentEntrant, null)).toEqual(house)
+    expect(entrantAuthor({ source: 'server', ref: 'v1', name: 'Loop', owner: 'bob' }, me)).toEqual({
+      name: 'bob',
+      handle: 'bob',
+    })
+    expect(entrantAuthor({ source: 'server', ref: 'v1', name: 'Loop' }, me)).toBeNull()
+  })
+
+  it('reads a bot of this browser as the reader’s own; a link’s by its `%author` only', () => {
+    expect(entrantAuthor(MINE, me)).toEqual({ name: 'ada', handle: 'ada' })
+    expect(entrantAuthor(MINE, null)).toEqual({ name: 'anonymous', handle: null })
+    const linked = { source: 'local', ref: 'mine.asm', name: 'Mine' } as const
+    expect(entrantAuthor(linked, me)).toEqual({ name: 'anonymous', handle: null })
+    expect(entrantAuthor({ ...linked, author: 'Ada-L' }, me)).toEqual({
+      name: 'Ada-L',
+      handle: 'ada',
+    })
+    expect(entrantAuthor({ ...linked, author: 'Grace' }, me)).toEqual({
+      name: 'Grace',
+      handle: null,
+    })
+    // Its own `%author` first, else its source's.
+    const code = `%author "Grace"\n${MINE.code}`
+    expect(entrantAuthor({ ...MINE, code }, null)?.name).toBe('Grace')
+    expect(entrantAuthor({ ...MINE, code, author: 'Hedy' }, null)?.name).toBe('Hedy')
+  })
+})
+
 describe('the tournament page', () => {
   let writeText = mock((_text: string) => Promise.resolve())
   let clipboard: PropertyDescriptor | undefined
@@ -367,13 +425,16 @@ describe('the tournament page', () => {
     // Made before weight classes: no band, no chip.
     expect(header.querySelector('[data-weight]')).toBeNull()
     const entrants = within(header).getByRole('list', { name: 'entrants' })
+    // Each by its author: the roster's the house, linked; a bot of mine with no `%author` and
+    // nobody signed in, anonymous.
     expect(
       within(entrants)
         .getAllByRole('listitem')
         .map((li) => li.textContent),
-    ).toEqual(['Dwarf', 'Imp', 'Paper', 'Mine'])
+    ).toEqual(['Dwarf by ASM Bots', 'Imp by ASM Bots', 'Paper by ASM Bots', 'Mine by anonymous'])
+    expect(within(entrants).getAllByRole('link', { name: 'ASM Bots' })).toHaveLength(3)
     const champion = t.entrants[t.champion as number]?.name
-    expect(within(entrants).getByTitle('champion').textContent).toBe(champion as string)
+    expect(within(entrants).getByTitle('champion').textContent).toStartWith(champion as string)
     expect(screen.getByRole('table', { name: 'results matrix' })).toBeTruthy()
 
     await pickShare(header, 'copy link')

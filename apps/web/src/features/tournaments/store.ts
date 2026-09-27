@@ -50,6 +50,14 @@ export interface TournamentEntrant {
    * Such a bot has no `code`.
    */
   readonly bytes?: Uint8Array | undefined
+  /**
+   * A roster or local bot's `%author` when the tournament was made, or a shared one's as its link
+   * carried it. A tournament made before authors has none: `entrantAuthor` reads the roster's, or
+   * the one in `code`.
+   */
+  readonly author?: string | undefined
+  /** A server tournament's bot: its owner's handle. */
+  readonly owner?: string | undefined
 }
 
 export interface Tournament {

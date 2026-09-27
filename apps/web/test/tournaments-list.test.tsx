@@ -134,6 +134,9 @@ describe('the tournament list', () => {
     expect(card.textContent).toContain('finished')
     expect(card.textContent).toContain('3 bots')
     expect(card.textContent).toContain('championimp')
+    // Its author as text: the tile is a link, and holds no other.
+    expect(card.textContent).toContain('by ASM Bots')
+    expect(card.querySelectorAll('a')).toHaveLength(1)
     expect(card.querySelector('svg')).not.toBeNull()
     const other = screen.getByRole('listitem', { name: 'summer melee' })
     expect(other.textContent).toContain('scheduled')

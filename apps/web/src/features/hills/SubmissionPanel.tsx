@@ -23,7 +23,7 @@ import { LoadFailure } from '../../app/LoadFailure'
 import { useMotionReduced } from '../../store/settings'
 import type { LiveRoomState } from '../live/room'
 import { VerifyMatch } from '../verify/VerifyMatch'
-import { BotLink, CELL_LINK, count } from './links'
+import { BotAuthor, BotLink, CELL_LINK, count } from './links'
 import { matchTitle, verifiable } from './MatchesTable'
 
 /** A match from the challenger's side (entrant 0): won, lost, or tied, and the points. */
@@ -89,11 +89,20 @@ const COLUMNS: TableColumn<Row>[] = [
   {
     id: 'opponent',
     header: 'vs',
-    cell: (row) => (
-      <span className="text-bright">
-        {nameOf(row.kind === 'played' ? row.summary.bots[1] : row.opponent)}
-      </span>
-    ),
+    cell: (row) => {
+      const bot = row.kind === 'played' ? row.summary.bots[1] : row.opponent
+      return (
+        <>
+          <span className="text-bright">{nameOf(bot)}</span>
+          {bot != null && (
+            <span className="text-muted">
+              {' '}
+              by <BotAuthor bot={bot} />
+            </span>
+          )}
+        </>
+      )
+    },
   },
   {
     id: 'result',
@@ -273,12 +282,12 @@ export function SubmissionPanel({ hill, id, onClose, live, className }: Submissi
     >
       <div className="flex flex-col gap-3">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="min-w-0 truncate text-data">
+          <span className="min-w-0 truncate-ring text-data">
             {bot === null ? '[deleted]' : <BotLink bot={bot} />}
             {bot !== null && (
               <span className="text-muted">
                 {' '}
-                v{bot.version} · {bot.owner}
+                v{bot.version} · by <BotAuthor bot={bot} />
               </span>
             )}
           </span>

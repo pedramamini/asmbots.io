@@ -1,11 +1,13 @@
 /**
- * A standings table (PRODUCT_SPEC §4): rank, bot, W/T/L, and points, each column sortable from its
- * header; a round robin's or a melee's, with the melee's own columns after them. The rank is the
- * place in the standings as scored, so it stays with the bot however the table is sorted.
+ * A standings table (PRODUCT_SPEC §4): rank, bot (by its author), W/T/L, and points, each column
+ * sortable from its header; a round robin's or a melee's, with the melee's own columns after them.
+ * The rank is the place in the standings as scored, so it stays with the bot however the table is
+ * sorted.
  */
 import type { CsvStanding } from '@asmbots/tourney'
 import { Table, type TableColumn } from '@asmbots/ui'
 import { useMemo } from 'react'
+import { type Author, ByAuthor } from '../../app/author'
 
 export interface StandingsTableProps<Row extends CsvStanding> {
   /** The standings as scored: the first is the leader. */
@@ -14,6 +16,8 @@ export interface StandingsTableProps<Row extends CsvStanding> {
   extra?: readonly TableColumn<Row>[] | undefined
   /** The row of the champion, once there is one: its name takes the accent. */
   champion?: number | null | undefined
+  /** Each entrant's author, by entrant index (`useEntrantAuthors`). */
+  authors?: readonly (Author | null)[] | undefined
   className?: string | undefined
 }
 
@@ -25,6 +29,7 @@ export function StandingsTable<Row extends CsvStanding>({
   rows,
   extra = NONE,
   champion = null,
+  authors = NONE,
   className,
 }: StandingsTableProps<Row>) {
   const columns = useMemo((): TableColumn<Row>[] => {
@@ -52,9 +57,12 @@ export function StandingsTable<Row extends CsvStanding>({
         id: 'bot',
         header: 'bot',
         cell: (s) => (
-          <span className={s.entrant === champion ? 'text-accent-fg' : 'text-bright'}>
-            {s.name}
-          </span>
+          <>
+            <span className={s.entrant === champion ? 'text-accent-fg' : 'text-bright'}>
+              {s.name}
+            </span>
+            <ByAuthor author={authors[s.entrant]} />
+          </>
         ),
         sortValue: (s) => s.name,
       },
@@ -64,7 +72,7 @@ export function StandingsTable<Row extends CsvStanding>({
       numeric('points', 'points'),
       ...extra,
     ]
-  }, [rows, extra, champion])
+  }, [rows, extra, champion, authors])
   return (
     <Table
       aria-label="standings"

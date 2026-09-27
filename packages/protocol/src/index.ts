@@ -149,6 +149,8 @@ export {
   HillEventKind,
   HillScoring,
   HillSubmission,
+  HOUSE_AUTHOR,
+  HOUSE_HANDLE,
   handleProblem,
   isAllowedHandle,
   Match,

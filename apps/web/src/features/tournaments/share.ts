@@ -6,6 +6,7 @@
  * standings its matches do not add up to. A roster bot travels as its slug. A local bot travels as
  * its machine code when that is at most `INLINE_BYTES_UP_TO` bytes (the assembler's limit, so any
  * bot that assembles), so its rounds can be watched; one that does not travels as its name only.
+ * A local bot's `%author` goes with it, so the page can say who wrote it.
  *
  * `/tournaments/$id` reads the fragment when this browser has no tournament by that id. A shared
  * tournament is a snapshot: nothing runs it here, so one that was running reads as paused.
@@ -85,6 +86,8 @@ interface LinkEntrant {
   readonly ref: string
   readonly name: string
   readonly bytes?: string | undefined
+  /** A local bot's `%author`, when it has one: a link made before authors has none. */
+  readonly author?: string | undefined
 }
 
 /** A tournament as a link carries it: its id is the page's. */
@@ -117,6 +120,13 @@ function inlineBytes(entrant: TournamentEntrant): Uint8Array | undefined {
     : undefined
 }
 
+/** A local entrant's `%author`: its own, else its source's; '' for none. One line, as a link reads it. */
+function localAuthor(entrant: TournamentEntrant): string {
+  const author =
+    entrant.author ?? (entrant.code === undefined ? '' : assembleCached(entrant.code).author)
+  return REF.test(author) ? author : ''
+}
+
 /**
  * The entrants of `t` whose machine code a link cannot carry (a local bot that does not assemble,
  * a server tournament's): their rounds cannot be watched from it.
@@ -139,11 +149,13 @@ export function tournamentFragment(t: Tournament): string {
     thirdPlace: t.thirdPlace,
     entrants: t.entrants.map((e) => {
       const bytes = inlineBytes(e)
+      const author = e.source === 'local' ? localAuthor(e) : ''
       return {
         source: e.source,
         ref: e.ref,
         name: e.name,
         ...(bytes !== undefined && { bytes: toBase64Url(bytes) }),
+        ...(author !== '' && { author }),
       }
     }),
     matches: t.matches,
@@ -224,7 +236,9 @@ function parseEntrant(value: unknown, i: number): TournamentEntrant {
   const source = oneOf(e.source, ['roster', 'local', 'server'] as const, `${what}'s source`)
   const ref = text(e.ref, `${what}'s id`, REF)
   const name = text(e.name, `${what}'s name`, NAME)
-  if (e.bytes === undefined || source === 'roster') return { source, ref, name }
+  if (source === 'roster') return { source, ref, name }
+  const author = e.author === undefined ? {} : { author: text(e.author, `${name}'s author`, REF) }
+  if (e.bytes === undefined) return { source, ref, name, ...author }
   let bytes: Uint8Array
   try {
     bytes = fromBase64Url(text(e.bytes, `${name}'s bytes`))
@@ -237,7 +251,7 @@ function parseEntrant(value: unknown, i: number): TournamentEntrant {
       `${name} is ${bytes.length.toLocaleString('en-US')} bytes, and a link carries 1 to ${most}`,
     )
   }
-  return { source, ref, name, bytes }
+  return { source, ref, name, bytes, ...author }
 }
 
 function drawBracket(names: readonly string[], seeding: Seeding, thirdPlace: boolean): Bracket {

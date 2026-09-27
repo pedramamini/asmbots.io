@@ -508,7 +508,7 @@ describe('the submission panel', () => {
       .getAllByRole('row')
       .slice(1)
       .map((row) => row.textContent)
-    expect(rows).toEqual(['Paperwon 9–0verifywatch', 'Dwarffighting…'])
+    expect(rows).toEqual(['Paper by ASM Botswon 9–0verifywatch', 'Dwarf by ASM Botsfighting…'])
 
     // The next poll finds it finished: the result card, and the hill read again. (Under the test
     // preload TanStack Query thinks it runs on a server and sets no interval: the test polls.)
@@ -624,10 +624,19 @@ describe('the feed and the king', () => {
         .getAllByRole('listitem')
         .map((li) => li.textContent),
     ).toEqual([
-      '5m agoLoop entered at #2 +3 rank · pushed off Imp (#3)',
-      '5m agoPaper entered at #1 new',
-      '5m agoDwarf missed the hill · scored 7',
+      '5m agoLoop by octo entered at #2 +3 rank · pushed off Imp by ASM Bots (#3)',
+      '5m agoPaper by ASM Bots entered at #1 new',
+      '5m agoDwarf by ASM Bots missed the hill · scored 7',
     ])
+    // Each bot's author opens their profile: the owner's, the house's as `ASM Bots`.
+    const octo = within(list).getByRole('link', { name: 'octo' })
+    expect([octo.getAttribute('href'), octo.getAttribute('title')]).toEqual([
+      '/u/octo',
+      "octo's profile",
+    ])
+    expect(within(list).getAllByRole('link', { name: 'ASM Bots' })[0]?.getAttribute('href')).toBe(
+      '/u/system',
+    )
   })
 
   it('shows the king, and an empty hill', async () => {
@@ -642,6 +651,19 @@ describe('the feed and the king', () => {
     expect(
       await screen.findByText('nobody holds this hill yet: the first bot takes it.'),
     ).toBeTruthy()
+  })
+
+  it('names the king’s author, the owner, with a %author of another name in the tooltip', async () => {
+    const [first] = MAIN_DETAIL.standings as [(typeof MAIN_DETAIL.standings)[0]]
+    const bot = { ...first.bot, owner: 'alice', author: 'Alice Smith' }
+    await renderAt('/', () => <KingCard king={{ ...first, bot }} />)
+    const card = await screen.findByRole('region', { name: 'king' })
+    expect(card.textContent).toContain('v1 · by alice')
+    const alice = within(card).getByRole('link', { name: 'alice' })
+    expect([alice.getAttribute('href'), alice.getAttribute('title')]).toEqual([
+      '/u/alice',
+      "alice's profile · %author Alice Smith",
+    ])
   })
 })
 

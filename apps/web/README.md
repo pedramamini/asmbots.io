@@ -24,7 +24,7 @@ One file a part of the app, in `guide/`. Read the one your change touches; paths
 | [Stats](guide/stats.md) | `/stats`, the leaderboard, and the badges |
 | [Empty and error states](guide/states.md) | what each page shows while loading, empty, offline, or failed |
 | [Sharing and embeds](guide/sharing.md) | share links, replays, screenshots, and the embed |
-| [Details that come with age](guide/details.md) | release names, the 404 imp, `robots.txt`, a bot's fights, the king's reign |
+| [Details that come with age](guide/details.md) | release names, the 404 imp, `robots.txt`, a bot's fights, the king's reign, bots' authors |
 | [Accessibility](guide/accessibility.md) | DESIGN_SYSTEM §8 in practice, and the four Playwright specs that hold it |
 | [Budgets](guide/budgets.md) | bundle, runtime, and network budgets, and what `bun run bundle` checks |
 | [Lighthouse](guide/lighthouse.md) | the Lighthouse release gate and how to run it before a push |

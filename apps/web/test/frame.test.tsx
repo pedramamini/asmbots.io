@@ -500,8 +500,8 @@ describe('Frame', () => {
     // The first paint: what is always so, while the feed waits for the page to paint.
     expect(ticker.textContent).toContain('▍ASM BOTS')
     await waitFor(() => expect(ticker.textContent).toContain('▍LIVE'))
-    expect(ticker.textContent).toContain('HILL "MAIN" · Dwarf v1 took #1 (+3)')
-    expect(ticker.textContent).toContain('CUP "WEEKLY 2026-09-19" won by Paper v1')
+    expect(ticker.textContent).toContain('HILL "MAIN" · Dwarf v1 by ASM Bots took #1 (+3)')
+    expect(ticker.textContent).toContain('CUP "WEEKLY 2026-09-19" to Paper v1 by ASM Bots')
     expect(ticker.textContent).toContain('3 ENTERED · 4 WATCHING')
     const arrow = within(ticker).getByRole('link', { name: 'open the main hill' })
     expect(arrow.getAttribute('href')).toBe('/hills/main')

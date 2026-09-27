@@ -7,7 +7,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import type { BattleConfigInput } from '@asmbots/engine'
 import { type Bracket, bracket, createBracket, DEFAULT_BRACKET_PALETTE } from '@asmbots/tourney'
-import { ToastProvider } from '@asmbots/ui'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { useState } from 'react'
 import { stubLayout, useDom, window } from '../../../packages/ui/test/dom'
@@ -18,6 +17,7 @@ import { resultsJson, themePalette } from '../src/features/tournaments/export'
 import { entrantBots } from '../src/features/tournaments/runner'
 import type { Tournament, TournamentEntrant } from '../src/features/tournaments/store'
 import { watchTarget } from '../src/features/tournaments/watch'
+import { renderAt } from './api-server'
 import { stubCanvas } from './fake-canvas'
 import { manualSchedule, type SessionWorker, sessionClient } from './session-worker'
 
@@ -124,16 +124,17 @@ describe('BracketView', () => {
       made.push(next)
       return next.client
     }
-    render(
-      <ToastProvider>
-        <BracketView tournament={t} createClient={createClient} />
-      </ToastProvider>,
-    )
+    await renderAt('/tournaments/cup', () => (
+      <BracketView tournament={t} createClient={createClient} />
+    ))
     expect(nodes()).toHaveLength(3)
     const final = t.bracket?.matches[t.bracket.final]
     fireEvent.click(node(final?.id as number))
     const panel = screen.getByRole('region', { name: 'match' })
     expect(panel.textContent).toContain('final · match 3')
+    // Each entrant by its author: a roster bot's is the house's, linked to its profile.
+    const entrants = within(panel).getByRole('list', { name: 'entrants' })
+    expect(entrants.textContent).toContain('by ASM Bots')
     const table = within(panel).getByRole('table', { name: 'rounds' })
     expect(within(table).getAllByRole('button', { name: /^watch round/ })).toHaveLength(2)
 
@@ -154,16 +155,12 @@ describe('BracketView', () => {
     await waitFor(() => expect(within(dialog).getByText('verified')).toBeTruthy())
   })
 
-  it('marks the next ready match live while the tournament runs', () => {
+  it('marks the next ready match live while the tournament runs', async () => {
     const b = createBracket(named(4), { seeding: 'given' })
     const running = tournament({ status: 'running', bracket: b })
     expect(liveMatches(running)).toEqual([0])
     expect(liveMatches({ ...running, status: 'paused' })).toEqual([])
-    render(
-      <ToastProvider>
-        <BracketView tournament={running} />
-      </ToastProvider>,
-    )
+    await renderAt('/tournaments/cup', () => <BracketView tournament={running} />)
     expect(node(0).dataset.live).toBe('true')
     expect(node(1).dataset.live).toBeUndefined()
     fireEvent.click(node(0))

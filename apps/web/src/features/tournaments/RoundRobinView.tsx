@@ -12,6 +12,7 @@ import { MatchPanel } from './MatchPanel'
 import { ResultsMatrix } from './ResultsMatrix'
 import { StandingsTable } from './Standings'
 import type { Tournament } from './store'
+import { useEntrantAuthors } from './TournamentsPage'
 import { matchVerify } from './verify'
 import { useRoundWatch, WatchModal } from './WatchModal'
 
@@ -24,6 +25,7 @@ export interface RoundRobinViewProps {
 export function RoundRobinView({ tournament: t, createClient }: RoundRobinViewProps) {
   const [selected, setSelected] = useState<number | null>(null)
   const watching = useRoundWatch()
+  const authors = useEntrantAuthors(t.entrants)
   const n = t.entrants.length
   const schedule = useMemo(() => (n < 2 ? [] : roundRobinSchedule(n)), [n])
   const standings = (t.standings ?? []) as readonly Standing[]
@@ -55,17 +57,30 @@ export function RoundRobinView({ tournament: t, createClient }: RoundRobinViewPr
           actions={actions}
           className="min-w-0"
         >
-          <ResultsMatrix tournament={t} selected={selected} onSelect={setSelected} />
+          <ResultsMatrix
+            tournament={t}
+            authors={authors}
+            selected={selected}
+            onSelect={setSelected}
+          />
         </Panel>
         <Panel title="standings" status={`${n} bots`} className="min-w-0">
-          <StandingsTable rows={standings} champion={t.champion} className="max-h-96" />
+          <StandingsTable
+            rows={standings}
+            champion={t.champion}
+            authors={authors}
+            className="max-h-96"
+          />
         </Panel>
       </div>
       {spec !== undefined && result !== undefined && (
         <MatchPanel
           title={`${result.names.join(' v ')} · match ${(selected as number) + 1}`}
           status="done"
-          entrants={spec.entrants.map((e) => ({ name: t.entrants[e]?.name ?? `bot ${e + 1}` }))}
+          entrants={spec.entrants.map((e) => ({
+            name: t.entrants[e]?.name ?? `bot ${e + 1}`,
+            author: authors[e],
+          }))}
           result={result}
           winner={winnerOf(result.points)}
           onWatch={(round) => watching.watch(t, spec.entrants, result, round)}

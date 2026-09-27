@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import type { TickerChampionship, TickerHillEvent } from '@asmbots/protocol'
+import type { BotLabel, TickerChampionship, TickerHillEvent } from '@asmbots/protocol'
 import {
   createMemoryHistory,
   createRootRoute,
@@ -124,8 +124,8 @@ describe('the ticker', () => {
     expect([lead.type, lead.props.children]).toEqual(['b', '▍LIVE'])
     expect(texts(feed)).toEqual([
       'HILL "MAIN"',
-      'Dwarf v1 took #1 (+3)',
-      'CUP "WEEKLY 2026-09-19" won by Paper v1',
+      'Dwarf v1 by ASM Bots took #1 (+3)',
+      'CUP "WEEKLY 2026-09-19" to Paper v1 by ASM Bots',
       'NEXT CHAMPIONSHIP IN 2D 04H',
       '3 ENTERED',
       '4 WATCHING',
@@ -156,8 +156,10 @@ describe('the ticker', () => {
     const hill = TICKER.hill as TickerHillEvent
     const event = (e: Partial<TickerHillEvent['event']>, bot = hill.bot) =>
       challengeText({ ...hill, bot, event: { ...hill.event, ...e } })
-    expect(event({ delta: -2, rank: 5 })).toBe('Dwarf v1 took #5 (-2)')
-    expect(event({ delta: null, rank: 9 })).toBe('Dwarf v1 took #9')
+    expect(event({ delta: -2, rank: 5 })).toBe('Dwarf v1 by ASM Bots took #5 (-2)')
+    expect(event({ delta: null, rank: 9 }, { ...(hill.bot as BotLabel), owner: 'alice' })).toBe(
+      'Dwarf v1 by alice took #9',
+    )
     expect(event({ kind: 'rejected', rank: null, delta: null }, null)).toBe(
       '[deleted] missed the hill',
     )

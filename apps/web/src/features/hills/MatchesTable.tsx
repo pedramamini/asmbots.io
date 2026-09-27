@@ -1,12 +1,14 @@
 /**
- * Finished matches (PRODUCT_SPEC §1, §5): who fought, who won, and the points. A row with a stored
- * replay opens it in the arena: a click on the row, or its `watch` link. Its `verify` runs it here
- * and checks it against the server's result (`VerifyMatch`).
+ * Finished matches (PRODUCT_SPEC §1, §5): who fought (their authors in the row's title), who won,
+ * and the points. A row with a stored replay opens it in the arena: a click on the row (off its
+ * links), or its `watch` link. Its `verify` runs it here and checks it against the server's result
+ * (`VerifyMatch`).
  */
 import type { BotLabel, MatchSummary } from '@asmbots/protocol'
 import { EmptyState, Skeleton, Table, type TableColumn } from '@asmbots/ui'
 import { Link, useNavigate } from '@tanstack/react-router'
-import type { ReactNode } from 'react'
+import { Fragment, type ReactNode } from 'react'
+import { byline, ownerAuthor } from '../../app/author'
 import { useLinkAction } from '../../app/link-action'
 import { VerifyMatch } from '../verify/VerifyMatch'
 import { CELL_LINK } from './links'
@@ -45,32 +47,43 @@ export function matchScore({ match }: MatchSummary): string {
 }
 
 /**
- * The match's name with its winner lit in the accent, for a table with no room for a winner
+ * A duel's names, the name `lit` in the accent. A melee reads its count. The authors stay out of
+ * the row: a table cell has no room for them past the names, and a link cut off by the ellipsis
+ * would take focus out of sight. The row's title names them (`matchByline`).
+ */
+function Names({ match, lit = null }: { match: MatchSummary; lit?: string | null }) {
+  if (match.bots.length !== 2) return <>{matchTitle(match)}</>
+  return match.bots.map((bot, i) => (
+    <Fragment key={i}>
+      {i > 0 && <span className="text-muted"> vs </span>}
+      <span className={bot !== null && bot.name === lit ? 'text-accent-fg' : undefined}>
+        {nameOf(bot)}
+      </span>
+    </Fragment>
+  ))
+}
+
+/** `Dwarf by alice vs Imp by ASM Bots`: the match's title with each bot's author. */
+function matchByline({ bots }: MatchSummary): string {
+  if (bots.length !== 2) return `${bots.length} bots`
+  return bots
+    .map((bot) => (bot === null ? '[deleted]' : byline(bot.name, ownerAuthor(bot.owner))))
+    .join(' vs ')
+}
+
+/**
+ * The match's names with its winner lit in the accent, for a table with no room for a winner
  * column: `Dwarf vs Imp` with Dwarf in accent; a draw, or a melee, in plain text. The title
  * spells it out for the pointer, and the accessible name for a screen reader.
  */
 function MatchCell({ match }: { match: MatchSummary }) {
-  const title = matchTitle(match)
+  const title = matchByline(match)
   const winner = matchWinner(match)
-  const names = match.bots.length === 2 ? match.bots.map(nameOf) : null
   const said =
     winner === null ? title : `${title} · ${winner === 'draw' ? 'draw' : `${winner} won`}`
-  if (names === null || winner === null || winner === 'draw') {
-    return (
-      <span className="text-bright" title={said} aria-label={said}>
-        {title}
-      </span>
-    )
-  }
-  const [a, b] = names as [string, string]
-  const lit = (name: string) => (
-    <span className={name === winner ? 'text-accent-fg' : undefined}>{name}</span>
-  )
   return (
     <span className="text-bright" title={said} aria-label={said}>
-      {lit(a)}
-      <span className="text-muted"> vs </span>
-      {lit(b)}
+      <Names match={match} lit={winner === 'draw' ? null : winner} />
     </span>
   )
 }
@@ -87,8 +100,8 @@ const columns = (compact: boolean): TableColumn<MatchSummary>[] => [
       compact ? (
         <MatchCell match={m} />
       ) : (
-        <span className="text-bright" title={matchTitle(m)}>
-          {matchTitle(m)}
+        <span className="text-bright" title={matchByline(m)}>
+          <Names match={m} />
         </span>
       ),
   },
@@ -163,7 +176,9 @@ export function MatchesTable({
           ))
         )
       }
-      onRowClick={(m) => {
+      onRowClick={(m, event) => {
+        // A link in the row (`watch`) goes where it says.
+        if (event.target instanceof Element && event.target.closest('a') !== null) return
         const key = m.match.replayKey
         if (key !== null) void navigate({ to: '/arena/$replayId', params: { replayId: key } })
       }}

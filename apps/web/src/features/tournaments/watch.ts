@@ -21,6 +21,8 @@ export interface WatchTarget {
   readonly label: string
   /** The recorded result hash: the replay's check. None for a round not played yet. */
   readonly resultHash?: string | undefined
+  /** The bots' entrants, in fighting order: who wrote each (`entrantAuthor`). */
+  readonly entrants?: readonly TournamentEntrant[] | undefined
 }
 
 /** `Dwarf v Imp`, or `6 bots` past three. */
@@ -38,24 +40,28 @@ export function watchTarget(
   result: MatchResult,
   round: MatchRound,
 ): WatchTarget {
-  const all = entrantBots(entrants.map((e) => tournament.entrants[e] as TournamentEntrant))
+  const picked = entrants.map((e) => tournament.entrants[e] as TournamentEntrant)
+  const all = entrantBots(picked)
   const bots = round.order.map((k) => all[k] as ArenaBot)
   return {
     bots,
     config: { ...tournament.config, seed: round.seed },
     label: `${matchLabel(result.names)} · round ${round.round + 1}`,
     resultHash: round.resultHash,
+    entrants: round.order.map((k) => picked[k] as TournamentEntrant),
   }
 }
 
 /**
  * Round `round` of `result`, a server tournament's match, from `replay`, the match the server
- * stored: its bots in the round's order, its config with the round's seed.
+ * stored: its bots in the round's order, its config with the round's seed. `picked`: the match's
+ * entrants, in its order, when the page has them.
  */
 export function replayWatchTarget(
   replay: Replay,
   result: MatchResult,
   round: MatchRound,
+  picked?: readonly TournamentEntrant[],
 ): WatchTarget {
   const bots = replayBots(replay)
   return {
@@ -63,6 +69,8 @@ export function replayWatchTarget(
     config: { ...replayConfig(replay), seed: round.seed },
     label: `${matchLabel(result.names)} · round ${round.round + 1}`,
     resultHash: round.resultHash,
+    entrants:
+      picked === undefined ? undefined : round.order.map((k) => picked[k] as TournamentEntrant),
   }
 }
 
@@ -79,9 +87,11 @@ export function liveWatchTarget(
   const picked = entrants.map((e) => tournament.entrants[e] as TournamentEntrant)
   const all = entrantBots(picked)
   const seed = tournament.config.seed ?? DEFAULT_CONFIG.seed
+  const order = roundOrder(all.length, round)
   return {
-    bots: roundOrder(all.length, round).map((k) => all[k] as ArenaBot),
+    bots: order.map((k) => all[k] as ArenaBot),
     config: { ...tournament.config, seed: roundSeed(seed, round) },
     label: `live · ${matchLabel(picked.map((e) => e.name))} · round ${round + 1}`,
+    entrants: order.map((k) => picked[k] as TournamentEntrant),
   }
 }

@@ -151,6 +151,8 @@ export interface PickedEntrant {
   readonly ref: string
   readonly name: string
   readonly code?: string | undefined
+  /** Its `%author`. */
+  readonly author?: string | undefined
   readonly size: number
 }
 
@@ -194,11 +196,12 @@ export function tournamentInput(
   if (seed === null) return null
   const names = uniqueNames(draft.entrants.map((e) => e.name))
   const entrants = draft.entrants.map(
-    ({ source, ref, code }, i): TournamentEntrant => ({
+    ({ source, ref, code, author }, i): TournamentEntrant => ({
       source,
       ref,
       name: names[i] as string,
       ...(code === undefined ? {} : { code }),
+      ...(author === undefined ? {} : { author }),
     }),
   )
   const name = draft.name.trim() || defaultName(kind, entrants.length)

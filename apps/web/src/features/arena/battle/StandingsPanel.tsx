@@ -3,6 +3,7 @@ import { type MatchResult, meleeStandings } from '@asmbots/tourney'
 import { HueSwatch, Panel, Table, type TableColumn } from '@asmbots/ui'
 import { useMemo } from 'react'
 import { useStore } from 'zustand'
+import { type Author, byline } from '../../../app/author'
 import type { ArenaClient } from '../worker/client'
 import { useLogTick } from './hooks'
 import type { BattleLog } from './log'
@@ -10,6 +11,8 @@ import type { BattleLog } from './log'
 export interface StandingsPanelProps {
   client: ArenaClient
   log: BattleLog
+  /** Who wrote each bot, by bot index. */
+  authors: readonly Author[]
   className?: string | undefined
 }
 
@@ -59,11 +62,11 @@ export function runningStandings(
 const count = (n: number) => n.toLocaleString('en-US')
 
 /**
- * The rail's standings (PRODUCT_SPEC §2), for a match of more than one round: each bot's pMARS
- * points so far, its wins, ties, and losses, and, live, what the round in play would add if it
- * ended now.
+ * The rail's standings (PRODUCT_SPEC §2), for a match of more than one round: each bot (its author
+ * in the name's title: the rail has no room for a link beside it), its pMARS points so far, its
+ * wins, ties, and losses, and, live, what the round in play would add if it ended now.
  */
-export function StandingsPanel({ client, log, className }: StandingsPanelProps) {
+export function StandingsPanel({ client, log, authors, className }: StandingsPanelProps) {
   // Redraws with the log, a few times a second, not with every frame.
   const tick = useLogTick(log)
   const match = useStore(client.store, (state) => state.match)
@@ -94,7 +97,9 @@ export function StandingsPanel({ client, log, className }: StandingsPanelProps) 
         cell: (row) => (
           <span className="inline-flex max-w-full items-center gap-2">
             <HueSwatch hue={row.bot} />
-            <span className="truncate text-bright">{row.name}</span>
+            <span className="truncate text-bright" title={byline(row.name, authors[row.bot])}>
+              {row.name}
+            </span>
           </span>
         ),
       },
@@ -129,7 +134,7 @@ export function StandingsPanel({ client, log, className }: StandingsPanelProps) 
         cell: (row) => <span className="text-bright">{count(row.points)}</span>,
       },
     ],
-    [rows],
+    [rows, authors],
   )
 
   const done = match !== null && match.rounds.length === match.of

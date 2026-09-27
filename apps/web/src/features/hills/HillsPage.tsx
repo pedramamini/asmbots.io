@@ -55,7 +55,7 @@ const COLUMNS: TableColumn<HillSummary>[] = [
     id: 'king',
     header: 'king',
     cell: ({ king }) =>
-      king === null ? <span className="text-muted">none</span> : <BotLink bot={king.bot} />,
+      king === null ? <span className="text-muted">none</span> : <BotLink bot={king.bot} by />,
     sortValue: ({ king }) => king?.bot.name ?? '',
   },
   {

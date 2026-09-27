@@ -21,6 +21,7 @@ import { Battle, type LoadedBot, NullSink } from '@asmbots/engine'
 import { replayConfig, replayMatch } from '@asmbots/protocol'
 import type { MatchResult } from '@asmbots/tourney'
 import { ToastProvider } from '@asmbots/ui'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   createMemoryHistory,
   createRootRoute,
@@ -128,10 +129,14 @@ async function renderBattle(fight = fightOf(), extra: Extra = {}, speed?: Speed)
   })
   client.load(fight.bots, fight.config, fight.rounds)
   if (speed !== undefined) client.speed(speed)
+  // The battle reads the signed-in user (nobody, here) for its authors' links.
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
-    <ToastProvider>
-      <RouterProvider router={router} />
-    </ToastProvider>,
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <RouterProvider router={router} />
+      </ToastProvider>
+    </QueryClientProvider>,
   )
   await screen.findByRole('application', { name: 'arena' })
   await waitFor(() => expect(client.store.getState().status).toBe('paused'))
@@ -188,6 +193,8 @@ describe('the battle', () => {
       expect.stringMatching(/^Dwarf.*alive$/),
       expect.stringMatching(/^Imp.*alive$/),
     ])
+    // The rail has no room for an author's link: the name's title names them.
+    expect(within(bots()).getByTitle('Dwarf by ASM Bots')).toBeTruthy()
     expect(events().textContent).toContain('seed 1')
     expect(screen.getByRole('region', { name: 'arena' }).textContent).toContain('seed 1')
   })
@@ -335,7 +342,9 @@ describe('the battle', () => {
     const tip = await screen.findByRole('tooltip')
     expect(tip.textContent).toContain(`0x${dwarf.toString(16).toUpperCase().padStart(4, '0')}`)
     // The scene takes the load's frame at the next display frame, and the tooltip with it.
-    await waitFor(() => expect(tip.textContent).toContain('owned by Dwarf · loaded at cycle 0'))
+    await waitFor(() =>
+      expect(tip.textContent).toContain('owned by Dwarf (ASM Bots) · loaded at cycle 0'),
+    )
 
     // The byte Dwarf writes first, under a pointer that rests there while a step writes it.
     const battle = new Battle(DUEL, { seed: 1 })
@@ -356,7 +365,7 @@ describe('the battle', () => {
     act(() => client.step(cycle + 1))
     await waitFor(() =>
       expect(screen.getByRole('tooltip').textContent).toContain(
-        'owned by Dwarf · written 1 cycle ago',
+        'owned by Dwarf (ASM Bots) · written 1 cycle ago',
       ),
     )
     fireEvent.pointerMove(screen.getByRole('toolbar', { name: 'arena view' }), {
@@ -588,6 +597,7 @@ describe('a match', () => {
     expect(screen.queryByRole('region', { name: /winner/ })).toBeNull()
     const standings = screen.getByRole('table', { name: 'standings' })
     expect(within(standings).getAllByRole('row')[1]?.textContent).toMatch(/^1Dwarf1\/0\/03$/)
+    expect(within(standings).getByTitle('Dwarf by ASM Bots')).toBeTruthy()
     fireEvent.click(within(between).getByRole('button', { name: 'next round' }))
     await settle()
     expect(client.store.getState()).toMatchObject({ round: 1, status: 'playing', order: [1, 0] })

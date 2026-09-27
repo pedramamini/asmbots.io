@@ -6,7 +6,7 @@
  * while a page asks for the room.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
-import type { LiveMessage } from '@asmbots/protocol'
+import type { BotLabel, LiveMessage } from '@asmbots/protocol'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createStore, type StoreApi, useStore } from 'zustand'
 import { stubLayout, useDom, window } from '../../../packages/ui/test/dom'
@@ -59,12 +59,17 @@ afterAll(() => {
 
 /** The panel on a room the test tells: `say` puts messages through the page's reducer. */
 async function panel(...messages: LiveMessage[]) {
+  return panelKnowing([], ...messages)
+}
+
+/** `panel`, on a page that has read the bots `labels`. */
+async function panelKnowing(labels: readonly BotLabel[], ...messages: LiveMessage[]) {
   const room: StoreApi<LiveRoomState> = createStore<LiveRoomState>()(() =>
     messages.reduce(reduceLive, { ...IDLE_ROOM, status: 'connecting' }),
   )
   function Harness() {
     const live = useStore(room)
-    return <LivePanel live={live} createClient={createClient} dwell={0} rest={0} />
+    return <LivePanel live={live} labels={labels} createClient={createClient} dwell={0} rest={0} />
   }
   await renderAt('/hills/main', () => <Harness />, '/hills/$slug')
   const say = (...more: LiveMessage[]) =>
@@ -168,6 +173,26 @@ describe('LivePanel', () => {
     expect(shownMatch()).toBeUndefined()
     expect(worker.terminated).toBe(true)
     expect(region.textContent).toContain('fighting: Loop v Dat')
+  })
+
+  it('names a bot’s owner when the page has read its version, a link to the profile', async () => {
+    const duel = await liveDuel('s6-1', 1)
+    const loop: BotLabel = {
+      botId: 'b1',
+      versionId: 'v-loop',
+      slug: 'loop',
+      name: 'Loop',
+      version: 1,
+      owner: 'alice',
+      author: null,
+    }
+    const { region } = await panelKnowing([loop], HELLO, running(0), started(duel))
+    await waitFor(() => expect(shownMatch()).toBe('s6-1'))
+    const bots = within(region).getByRole('list', { name: 'bots' })
+    expect(within(bots).getByRole('link', { name: 'alice' }).getAttribute('href')).toBe('/u/alice')
+    fireEvent.click(within(region).getByRole('button', { name: 'auto-watch' }))
+    // Dat's version is not one the page has read: no author.
+    expect(region.textContent).toContain('fighting: Loop by alice v Dat')
   })
 
   it('says the room is quiet with no job running, and asks an old page to reload', async () => {

@@ -204,7 +204,11 @@ describe('the embed', () => {
       within(legend)
         .getAllByRole('listitem')
         .map((item) => item.textContent),
-    ).toEqual(['Dwarf', 'Imp'])
+    ).toEqual(['Dwarf by ASM Bots', 'Imp by ASM Bots'])
+    // An author's link leaves the embed for the site, in a new tab.
+    const house = within(legend).getAllByRole('link', { name: 'ASM Bots' })[0]
+    expect(house?.getAttribute('href')).toBe('/u/system')
+    expect(house?.getAttribute('target')).toBe('_blank')
     const watch = within(main).getByRole('link', { name: 'watch on asmbots' })
     expect(watch.getAttribute('href')).toBe(
       'http://localhost/arena?b=roster:dwarf,roster:imp&seed=1',

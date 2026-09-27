@@ -1,6 +1,7 @@
 import { HueSwatch, Panel, Sparkline, Table, type TableColumn } from '@asmbots/ui'
 import { useMemo } from 'react'
 import { useStore } from 'zustand'
+import { type Author, byline } from '../../../app/author'
 import type { ArenaClient } from '../worker/client'
 import { STAT_FIELDS, STAT_FOOTPRINT, STAT_PROCS, STAT_WRITES } from '../worker/protocol'
 import { useLogTick } from './hooks'
@@ -9,6 +10,8 @@ import { type BattleLog, type BotDeath, killerText, reasonText } from './log'
 export interface BotsPanelProps {
   client: ArenaClient
   log: BattleLog
+  /** Who wrote each bot, by bot index. */
+  authors: readonly Author[]
   /** The bots isolated. */
   isolated: readonly number[]
   /** Isolates `bot`, or with `add` adds it to the isolated bots or takes it out. */
@@ -20,6 +23,7 @@ export interface BotsPanelProps {
 interface BotRow {
   readonly index: number
   readonly name: string
+  readonly author: Author | undefined
   readonly procs: number
   readonly footprint: number
   readonly writes: number
@@ -30,11 +34,19 @@ interface BotRow {
 const count = (n: number) => n.toLocaleString('en-US')
 
 /**
- * The rail's bots (PRODUCT_SPEC §2): hue, name, processes now and over the last 120 frames, bytes
- * owned, writes, and alive or dead. A click on a row isolates the bot (the rest of the arena dims),
- * a shift-click adds it; the name is the button that does it from the keyboard, as `1`..`9` do.
+ * The rail's bots (PRODUCT_SPEC §2): hue, name (its author in the name's title: the rail has no
+ * room for a link beside it), processes now and over the last 120 frames, bytes owned, writes, and
+ * alive or dead. A click on a row isolates the bot (the rest of the arena dims), a shift-click adds
+ * it; the name is the button that does it from the keyboard, as `1`..`9` do.
  */
-export function BotsPanel({ client, log, isolated, onIsolate, className }: BotsPanelProps) {
+export function BotsPanel({
+  client,
+  log,
+  authors,
+  isolated,
+  onIsolate,
+  className,
+}: BotsPanelProps) {
   // Redraws with the log, a few times a second, not with every frame.
   const tick = useLogTick(log)
   const meta = useStore(client.store, (state) => state.botMeta)
@@ -48,6 +60,7 @@ export function BotsPanel({ client, log, isolated, onIsolate, className }: BotsP
       return {
         index,
         name: bot.name,
+        author: authors[index],
         procs: stats[o + STAT_PROCS] ?? 0,
         footprint: stats[o + STAT_FOOTPRINT] ?? 0,
         writes: stats[o + STAT_WRITES] ?? 0,
@@ -55,7 +68,7 @@ export function BotsPanel({ client, log, isolated, onIsolate, className }: BotsP
         death: log.deaths[index] ?? null,
       }
     })
-  }, [client, log, meta, tick])
+  }, [client, log, meta, authors, tick])
 
   const columns = useMemo<TableColumn<BotRow>[]>(
     () => [
@@ -71,7 +84,10 @@ export function BotsPanel({ client, log, isolated, onIsolate, className }: BotsP
             className="inline-flex max-w-full cursor-pointer items-center gap-2 rounded-sm focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-accent"
           >
             <HueSwatch hue={bot.index} />
-            <span className={bot.death === null ? 'truncate text-bright' : 'truncate text-muted'}>
+            <span
+              className={bot.death === null ? 'truncate text-bright' : 'truncate text-muted'}
+              title={byline(bot.name, bot.author)}
+            >
               {bot.name}
             </span>
           </button>

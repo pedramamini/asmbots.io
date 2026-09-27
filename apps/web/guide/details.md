@@ -25,12 +25,21 @@
 - **A bot's page** says its fights (the server's matches of any of its versions) and when it was
   first seen, with how long ago; **a hill's king card** its reign: the submissions it has held
   the top through.
+- **Authors.** A server bot's name comes with its author, `Dwarf by alice`: on a hill (the
+  standings' author column, or after the name on a phone; the feed, the king, the matches, a
+  submission), in the hills list's kings, the stats' records and kings, the home page's last
+  champion, and under a bot page's name. The author is the owner, linked to `/u/$handle`
+  (`BotLink by`, `BotAuthor` in `features/hills/links.tsx`, on `app/author.tsx`); the house reads
+  `ASM Bots`, and a `%author` of another name is in the tooltip. A link in a match's row opens
+  the profile, not the replay. The ticker says it in text: its line moves, and its one link is
+  the `→`.
 
 `main` keeps a scroll padding (`scroll-py-2`): a Tab stop the browser scrolls into view keeps its
 focus ring clear of the scrollport's edge (the Tab walk of `/hills/main` found a ring cut there).
 
 Tests: `test/frame.test.tsx` (the version chip, its title, the fps chip), `test/screenshot.test.ts`,
 `test/live-imp.test.tsx`, `test/site-pages.test.ts` (the imp's bytes are the roster imp's loop),
-`test/api-pages.test.tsx`, `scripts/changelog.test.ts`, `scripts/version.test.ts`, and
-`e2e/delights.spec.ts` (the tooltip and the changelog page, the imp walking in WebGL2, a real
-screenshot's footer pixels, and from the Worker: uptime, fights, first seen, reign).
+`test/api-pages.test.tsx`, `test/hills-submit.test.tsx` and `test/stats.test.tsx` (authors),
+`scripts/changelog.test.ts`, `scripts/version.test.ts`, and `e2e/delights.spec.ts` (the tooltip
+and the changelog page, the imp walking in WebGL2, a real screenshot's footer pixels, and from the
+Worker: uptime, fights, first seen, reign).

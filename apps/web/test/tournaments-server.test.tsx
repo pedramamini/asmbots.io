@@ -32,8 +32,7 @@ import {
   roundRobin,
   standingsFromMatches,
 } from '@asmbots/tourney'
-import { ToastProvider } from '@asmbots/ui'
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { HttpResponse, http } from 'msw'
 import { stubLayout, useDom, window } from '../../../packages/ui/test/dom'
 import type { ArenaClient } from '../src/features/arena/worker/client'
@@ -48,7 +47,7 @@ import {
 } from '../src/features/tournaments/store'
 import { TournamentPage } from '../src/features/tournaments/TournamentPage'
 import { TournamentsPage } from '../src/features/tournaments/TournamentsPage'
-import { answer, answerPost, renderAt, useApiServer, WithQueries } from './api-server'
+import { answer, answerPost, renderAt, useApiServer } from './api-server'
 import { stubCanvas } from './fake-canvas'
 import { FakeSockets, LIVE_CONFIG, liveDuel } from './live-fakes'
 import { manualSchedule, type SessionWorker, sessionClient } from './session-worker'
@@ -162,7 +161,9 @@ describe('fromServer', () => {
       rounds: ROUNDS,
       thirdPlace: true,
     })
-    expect(t.entrants).toEqual(names.map((name, i) => ({ source: 'server', ref: `v${i}`, name })))
+    expect(t.entrants).toEqual(
+      names.map((name, i) => ({ source: 'server', ref: `v${i}`, name, owner: LABELS[i]?.owner })),
+    )
     expect(t.bracket?.names).toEqual(names)
     expect(t.champion).toBe(champion(PLAYED))
     // 5 bots play 4 matches, and the third-place match.
@@ -267,13 +268,9 @@ describe('watching a server match', () => {
       made.push(next)
       return next.client
     }
-    render(
-      <WithQueries>
-        <ToastProvider>
-          <BracketView tournament={fromServer(FINISHED)} createClient={createClient} />
-        </ToastProvider>
-      </WithQueries>,
-    )
+    await renderAt('/tournaments/t1', () => (
+      <BracketView tournament={fromServer(FINISHED)} createClient={createClient} />
+    ))
     expect(nodes()).toHaveLength(8)
     fireEvent.click(node(PLAYED.final))
     const panel = screen.getByRole('region', { name: 'match' })
@@ -281,6 +278,17 @@ describe('watching a server match', () => {
     expect(within(panel).getByRole('button', { name: /^verify final · match \d+$/ })).toBeTruthy()
     fireEvent.click(within(panel).getByRole('button', { name: 'watch round 2' }))
     const dialog = await screen.findByRole('dialog')
+    // The legend names each bot's owner, a link to the profile.
+    const legend = within(dialog).getByRole('list', { name: 'bots' })
+    expect(
+      within(legend)
+        .getAllByRole('link')
+        .map((a) => a.getAttribute('href')),
+    ).toEqual(
+      (result.rounds[1]?.order ?? []).map(
+        (k) => `/u/${LABELS[final?.slots[k]?.entrant as number]?.owner}`,
+      ),
+    )
     const round = result.rounds[1]
     const last = () => made[made.length - 1] as (typeof made)[0]
     await waitFor(() => expect(last().worker.sent.some((r) => r.type === 'load')).toBe(true))
@@ -300,13 +308,7 @@ describe('watching a server match', () => {
       ...FINISHED,
       matches: FINISHED.matches.map((m) => ({ ...m, replayKey: null })),
     })
-    render(
-      <WithQueries>
-        <ToastProvider>
-          <BracketView tournament={t} />
-        </ToastProvider>
-      </WithQueries>,
-    )
+    await renderAt('/tournaments/t1', () => <BracketView tournament={t} />)
     fireEvent.click(node(PLAYED.final))
     const panel = screen.getByRole('region', { name: 'match' })
     // No replay, no inputs: nothing to verify either.
@@ -562,9 +564,18 @@ describe('a server tournament’s page', () => {
       within(entrants)
         .getAllByRole('listitem')
         .map((li) => li.textContent),
-    ).toEqual(['Loop (alice)', 'Dat', 'Spin', 'Halt', 'Loop (bob)'])
-    expect(within(entrants).getByTitle('champion').textContent).toBe(
-      entrantNames(LABELS)[champion(PLAYED) as number],
+    ).toEqual([
+      'Loop (alice) by alice',
+      'Dat by alice',
+      'Spin by alice',
+      'Halt by alice',
+      'Loop (bob) by bob',
+    ])
+    // Each owner links to their profile.
+    const bob = within(entrants).getByRole('link', { name: 'bob' })
+    expect(bob.getAttribute('href')).toBe('/u/bob')
+    expect(within(entrants).getByTitle('champion').textContent).toStartWith(
+      entrantNames(LABELS)[champion(PLAYED) as number] as string,
     )
     expect(nodes()).toHaveLength(8)
     expect(screen.getByRole('region', { name: 'live' }).textContent).toContain(
@@ -636,9 +647,13 @@ describe('a server tournament’s page', () => {
       entries: [standing('v2', 1, 600), standing('v0', 2, 300), standing('v1', 3, 0)],
     })
     await waitFor(() => expect(stage.textContent).toContain('match 3 of 5'))
-    expect(within(stage).getByRole('list', { name: 'in the ring' }).textContent).toContain('Dat')
+    const ring = within(stage).getByRole('list', { name: 'in the ring' })
+    expect(ring.textContent).toContain('Dat')
+    // Each bot in the ring by its owner, a link to the profile; and on the scoreboard.
+    expect(within(ring).getAllByRole('link', { name: 'alice' })).toHaveLength(2)
     const board = within(stage).getByRole('list', { name: 'scoreboard' })
     const rows = within(board).getAllByRole('listitem')
+    expect(rows[0]?.textContent).toContain('Spin by alice')
     expect(rows.map((row) => row.getAttribute('aria-label'))).toEqual([
       'Spin',
       'Loop (alice)',

@@ -11,6 +11,7 @@ import { BracketSvg } from './BracketSvg'
 import { downloadBracket, downloadResults } from './export'
 import { MatchPanel } from './MatchPanel'
 import type { Tournament } from './store'
+import { useEntrantAuthors } from './TournamentsPage'
 import { matchVerify } from './verify'
 import { useRoundWatch, WatchModal } from './WatchModal'
 
@@ -98,6 +99,7 @@ function BracketMatchPanel({
   live: boolean
   onWatch: (round: MatchRound) => void
 }) {
+  const authors = useEntrantAuthors(t.entrants)
   const bracket = t.bracket
   if (bracket === undefined) return null
   const entrants = m.slots.map((slot) =>
@@ -105,6 +107,7 @@ function BracketMatchPanel({
       ? {
           name: bracket.names[slot.entrant as number] as string,
           seed: bracket.seeds[slot.entrant as number],
+          author: authors[slot.entrant as number],
         }
       : { name: slot.state === 'bye' ? 'bye' : 'to be decided' },
   )

@@ -41,7 +41,7 @@ export function rankDelta(delta: number | null): string {
 }
 
 function Bot({ summary }: { summary: HillEventSummary }) {
-  return summary.bot === null ? <>[deleted]</> : <BotLink bot={summary.bot} />
+  return summary.bot === null ? <>[deleted]</> : <BotLink bot={summary.bot} by />
 }
 
 /** What one event says. */

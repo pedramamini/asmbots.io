@@ -3,6 +3,7 @@ import { type MatchResult, type MeleeStanding, meleeStandings } from '@asmbots/t
 import { Button, HueSwatch, IconButton, Table, type TableColumn, Toggle } from '@asmbots/ui'
 import { Bug, Dices, Download, Film, RotateCcw, SkipForward, X } from 'lucide-react'
 import { useId, useMemo } from 'react'
+import { type Author, ByAuthor } from '../../../app/author'
 import { ShareMenu, type ShareTarget } from '../../share/ShareMenu'
 import { botResults } from '../worker/protocol'
 import { reasonText } from './log'
@@ -33,6 +34,8 @@ export interface VictoryProps extends VictoryActions {
   /** The whole match. */
   match: MatchResult
   names: readonly string[]
+  /** Who wrote each bot, by bot index. */
+  authors: readonly Author[]
   maxCycles: number
   /** On a replay: how its check stands, beside the result hash. */
   check?: ReplayCheck | undefined
@@ -48,9 +51,10 @@ interface RoundRow {
 
 /**
  * The end of a battle (PRODUCT_SPEC §2): `WINNER · dwarf-v3 · last bot standing · cycle 41,203`
- * over the arena, the bots' numbers, and what to do next: `rematch`, `new seed`, `share ▾`, `open
- * in debugger`, `download replay`, `replay link`. A match of more rounds shows its standings. The
- * result hash is the one a replay checks (ISA §5.6); on a replay, the check's chip stands beside it.
+ * over the arena, the bots with their authors and numbers, and what to do next: `rematch`, `new
+ * seed`, `share ▾`, `open in debugger`, `download replay`, `replay link`. A match of more rounds
+ * shows its standings. The result hash is the one a replay checks (ISA §5.6); on a replay, the
+ * check's chip stands beside it.
  */
 export function Victory({
   result,
@@ -58,6 +62,7 @@ export function Victory({
   hash,
   match,
   names,
+  authors,
   maxCycles,
   check,
   onDismiss,
@@ -91,9 +96,15 @@ export function Victory({
           <IconButton icon={X} label="hide" size="sm" onClick={onDismiss} />
         </header>
         {multi ? (
-          <MatchTable standings={standings} winners={outcome.winners} />
+          <MatchTable standings={standings} authors={authors} winners={outcome.winners} />
         ) : (
-          <RoundTable result={result} order={order} names={names} winners={outcome.winners} />
+          <RoundTable
+            result={result}
+            order={order}
+            names={names}
+            authors={authors}
+            winners={outcome.winners}
+          />
         )}
         <div className="flex min-w-0 items-center gap-2">
           <p
@@ -152,11 +163,23 @@ function Actions({
   )
 }
 
-function BotCell({ bot, name, winner }: { bot: number; name: string; winner: boolean }) {
+/** A bot's hue, name, and author: the author gives way first. */
+function BotCell({
+  bot,
+  name,
+  author,
+  winner,
+}: {
+  bot: number
+  name: string
+  author: Author | undefined
+  winner: boolean
+}) {
   return (
     <span className="inline-flex max-w-full items-center gap-2">
       <HueSwatch hue={bot} />
       <span className={winner ? 'truncate text-accent-fg' : 'truncate text-bright'}>{name}</span>
+      <ByAuthor author={author} className="min-w-0 shrink-[3] truncate-ring" />
     </span>
   )
 }
@@ -165,11 +188,13 @@ function RoundTable({
   result,
   order,
   names,
+  authors,
   winners,
 }: {
   result: Result
   order: readonly number[]
   names: readonly string[]
+  authors: readonly Author[]
   winners: readonly number[]
 }) {
   const rows = botResults(result, order)
@@ -185,7 +210,14 @@ function RoundTable({
     {
       id: 'bot',
       header: 'bot',
-      cell: (row) => <BotCell bot={row.bot} name={row.name} winner={winners.includes(row.bot)} />,
+      cell: (row) => (
+        <BotCell
+          bot={row.bot}
+          name={row.name}
+          author={authors[row.bot]}
+          winner={winners.includes(row.bot)}
+        />
+      ),
     },
     {
       id: 'status',
@@ -241,9 +273,11 @@ function RoundTable({
 
 function MatchTable({
   standings,
+  authors,
   winners,
 }: {
   standings: readonly MeleeStanding[]
+  authors: readonly Author[]
   winners: readonly number[]
 }) {
   const columns: TableColumn<MeleeStanding>[] = [
@@ -258,7 +292,12 @@ function MatchTable({
       id: 'bot',
       header: 'bot',
       cell: (row) => (
-        <BotCell bot={row.entrant} name={row.name} winner={winners.includes(row.entrant)} />
+        <BotCell
+          bot={row.entrant}
+          name={row.name}
+          author={authors[row.entrant]}
+          winner={winners.includes(row.entrant)}
+        />
       ),
     },
     {

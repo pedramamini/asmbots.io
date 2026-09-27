@@ -1,8 +1,9 @@
 /**
  * A server tournament's page (PRODUCT_SPEC §4): the header (name, kind, status, the `server` chip,
- * the entry window with `enter`, the owner's `start`, `share`, and the entrants), the tournament's
- * live room (the `LIVE` chip, the spectators, and `auto-watch`, which runs each match the `Runner`
- * starts here too), and the view of its kind, the local tournaments' own, fed by the API
+ * the entry window with `enter`, the owner's `start`, `share`, and the entrants, each by its
+ * owner), the tournament's live room (the `LIVE` chip, the spectators, and `auto-watch`, which
+ * runs each match the `Runner` starts here too), and the view of its kind, the local tournaments'
+ * own, fed by the API
  * (`fromServer`). Each match the room says has landed reads the tournament again; with the room
  * closed, a running tournament is read again every few seconds.
  */
@@ -19,6 +20,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { isNotFound } from '../../api/client'
 import { useMe, useTournament } from '../../api/queries'
 import { startTournament } from '../../api/writes'
+import { ByAuthor } from '../../app/author'
 import { IntroArt } from '../../app/IntroArt'
 import { TOURNAMENTS_ABOUT } from '../../app/intros/tournaments'
 import { LoadFailure } from '../../app/LoadFailure'
@@ -40,7 +42,7 @@ import { RoundRobinView } from './RoundRobinView'
 import { fromServer } from './server'
 import { KIND_LABELS, type Tournament } from './store'
 import { StatusChip } from './TournamentControls'
-import { identiconValue } from './TournamentsPage'
+import { identiconValue, useEntrantAuthors } from './TournamentsPage'
 
 const VIEWS = { bracket: BracketView, 'round-robin': RoundRobinView, melee: MeleeView } as const
 
@@ -132,7 +134,7 @@ export function ServerTournamentPage({ id, live, createArenaClient }: ServerTour
               </p>
             </Panel>
           ) : (
-            <LivePanel live={room} createClient={createArenaClient} />
+            <LivePanel live={room} labels={detail.entrants} createClient={createArenaClient} />
           )}
         </div>
       )}
@@ -192,6 +194,7 @@ function ServerHeader({
 }) {
   const record = detail.tournament
   const scheduled = record.status === 'scheduled' || record.status === 'draft'
+  const authors = useEntrantAuthors(t.entrants)
   const n = t.entrants.length
   const share = <ShareMenu {...serverShare(detail, window.location.origin)} />
   return (
@@ -219,10 +222,11 @@ function ServerHeader({
               <li key={entrant.ref}>
                 <Chip
                   variant={e === t.champion ? 'accent' : 'neutral'}
-                  title={e === t.champion ? 'champion' : detail.entrants[e]?.owner}
+                  title={e === t.champion ? 'champion' : undefined}
                 >
                   <Identicon value={identiconValue(entrant)} size={8} />
                   {entrant.name}
+                  <ByAuthor author={authors[e]} />
                 </Chip>
               </li>
             ))}

@@ -1,4 +1,11 @@
-import type { BotLabel, Ticker, TickerChampionship, TickerHillEvent } from '@asmbots/protocol'
+import {
+  type BotLabel,
+  HOUSE_AUTHOR,
+  HOUSE_HANDLE,
+  type Ticker,
+  type TickerChampionship,
+  type TickerHillEvent,
+} from '@asmbots/protocol'
 import { useQuery } from '@tanstack/react-query'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { fetchTicker, tickerQuery } from '../api/queries'
@@ -27,12 +34,18 @@ export const QUIET_FEED: TickerFeed = {
 /** How often a countdown moves on, ms. */
 const CLOCK_MS = 30_000
 
-/** `Dwarf v3`, or `[deleted]`. */
+/**
+ * `Dwarf v3 by alice`, or `[deleted]`. Its author is text, not a link: the line moves, and its
+ * one link is the `→`. The shell carries the ticker, so it names the house here rather than
+ * load `app/author.tsx` on every page.
+ */
 function botName(bot: BotLabel | null): string {
-  return bot === null ? '[deleted]' : `${bot.name} v${bot.version}`
+  return bot === null
+    ? '[deleted]'
+    : `${bot.name} v${bot.version} by ${bot.owner === HOUSE_HANDLE ? HOUSE_AUTHOR : bot.owner}`
 }
 
-/** `Dwarf v3 took #1 (+3)`, `Imp v1 missed the hill`. */
+/** `Dwarf v3 by alice took #1 (+3)`, `Imp v1 by ASM Bots missed the hill`. */
 export function challengeText({ event, bot }: TickerHillEvent): string {
   const name = botName(bot)
   if (event.kind === 'rejected') return `${name} missed the hill`
@@ -75,7 +88,7 @@ export function tickerFeed(ticker: Ticker | undefined, now: number): TickerFeed 
   const items: ReactNode[] = [<b key="lead">▍LIVE</b>]
   if (hill !== null) items.push(`HILL "${hill.hill.name.toUpperCase()}"`, challengeText(hill))
   if (last?.champion) {
-    items.push(`CUP "${last.name.toUpperCase()}" won by ${botName(last.champion)}`)
+    items.push(`CUP "${last.name.toUpperCase()}" to ${botName(last.champion)}`)
   }
   if (next !== null) {
     items.push(nextText(next, now))

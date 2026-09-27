@@ -1,9 +1,9 @@
 /**
  * A round of a tournament's match, replayed in the arena in a modal (PRODUCT_SPEC §4): the round's
  * bots in fighting order with the round's seed (`watch.ts`), playing from the start. Play and
- * pause, `restart` (the round loaded again), the cycle, a legend of the bots, and the check:
- * `verified` once the battle's result hash equals the recorded one, `mismatch` when it does not,
- * `ended` for a live round, which has no recorded hash yet.
+ * pause, `restart` (the round loaded again), the cycle, a legend of the bots by their authors, and
+ * the check: `verified` once the battle's result hash equals the recorded one, `mismatch` when it
+ * does not, `ended` for a live round, which has no recorded hash yet.
  */
 import { parseReplay } from '@asmbots/protocol'
 import type { MatchResult, MatchRound } from '@asmbots/tourney'
@@ -12,10 +12,13 @@ import { Pause, Play, RotateCcw } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useStore } from 'zustand'
 import { apiGet } from '../../api/client'
+import { useMe } from '../../api/queries'
+import { ByAuthor } from '../../app/author'
 import { ArenaCanvas } from '../arena/ArenaCanvas'
 import { ArenaClient, createArenaStore } from '../arena/worker/client'
 import type { Speed } from '../arena/worker/protocol'
-import type { Tournament } from './store'
+import type { Tournament, TournamentEntrant } from './store'
+import { entrantAuthor } from './TournamentsPage'
 import { replayWatchTarget, type WatchTarget, watchTarget } from './watch'
 
 export interface WatchModalProps {
@@ -68,8 +71,9 @@ export function useRoundWatch() {
         refuse('the server has not stored this match')
         return
       }
+      const picked = entrants.map((e) => t.entrants[e] as TournamentEntrant)
       apiGet(`/replays/${encodeURIComponent(key)}`, parseReplay).then((replay) => {
-        if (ask === asked.current) setTarget(replayWatchTarget(replay, result, round))
+        if (ask === asked.current) setTarget(replayWatchTarget(replay, result, round, picked))
       }, refuse)
     },
     [toast],
@@ -172,6 +176,7 @@ function WatchBar({
 }) {
   const status = useStore(client.store, (state) => state.status)
   const cycle = useStore(client.store, (state) => state.cycle)
+  const me = useMe().data
   const playing = status === 'playing'
   return (
     <div className="flex flex-wrap items-center gap-2 text-data">
@@ -192,12 +197,16 @@ function WatchBar({
       </Button>
       <span className="text-muted tabular-nums">cycle {count(cycle)}</span>
       <ul aria-label="bots" className="flex flex-wrap items-center gap-3">
-        {target.bots.map((bot, i) => (
-          <li key={`${i}-${bot.name}`} className="flex items-center gap-1">
-            <HueSwatch hue={i} size={10} />
-            <span>{bot.name}</span>
-          </li>
-        ))}
+        {target.bots.map((bot, i) => {
+          const entrant = target.entrants?.[i]
+          return (
+            <li key={`${i}-${bot.name}`} className="flex items-center gap-1">
+              <HueSwatch hue={i} size={10} />
+              <span>{bot.name}</span>
+              {entrant !== undefined && <ByAuthor author={entrantAuthor(entrant, me)} />}
+            </li>
+          )
+        })}
       </ul>
       <span className="ml-auto">
         {check === 'pending' ? (

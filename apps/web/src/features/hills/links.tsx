@@ -1,19 +1,42 @@
 /** Links from a table cell to a bot and to a user, and the words the server's records read as. */
 import type { BotLabel } from '@asmbots/protocol'
 import { Link } from '@tanstack/react-router'
+import { AuthorLink, CELL_LINK, ownerAuthor } from '../../app/author'
 
-/**
- * A link inside running text or a table cell: underlined, quietly, so it never leans on its color
- * alone (`by system` in muted text); the pointer brings the accent.
- */
-export const CELL_LINK =
-  'rounded-sm text-bright underline decoration-border-strong underline-offset-2 hover:text-accent-fg hover:decoration-current focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-accent'
+export { CELL_LINK }
 
-export function BotLink({ bot }: { bot: BotLabel }) {
-  return (
+/** The bot's name, a link to its page; with `by`, its author after it: `Dwarf by alice`. */
+export function BotLink({ bot, by = false }: { bot: BotLabel; by?: boolean }) {
+  const link = (
     <Link to="/bots/$id" params={{ id: bot.botId }} className={CELL_LINK}>
       {bot.name}
     </Link>
+  )
+  if (!by) return link
+  return (
+    <>
+      {link}
+      <span className="text-muted">
+        {' '}
+        by <BotAuthor bot={bot} />
+      </span>
+    </>
+  )
+}
+
+/**
+ * Who wrote a server bot: its owner, linked to their profile (`ownerAuthor`). A `%author` that
+ * names someone else (`Alice Smith` for `alice`) is in the tooltip.
+ */
+export function BotAuthor({ bot }: { bot: BotLabel }) {
+  const author = ownerAuthor(bot.owner)
+  const signed = bot.author?.trim() ?? ''
+  const profile = author.handle === null ? '' : `${author.name}'s profile · `
+  return (
+    <AuthorLink
+      author={author}
+      title={signed === '' || signed === author.name ? undefined : `${profile}%author ${signed}`}
+    />
   )
 }
 
@@ -23,11 +46,6 @@ export function UserLink({ handle }: { handle: string }) {
       {handle}
     </Link>
   )
-}
-
-/** Who wrote the bot: its `%author`, else its owner. */
-export function authorOf(bot: BotLabel): string {
-  return bot.author ?? bot.owner
 }
 
 export const count = (n: number) => n.toLocaleString('en-US')

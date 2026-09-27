@@ -1,12 +1,13 @@
 /**
  * A tournament's tile in the list (`TournamentsPage`), local or the server's: all one height, so
  * the grid lines up. A glyph of its kind and a stripe of its status's color at the left, its name
- * and facts, a middle row that says what it came to (the champion, the live match count, or the
- * entry window), its chips, and a bar of the matches played.
+ * and facts, a middle row that says what it came to (the champion and its author, the live match
+ * count, or the entry window), its chips, and a bar of the matches played.
  */
 import { Chip, type ChipVariant, Identicon } from '@asmbots/ui'
 import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
+import type { Author } from '../../app/author'
 import { KIND_LABELS, type TournamentKind, type TournamentStatus } from './store'
 
 /** The stripe down a tile's left edge: its status's color. */
@@ -91,8 +92,17 @@ export interface TournamentTileProps {
   /** Rounds a match. */
   readonly rounds: number
   readonly progress: { readonly done: number; readonly of: number }
-  /** Its champion, once it has one: the identicon's bytes (or name) and the name. */
-  readonly champion?: { readonly value: Uint8Array | string; readonly name: string } | undefined
+  /**
+   * Its champion, once it has one: the identicon's bytes (or name), the name, and who wrote it.
+   * The author is text: the tile is a link, and a link holds no other.
+   */
+  readonly champion?:
+    | {
+        readonly value: Uint8Array | string
+        readonly name: string
+        readonly author?: Author | null | undefined
+      }
+    | undefined
   /** When an open one stops taking entries, as the page says it. */
   readonly entryUntil?: string | undefined
   /** Chips before the kind's: `server`, `championship`. */
@@ -110,6 +120,9 @@ function Outcome({ status, progress, champion, entrants, entryUntil, live }: Tou
         <span className="flex min-w-0 flex-col">
           <span className="text-panel-status text-muted">champion</span>
           <span className="truncate text-body text-accent-fg">{champion.name}</span>
+          {champion.author != null && (
+            <span className="truncate text-data text-muted">by {champion.author.name}</span>
+          )}
         </span>
       </p>
     )

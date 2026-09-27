@@ -13,13 +13,14 @@ import {
 import { Link } from '@tanstack/react-router'
 import { isNotFound } from '../../api/client'
 import { useBot, useBotVersion } from '../../api/queries'
+import { AuthorLink, ownerAuthor } from '../../app/author'
 import { IntroArt } from '../../app/IntroArt'
 import { BOT_ABOUT } from '../../app/intros/bots'
 import { LoadFailure, readStatus } from '../../app/LoadFailure'
 import { useLinkAction } from '../../app/link-action'
 import { PageIntro } from '../../app/PageIntro'
 import { Placeholder } from '../../app/Placeholder'
-import { CELL_LINK, count, day, longAgo, UserLink } from '../hills/links'
+import { CELL_LINK, count, day, longAgo } from '../hills/links'
 import { BotActions } from './BotActions'
 
 const PLACEMENT_COLUMNS: TableColumn<BotPlacement>[] = [
@@ -105,6 +106,9 @@ export function BotPage({ id }: { id: string }) {
   }
   const { bot: record, owner, versions, placements, fights } = bot.data
   const text = source.data?.version.source
+  const author = ownerAuthor(owner.handle)
+  // Its `%author`, after the owner's name where it names someone else.
+  const signed = latest?.author?.trim() ?? ''
   return (
     <PanelGrid className="p-3">
       <PageIntro about={BOT_ABOUT} art={<IntroArt name="disk" />} />
@@ -120,8 +124,10 @@ export function BotPage({ id }: { id: string }) {
             <div className="flex min-w-0 flex-col">
               <h1 className="truncate text-modal-title text-bright">{record.name}</h1>
               <p className="text-data text-muted">
-                by <UserLink handle={owner.handle} />
-                {latest?.author ? ` · ${latest.author}` : ''}
+                by <AuthorLink author={author} />
+                {signed !== '' && signed !== author.name && signed !== owner.handle
+                  ? ` · ${signed}`
+                  : ''}
               </p>
             </div>
           </div>

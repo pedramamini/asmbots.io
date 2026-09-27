@@ -15,7 +15,7 @@ import type { ReactNode } from 'react'
 import { useHill, useHillMatches, useTournament, useTournaments } from '../api/queries'
 import { HexBand, Plate } from '../art/lazy'
 import { HillStandingsTable } from '../features/hills/HillStandingsTable'
-import { CELL_LINK, count, day } from '../features/hills/links'
+import { BotAuthor, CELL_LINK, count, day } from '../features/hills/links'
 import { MatchesTable } from '../features/hills/MatchesTable'
 import { EnterButton } from '../features/tournaments/EnterModal'
 import { useBoot } from './boot/boot'
@@ -338,8 +338,8 @@ function Championship() {
           />
           {last?.champion != null && (
             <p className="text-data text-muted">
-              last: <span className="text-accent-fg">{last.champion.name}</span> won{' '}
-              {last.tournament.name}
+              last: <span className="text-accent-fg">{last.champion.name}</span> by{' '}
+              <BotAuthor bot={last.champion} /> won {last.tournament.name}
             </p>
           )}
           <div className="mt-auto self-start">

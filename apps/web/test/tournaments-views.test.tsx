@@ -23,6 +23,7 @@ import {
 import type { Tournament, TournamentEntrant } from '../src/features/tournaments/store'
 import { TournamentControls } from '../src/features/tournaments/TournamentControls'
 import { liveWatchTarget } from '../src/features/tournaments/watch'
+import { renderAt } from './api-server'
 import { stubCanvas } from './fake-canvas'
 import { manualSchedule, type SessionWorker, sessionClient } from './session-worker'
 
@@ -83,6 +84,8 @@ function createClient(): ArenaClient {
 }
 
 const withToasts = (node: ReactNode) => render(<ToastProvider>{node}</ToastProvider>)
+/** `node` on a page of a test router, with queries and toasts: its authors link to profiles. */
+const onPage = (node: ReactNode) => renderAt('/tournaments/t', () => node)
 
 let restore: (() => void)[] = []
 beforeAll(() => {
@@ -100,9 +103,9 @@ afterAll(() => {
 const cell = (label: RegExp) => screen.getByRole('button', { name: label })
 
 describe('ResultsMatrix', () => {
-  it('fills a cell per entrant per match: 12 for 4 bots, the diagonal blank', () => {
+  it('fills a cell per entrant per match: 12 for 4 bots, the diagonal blank', async () => {
     const t = roundRobinCup()
-    withToasts(<RoundRobinView tournament={t} />)
+    await onPage(<RoundRobinView tournament={t} />)
     const matrix = screen.getByRole('table', { name: 'results matrix' })
     expect(matrix.querySelectorAll('[data-played]')).toHaveLength(12)
     expect(matrix.querySelectorAll('[data-diagonal]')).toHaveLength(4)
@@ -124,7 +127,7 @@ describe('ResultsMatrix', () => {
 
   it('shows the round breakdown on hover', async () => {
     const t = roundRobinCup()
-    withToasts(<RoundRobinView tournament={t} />)
+    await onPage(<RoundRobinView tournament={t} />)
     fireEvent.pointerEnter(cell(/^Imp v Dwarf: /), { pointerType: 'mouse' })
     const tip = await screen.findByRole('tooltip', {}, { timeout: 2_000 })
     const rounds = (t.matches[0] as MatchResult).rounds
@@ -133,7 +136,7 @@ describe('ResultsMatrix', () => {
   })
 
   it('selects a match from either of its cells and replays a round of it', async () => {
-    withToasts(<RoundRobinView tournament={roundRobinCup()} createClient={createClient} />)
+    await onPage(<RoundRobinView tournament={roundRobinCup()} createClient={createClient} />)
     expect(screen.queryByRole('region', { name: 'match' })).toBeNull()
     // Match 3 of the schedule is Dwarf v Stone: entrants 0 and 3.
     expect(roundRobinSchedule(4)[2]?.entrants).toEqual([0, 3])
@@ -145,10 +148,13 @@ describe('ResultsMatrix', () => {
     fireEvent.click(within(panel).getByRole('button', { name: 'watch round 2' }))
     const dialog = await screen.findByRole('dialog')
     expect(dialog.textContent).toContain('Dwarf v Stone · round 2')
+    // The legend names each bot's author, a link to the profile.
+    const legend = within(dialog).getByRole('list', { name: 'bots' })
+    expect(within(legend).getAllByRole('link', { name: 'ASM Bots' })).toHaveLength(2)
   })
 
-  it('marks the match in flight while the tournament runs', () => {
-    withToasts(<RoundRobinView tournament={roundRobinCup({ status: 'running' }, 2)} />)
+  it('marks the match in flight while the tournament runs', async () => {
+    await onPage(<RoundRobinView tournament={roundRobinCup({ status: 'running' }, 2)} />)
     const matrix = screen.getByRole('table', { name: 'results matrix' })
     expect(matrix.querySelectorAll('[data-played]')).toHaveLength(4)
     const live = [...matrix.querySelectorAll('[data-live]')]
@@ -166,18 +172,23 @@ describe('ResultsMatrix', () => {
 })
 
 describe('the standings', () => {
-  it('ranks by points and sorts by any column from its header', () => {
+  it('ranks by points and sorts by any column from its header', async () => {
     const t = roundRobinCup()
-    withToasts(<RoundRobinView tournament={t} />)
+    await onPage(<RoundRobinView tournament={t} />)
     const table = screen.getByRole('table', { name: 'standings' })
     const names = () =>
       within(table)
         .getAllByRole('row')
         .slice(1)
         .map((row) => row.querySelectorAll('td')[1]?.textContent)
-    expect(names()).toEqual((t.standings ?? []).map((s: { name: string }) => s.name))
+    // Each bot by its author: the roster's are the house's, linked to its profile.
+    const by = (name: string) => `${name} by ASM Bots`
+    expect(names()).toEqual((t.standings ?? []).map((s: { name: string }) => by(s.name)))
+    expect(within(table).getAllByRole('link', { name: 'ASM Bots' })[0]?.getAttribute('href')).toBe(
+      '/u/system',
+    )
     fireEvent.click(within(table).getByRole('button', { name: 'bot' }))
-    expect(names()).toEqual(['Dwarf', 'Imp', 'Paper', 'Stone'])
+    expect(names()).toEqual(['Dwarf', 'Imp', 'Paper', 'Stone'].map(by))
     expect(within(table).getByRole('columnheader', { name: 'bot' }).getAttribute('aria-sort')).toBe(
       'ascending',
     )
@@ -198,7 +209,7 @@ describe('the standings', () => {
       saved.push(this.download)
     }
     try {
-      withToasts(<RoundRobinView tournament={t} />)
+      await onPage(<RoundRobinView tournament={t} />)
       fireEvent.click(screen.getByRole('button', { name: 'standings.csv' }))
       expect(saved).toEqual(['asmbots-rr-cup-standings.csv'])
       expect(await (created[0] as Blob).text()).toBe(csv(t.standings ?? []))
@@ -213,7 +224,7 @@ describe('the standings', () => {
 describe('MeleeView', () => {
   it('draws each bot’s survival histogram and a watch button per round', async () => {
     const t = meleeCup(roster('Dwarf', 'Imp', 'Paper', 'Stone', 'Scanner'), 3)
-    withToasts(<MeleeView tournament={t} createClient={createClient} />)
+    await onPage(<MeleeView tournament={t} createClient={createClient} />)
     const table = screen.getByRole('table', { name: 'standings' })
     const histograms = within(table).getAllByRole('img', { name: /survival/ })
     expect(histograms).toHaveLength(5)
@@ -289,7 +300,7 @@ describe('TournamentControls', () => {
   it('opens each match the runner starts at max speed while auto-watch is on', async () => {
     const { runner, emit } = fakeRunner()
     const t = roundRobinCup({ status: 'running' }, 2)
-    withToasts(<TournamentControls tournament={t} runner={runner} createClient={createClient} />)
+    await onPage(<TournamentControls tournament={t} runner={runner} createClient={createClient} />)
     // Off: a match start opens nothing.
     act(() => emit({ type: 'match', id: 'rr', entrants: [0, 3], round: 0 }))
     expect(screen.queryByRole('dialog')).toBeNull()

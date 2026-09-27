@@ -12,6 +12,7 @@ import { downloadResults, downloadStandings } from './export'
 import { MatchPanel } from './MatchPanel'
 import { StandingsTable } from './Standings'
 import type { Tournament } from './store'
+import { useEntrantAuthors } from './TournamentsPage'
 import { matchVerify } from './verify'
 import { useRoundWatch, WatchModal } from './WatchModal'
 
@@ -62,6 +63,7 @@ function survivalColumns(standings: readonly MeleeStanding[]): TableColumn<Melee
 
 export function MeleeView({ tournament: t, createClient }: MeleeViewProps) {
   const watching = useRoundWatch()
+  const authors = useEntrantAuthors(t.entrants)
   const standings = (t.standings ?? []) as readonly MeleeStanding[]
   const extra = useMemo(() => survivalColumns(standings), [standings])
   const match = t.matches[0] ?? null
@@ -91,14 +93,20 @@ export function MeleeView({ tournament: t, createClient }: MeleeViewProps) {
         status={`${t.entrants.length} bots · ${match?.rounds.length ?? 0} of ${t.rounds} rounds`}
         actions={actions}
       >
-        <StandingsTable rows={standings} extra={extra} champion={t.champion} className="max-h-96" />
+        <StandingsTable
+          rows={standings}
+          extra={extra}
+          champion={t.champion}
+          authors={authors}
+          className="max-h-96"
+        />
       </Panel>
       <MatchPanel
         title="rounds"
         status={
           live ? 'live' : match !== null && match.rounds.length === match.of ? 'done' : 'pending'
         }
-        entrants={t.entrants.map((e) => ({ name: e.name }))}
+        entrants={t.entrants.map((e, i) => ({ name: e.name, author: authors[i] }))}
         result={match}
         note={live ? 'the first round is playing now.' : 'not played yet.'}
         onWatch={(round) => {

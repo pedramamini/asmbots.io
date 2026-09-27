@@ -6,25 +6,30 @@
  * has played and rested, the arena takes the room's latest. `LivePanel` loads this module with the
  * first match to watch, so a quiet room loads no arena.
  */
-import { bytesProblem, type LiveMatch, replayBots } from '@asmbots/protocol'
+import { type BotLabel, bytesProblem, type LiveMatch, replayBots } from '@asmbots/protocol'
 import { cx, HueSwatch } from '@asmbots/ui'
 import { Link } from '@tanstack/react-router'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { useStore } from 'zustand'
+import { type Author, ByAuthor } from '../../app/author'
 import { ArenaCanvas } from '../arena/ArenaCanvas'
 import { ReplayChip } from '../arena/battle/ReplayChip'
 import { type BytesCheck, NO_RUN, type ReplayRun } from '../arena/battle/verify'
 import { ArenaClient, createArenaStore } from '../arena/worker/client'
 import { CELL_LINK, count } from '../hills/links'
 import { liveCheck } from './check'
-import { type LiveMatchEntry, type LiveRoomState, matchLabel } from './room'
+import { type LiveMatchEntry, type LiveRoomState, matchAuthors, matchLabel } from './room'
 
 const newClient = () => new ArenaClient({ store: createArenaStore() })
+
+const NO_LABELS: readonly BotLabel[] = []
 
 export interface LiveArenaProps {
   live: LiveRoomState
   /** The match to watch: `currentMatch(live)`. */
   current: LiveMatchEntry | null
+  /** The bots the page knows: a match's bots of these read as by their owners. */
+  labels?: readonly BotLabel[] | undefined
   /** Makes the arena's client. Default: an `ArenaClient` with a store of its own. */
   createClient?: (() => ArenaClient) | undefined
   /** Rest after a match's last round, and between rounds, ms. */
@@ -40,6 +45,7 @@ export interface LiveArenaProps {
 export function LiveArena({
   live,
   current,
+  labels = NO_LABELS,
   createClient = newClient,
   dwell,
   rest,
@@ -143,7 +149,7 @@ export function LiveArena({
           className="size-full"
         />
       </div>
-      <LiveBar client={client} match={shown}>
+      <LiveBar client={client} match={shown} authors={matchAuthors(shown, labels)}>
         <ReplayChip check={liveCheck(shown, result, run, bytes)} />
         {result !== null && result.replayKey !== null && (
           <Link to="/arena/$replayId" params={{ replayId: result.replayKey }} className={CELL_LINK}>
@@ -155,14 +161,16 @@ export function LiveArena({
   )
 }
 
-/** Under the arena: the bots in their hues, the round, the cycle, then the check. */
+/** Under the arena: the bots in their hues, by their authors; the round, the cycle, the check. */
 function LiveBar({
   client,
   match,
+  authors,
   children,
 }: {
   client: ArenaClient
   match: LiveMatch
+  authors: readonly (Author | null)[]
   children: ReactNode
 }) {
   const round = useStore(client.store, (state) => state.round)
@@ -174,6 +182,7 @@ function LiveBar({
           <li key={`${i}-${bot.name}`} className="flex min-w-0 items-center gap-1">
             <HueSwatch hue={i} size={10} />
             <span className="truncate">{bot.name}</span>
+            <ByAuthor author={authors[i]} className="shrink-0" />
           </li>
         ))}
       </ul>

@@ -16,6 +16,7 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from 'zustand'
 import { isNotFound } from '../../api/client'
 import { useReplay } from '../../api/queries'
+import { type Author, ByAuthor, sourceAuthor } from '../../app/author'
 import { useMotionReduced } from '../../store/settings'
 import { ArenaCanvas } from '../arena/ArenaCanvas'
 import { matchOutcome, roundOutcome } from '../arena/battle/outcome'
@@ -191,6 +192,11 @@ function EmbedBattle({ fight, createClient = newClient }: EmbedProps & { fight: 
   }, [fight])
 
   const names = useMemo(() => fight.bots.map((bot) => bot.name), [fight])
+  // An embed knows no reader: only the house's bots link, to its profile.
+  const authors = useMemo(
+    () => fight.bots.map((bot) => sourceAuthor(bot.meta?.author ?? '', null)),
+    [fight],
+  )
   return (
     <EmbedFrame label={embedTitle(names)}>
       <div className="relative min-h-0 flex-1">
@@ -203,7 +209,7 @@ function EmbedBattle({ fight, createClient = newClient }: EmbedProps & { fight: 
               label={`${embedTitle(names)}: the arena`}
               className="size-full"
             />
-            <Legend client={client} names={names} />
+            <Legend client={client} names={names} authors={authors} />
             <Outcome client={client} names={names} />
           </>
         )}
@@ -213,8 +219,19 @@ function EmbedBattle({ fight, createClient = newClient }: EmbedProps & { fight: 
   )
 }
 
-/** Each bot's hue and name, top left; a dead bot's struck through. */
-function Legend({ client, names }: { client: ArenaClient; names: readonly string[] }) {
+/**
+ * Each bot's hue, name, and author, top left; a dead bot's struck through. An author's link opens
+ * their profile in a new tab, as `watch on asmbots` does.
+ */
+function Legend({
+  client,
+  names,
+  authors,
+}: {
+  client: ArenaClient
+  names: readonly string[]
+  authors: readonly Author[]
+}) {
   // A string, so the legend draws again only when a bot lives or dies, not every frame.
   const alive = useStore(client.store, (state) =>
     names
@@ -236,6 +253,11 @@ function Legend({ client, names }: { client: ArenaClient; names: readonly string
         >
           <HueSwatch hue={i} />
           <span className="truncate">{name}</span>
+          <ByAuthor
+            author={authors[i]}
+            newTab
+            className="pointer-events-auto min-w-0 shrink-[3] truncate-ring"
+          />
         </li>
       ))}
     </ul>

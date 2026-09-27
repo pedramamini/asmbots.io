@@ -172,6 +172,10 @@ describe('arena setup', () => {
     expect(cards).toHaveLength(loadRoster().size)
     const dwarf = screen.getByRole('listitem', { name: 'Dwarf' })
     expect(dwarf.textContent).toContain('ASM Bots · 23 B')
+    // A roster bot is the house's: its author links to the house's profile.
+    expect(within(dwarf).getByRole('link', { name: 'ASM Bots' }).getAttribute('href')).toBe(
+      '/u/system',
+    )
     expect(dwarf.textContent).toContain('showcase')
     expect(dwarf.querySelector('svg rect')).toBeTruthy()
     expect(within(dwarf).getByRole('button', { name: 'add Dwarf' })).toBeTruthy()
@@ -489,7 +493,7 @@ describe('bots from files, the store, a paste, and a share link', () => {
     expect(await screen.findByText('1 error')).toBeTruthy()
     expect(add().disabled).toBe(true)
     fireEvent.change(box, { target: { value: IMP } })
-    expect(await screen.findByText('Imp · 15 B')).toBeTruthy()
+    expect(await screen.findByText('Imp · by ASM Bots · 15 B')).toBeTruthy()
     fireEvent.click(add())
     await waitFor(() => expect(picked()).toEqual(['Dwarf', 'Imp']))
     expect((box as HTMLTextAreaElement).value).toBe('')
@@ -624,7 +628,7 @@ describe('an arena held to one weight class', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'paste' }))
     const box = await screen.findByRole('textbox', { name: 'bot source' })
     fireEvent.change(box, { target: { value: IMP } })
-    expect(await screen.findByText('Imp · 15 B')).toBeTruthy()
+    expect(await screen.findByText('Imp · by ASM Bots · 15 B')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'add' }))
     expect(await screen.findByText('1 bot is not middleweight: not added.')).toBeTruthy()
     // Refused, the paste is not saved, and its text stays to change.

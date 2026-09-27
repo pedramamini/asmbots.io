@@ -344,8 +344,8 @@ function Records({ data }: Part) {
             value={(r) => `${count(r.value)} ${r.value === 1 ? 'cycle' : 'cycles'}`}
             says={(r) => (
               <>
-                <BotLink bot={r.bot} /> killed{' '}
-                {r.other === null ? 'its rival' : <BotLink bot={r.other} />}
+                <BotLink bot={r.bot} by /> killed{' '}
+                {r.other === null ? 'its rival' : <BotLink bot={r.other} by />}
                 {onHill(r)}
               </>
             )}
@@ -356,8 +356,8 @@ function Records({ data }: Part) {
             value={(r) => `${count(r.value)} ${r.value === 1 ? 'cycle' : 'cycles'}`}
             says={(r) => (
               <>
-                <BotLink bot={r.bot} /> outlasted{' '}
-                {r.other === null ? 'its rival' : <BotLink bot={r.other} />}
+                <BotLink bot={r.bot} by /> outlasted{' '}
+                {r.other === null ? 'its rival' : <BotLink bot={r.other} by />}
                 {onHill(r)}
               </>
             )}
@@ -368,7 +368,7 @@ function Records({ data }: Part) {
             value={(r) => plural(r.value, 'challenge')}
             says={(r) => (
               <>
-                <BotLink bot={r.bot} />, king{onHill(r)}
+                <BotLink bot={r.bot} by />, king{onHill(r)}
               </>
             )}
           />
@@ -378,7 +378,7 @@ function Records({ data }: Part) {
             value={(r) => `${count(r.value)} ${r.value === 1 ? 'match' : 'matches'}`}
             says={(r) => (
               <>
-                <BotLink bot={r.bot} />, every version
+                <BotLink bot={r.bot} by />, every version
               </>
             )}
           />
@@ -447,7 +447,7 @@ const HILL_COLUMNS: TableColumn<StatsHill>[] = [
     id: 'king',
     header: 'king',
     cell: (h) =>
-      h.king === null ? <span className="text-muted">none</span> : <BotLink bot={h.king} />,
+      h.king === null ? <span className="text-muted">none</span> : <BotLink bot={h.king} by />,
     sortValue: (h) => h.king?.name ?? '',
   },
   {

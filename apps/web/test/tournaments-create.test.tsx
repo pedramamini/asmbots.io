@@ -209,6 +209,10 @@ describe('the new tournament form', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'bracket' }))
     expect(screen.getByText('a bracket takes 3..32 bots: 0 bots picked')).toBeTruthy()
     expect(submit()?.disabled).toBe(true)
+    // Each bot in the picker by its author.
+    expect(screen.getByRole('checkbox', { name: 'Imp' }).closest('li')?.textContent).toContain(
+      'Imp by ASM Bots',
+    )
     for (const name of ['Imp', 'Dwarf', 'Stone', 'Paper', 'Scanner']) check(name)
     expect(entrants()).toEqual(['Imp', 'Dwarf', 'Stone', 'Paper', 'Scanner'])
     expect(screen.getByText('5 matches · ~1 s at max speed')).toBeTruthy()
@@ -221,6 +225,7 @@ describe('the new tournament form', () => {
     const made = created[0] as Tournament
     expect(made).toMatchObject({ name: 'spring cup', kind: 'bracket', thirdPlace: true })
     expect(made.entrants.map((e) => e.ref)).toEqual(['imp', 'dwarf', 'stone', 'paper', 'scanner'])
+    expect(made.entrants.every((e) => e.author === 'ASM Bots')).toBe(true)
     await waitFor(async () => expect((await getTournament(made.id))?.status).toBe('running'))
   })
 
@@ -311,9 +316,9 @@ describe('the new tournament form', () => {
     await waitFor(() => expect(created).toHaveLength(1))
     const made = created[0] as Tournament
     expect(made.name).toBe('round robin · 2 bots')
-    expect(made.entrants.map((e) => [e.source, e.name, e.code !== undefined])).toEqual([
-      ['local', 'Imp', true],
-      ['local', 'Dwarf', true],
+    expect(made.entrants.map((e) => [e.source, e.name, e.code !== undefined, e.author])).toEqual([
+      ['local', 'Imp', true, 'ASM Bots'],
+      ['local', 'Dwarf', true, 'ASM Bots'],
     ])
     expect((await getTournament(made.id))?.status).toBe('scheduled')
   })

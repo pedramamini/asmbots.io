@@ -8,6 +8,7 @@
  * progress never goes back, so nothing counts twice.
  */
 import {
+  type BotLabel,
   LIVE_PING,
   LIVE_PROTOCOL,
   type LiveMatch,
@@ -17,6 +18,7 @@ import {
   type Standing,
 } from '@asmbots/protocol'
 import { createStore, type StoreApi } from 'zustand'
+import { type Author, ownerAuthor } from '../../app/author'
 
 /**
  * No room asked for; opening the socket; hearing the room; waiting to open it again after a
@@ -130,6 +132,18 @@ export function currentMatch(state: LiveRoomState): LiveMatchEntry | null {
 export function matchLabel(match: LiveMatch): string {
   const names = match.bots.map((bot) => bot.name)
   return names.length > 3 ? `${names.length} bots` : names.join(' v ')
+}
+
+/**
+ * Who wrote each of `match`'s bots: its owner, when `labels` (the bots the page has read) has its
+ * version; else null. A live match carries no owners.
+ */
+export function matchAuthors(match: LiveMatch, labels: readonly BotLabel[]): (Author | null)[] {
+  const owners = new Map(labels.map((label) => [label.versionId, label.owner]))
+  return match.participants.map((id) => {
+    const owner = owners.get(id)
+    return owner === undefined ? null : ownerAuthor(owner)
+  })
 }
 
 /** Whether any job the room told of is running. */

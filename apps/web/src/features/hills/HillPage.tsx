@@ -144,7 +144,11 @@ export function HillPage({ slug, submission = null, live, createArenaClient }: H
       <div className="col-span-12 flex min-w-0 flex-col gap-3 xl:col-span-4">
         {/* While the hill loads too (its room joins once it has one), so nothing under it moves. */}
         {(detail !== undefined || hill.error === null) && (
-          <LivePanel live={room} createClient={createArenaClient} />
+          <LivePanel
+            live={room}
+            labels={detail?.standings.map((s) => s.bot)}
+            createClient={createArenaClient}
+          />
         )}
         {submission !== null && detail !== undefined && (
           <SubmissionPanel

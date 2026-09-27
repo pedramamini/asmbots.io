@@ -4,14 +4,23 @@
  * (`LiveArena.tsx`), and its chip checks it against the server's result. The arena's code loads
  * with the first match to watch, and stays: the match on screen plays out after its job ends.
  */
+import type { BotLabel } from '@asmbots/protocol'
 import { Button, Panel, Toggle } from '@asmbots/ui'
 import { RotateCw } from 'lucide-react'
-import { lazy, Suspense, useState } from 'react'
+import { Fragment, lazy, Suspense, useState } from 'react'
+import { ByAuthor } from '../../app/author'
 import { useMotionReduced } from '../../store/settings'
 import type { ArenaClient } from '../arena/worker/client'
 import { count } from '../hills/links'
 import { LiveChip, SpectatorCount } from './LiveChip'
-import { currentMatch, type LiveMatchEntry, type LiveRoomState, matchLabel, roomBusy } from './room'
+import {
+  currentMatch,
+  type LiveMatchEntry,
+  type LiveRoomState,
+  matchAuthors,
+  matchLabel,
+  roomBusy,
+} from './room'
 
 const LiveArena = lazy(() => import('./LiveArena').then((m) => ({ default: m.LiveArena })))
 
@@ -20,9 +29,13 @@ export const LIVE_DWELL_MS = 2000
 /** How long a round's end stays before the next round, ms. */
 export const ROUND_REST_MS = 300
 
+const NO_LABELS: readonly BotLabel[] = []
+
 export interface LivePanelProps {
   /** The room, as `useLiveRoom` reads it. */
   live: LiveRoomState
+  /** The bots the page knows: a match's bots of these read as by their owners. */
+  labels?: readonly BotLabel[] | undefined
   /** Makes the arena's client. Default: an `ArenaClient` with a store of its own. */
   createClient?: (() => ArenaClient) | undefined
   /** Rest after a match's last round, and between rounds, ms. */
@@ -33,6 +46,7 @@ export interface LivePanelProps {
 
 export function LivePanel({
   live,
+  labels = NO_LABELS,
   createClient,
   dwell = LIVE_DWELL_MS,
   rest = ROUND_REST_MS,
@@ -51,7 +65,7 @@ export function LivePanel({
     progress === undefined
       ? 'quiet'
       : `match ${count(Math.min(progress.done + 1, progress.of))} of ${count(progress.of)}`
-  const quiet = <Quiet live={live} current={current} autoWatch={autoWatch} />
+  const quiet = <Quiet live={live} current={current} labels={labels} autoWatch={autoWatch} />
   return (
     <Panel
       className={className}
@@ -79,6 +93,7 @@ export function LivePanel({
           <LiveArena
             live={live}
             current={current}
+            labels={labels}
             createClient={createClient}
             dwell={dwell}
             rest={rest}
@@ -92,14 +107,19 @@ export function LivePanel({
   )
 }
 
-/** What the panel says with no arena: the match being fought, or that none is. */
+/**
+ * What the panel says with no arena: the match being fought (its bots by their authors, up to
+ * three), or that none is.
+ */
 function Quiet({
   live,
   current,
+  labels,
   autoWatch,
 }: {
   live: LiveRoomState
   current: LiveMatchEntry | null
+  labels: readonly BotLabel[]
   autoWatch: boolean
 }) {
   if (live.status === 'connecting') {
@@ -112,9 +132,22 @@ function Quiet({
       </p>
     )
   }
+  const { bots } = current.match
+  const authors = matchAuthors(current.match, labels)
   return (
     <p className="text-data">
-      fighting: <span className="text-bright">{matchLabel(current.match)}</span>
+      fighting:{' '}
+      {bots.length > 3 ? (
+        <span className="text-bright">{matchLabel(current.match)}</span>
+      ) : (
+        bots.map((bot, i) => (
+          <Fragment key={`${i}-${bot.name}`}>
+            {i > 0 && ' v '}
+            <span className="text-bright">{bot.name}</span>
+            <ByAuthor author={authors[i]} />
+          </Fragment>
+        ))
+      )}
       {!autoWatch && <span className="text-muted">. turn on auto-watch to run it here.</span>}
     </p>
   )

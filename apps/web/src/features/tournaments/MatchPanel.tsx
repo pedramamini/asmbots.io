@@ -1,19 +1,22 @@
 /**
- * One match of a tournament (PRODUCT_SPEC §4): its entrants with their seeds and match points,
- * and a table of its rounds (the placement seed, who fought first, the survivors, each entrant's
- * points up to `POINTS_COLUMNS_UP_TO` entrants, the cycles run) with `watch` on each, which
- * replays that round in the arena.
+ * One match of a tournament (PRODUCT_SPEC §4): its entrants with their seeds, authors, and match
+ * points, and a table of its rounds (the placement seed, who fought first, the survivors, each
+ * entrant's points up to `POINTS_COLUMNS_UP_TO` entrants, the cycles run) with `watch` on each,
+ * which replays that round in the arena.
  */
 import type { MatchResult, MatchRound } from '@asmbots/tourney'
 import { Button, Chip, type ChipVariant, Panel, Table, type TableColumn } from '@asmbots/ui'
 import { Eye } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { type Author, ByAuthor } from '../../app/author'
 
 /** An entrant of the match, in the match's order. */
 export interface MatchPanelEntrant {
   readonly name: string
   /** A bracket's seed. */
   readonly seed?: number | undefined
+  /** Who wrote it, when known (`entrantAuthor`). */
+  readonly author?: Author | null | undefined
 }
 
 export interface MatchPanelProps {
@@ -126,6 +129,7 @@ export function MatchPanel({
               <span className={winner === e ? 'text-accent-fg' : 'text-bright'}>
                 {entrant.name}
               </span>
+              <ByAuthor author={entrant.author} />
               {result !== null && (
                 <span className="text-muted">
                   {result.points[e]} {result.points[e] === 1 ? 'point' : 'points'}

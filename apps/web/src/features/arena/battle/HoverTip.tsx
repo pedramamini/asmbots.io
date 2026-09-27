@@ -64,9 +64,10 @@ export interface HoverTipProps {
 
 /**
  * The tooltip of the byte under a resting pointer (DESIGN_SYSTEM §5): `0x1A2F  7B  add bx, 4`,
- * then `owned by dwarf-v3 · written 412 cycles ago`. It follows the pointer, on the side with
- * room, and reads the byte again with each frame the scene takes (not each the client gets: the
- * scene takes a frame at the next display frame).
+ * then `owned by dwarf-v3 (ASM Bots) · written 412 cycles ago`, the bot's `%author` after its name
+ * when it has one. It follows the pointer, on the side with room, and reads the byte again with
+ * each frame the scene takes (not each the client gets: the scene takes a frame at the next
+ * display frame).
  */
 export function HoverTip({ client, scene, address, x, y, width, height }: HoverTipProps) {
   // Each frame the scene takes: the byte may change under a pointer that rests.
@@ -75,7 +76,10 @@ export function HoverTip({ client, scene, address, x, y, width, height }: HoverT
   const info = byteInfo(
     scene,
     address,
-    meta.map((bot) => bot.name),
+    meta.map((bot) => {
+      const author = bot.author?.trim() ?? ''
+      return author === '' ? bot.name : `${bot.name} (${author})`
+    }),
   )
   const left = x + OFFSET + ROOM_X > width
   const up = y + OFFSET + ROOM_Y > height

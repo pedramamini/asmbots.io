@@ -1,14 +1,16 @@
 /**
  * A hill's standings (PRODUCT_SPEC §5): rank, bot, author, score, rating ± RD, W/T/L, age, and
  * an action per row (the hill page's `challenge`). The home page's top 10 leaves W/T/L and the RD
- * out. The king's name takes the accent. Under `md` (a phone) the table keeps the rank, the bot,
- * the score, and the rating alone: the table is `table-fixed`, and with every column in, the
- * bot's name, the one column with no width of its own, is what gets squeezed to nothing.
+ * out. The king's name takes the accent. The author is the bot's owner, linked to their profile.
+ * Under `md` (a phone) the table keeps the rank, the bot (its author after its name), the score,
+ * and the rating alone: the table is `table-fixed`, and with every column in, the bot's name, the
+ * one column with no width of its own, is what gets squeezed to nothing.
  */
 import type { HillStanding } from '@asmbots/protocol'
 import { Skeleton, Table, type TableColumn, useMediaQuery, WIDE } from '@asmbots/ui'
 import type { ReactNode } from 'react'
-import { authorOf, BotLink, count } from './links'
+import { ownerAuthor } from '../../app/author'
+import { BotAuthor, BotLink, count } from './links'
 
 const number = (
   id: string,
@@ -34,25 +36,35 @@ const RANK: TableColumn<HillStanding> = {
   className: 'w-12',
 }
 
+/** The bot's name, the king's in the accent; with `by`, its author after it. */
+const botCell = (by: boolean) => (s: HillStanding) =>
+  s.entry.rank === 1 ? (
+    <span className="text-accent-fg">
+      <BotLink bot={s.bot} by={by} />
+    </span>
+  ) : (
+    <BotLink bot={s.bot} by={by} />
+  )
+
 const BOT: TableColumn<HillStanding> = {
   id: 'bot',
   header: 'bot',
-  cell: (s) =>
-    s.entry.rank === 1 ? (
-      <span className="text-accent-fg">
-        <BotLink bot={s.bot} />
-      </span>
-    ) : (
-      <BotLink bot={s.bot} />
-    ),
+  cell: botCell(false),
   sortValue: (s) => s.bot.name,
 }
+
+/** A phone's bot column: `Dwarf by alice`, as its table has no author column. */
+const BOT_BY: TableColumn<HillStanding> = { ...BOT, cell: botCell(true) }
 
 const AUTHOR: TableColumn<HillStanding> = {
   id: 'author',
   header: 'author',
-  cell: (s) => <span className="text-muted">{authorOf(s.bot)}</span>,
-  sortValue: (s) => authorOf(s.bot),
+  cell: (s) => (
+    <span className="text-muted">
+      <BotAuthor bot={s.bot} />
+    </span>
+  ),
+  sortValue: (s) => ownerAuthor(s.bot.owner).name,
 }
 
 const SCORE = number('score', 'score', (s) => s.entry.score)
@@ -86,8 +98,11 @@ const FULL = [
   AGE,
 ]
 const COMPACT = [RANK, BOT, AUTHOR, SCORE, RATING, AGE]
-/** A phone's, full or compact: the rating without its RD, and no author, record, or age. */
-const NARROW = [RANK, BOT, SCORE, RATING]
+/**
+ * A phone's, full or compact: the author after the bot's name, the rating without its RD, and
+ * no record or age.
+ */
+const NARROW = [RANK, BOT_BY, SCORE, RATING]
 
 export interface HillStandingsTableProps {
   /** Undefined while they load. */

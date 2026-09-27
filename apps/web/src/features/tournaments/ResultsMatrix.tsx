@@ -3,11 +3,13 @@
  * row bot's points against the column bot. A win takes the accent, deeper the wider the margin; a
  * tie stays plain; a loss is muted. The diagonal is blank, and so is a match not played yet, but the
  * one in flight pulses. A played cell's tooltip breaks the match down by round; a click selects
- * the match, as the cell across the diagonal does.
+ * the match, as the cell across the diagonal does. A bot's header names its author in its title:
+ * the standings beside it link them.
  */
 import { type MatchResult, roundRobinSchedule } from '@asmbots/tourney'
 import { cx, Tooltip } from '@asmbots/ui'
 import { useMemo } from 'react'
+import type { Author } from '../../app/author'
 import { useMotionReduced } from '../../store/settings'
 import type { Tournament } from './store'
 
@@ -64,6 +66,8 @@ function breakdown(cell: MatrixCell): string {
 
 export interface ResultsMatrixProps {
   tournament: Tournament
+  /** Each entrant's author, by entrant index (`useEntrantAuthors`). */
+  authors?: readonly (Author | null)[] | undefined
   /** The match chosen: its place in the schedule, or null. */
   selected: number | null
   onSelect: (match: number) => void
@@ -71,7 +75,12 @@ export interface ResultsMatrixProps {
 
 const CELL = 'h-6 w-9 min-w-9 p-0 text-center tabular-nums'
 
-export function ResultsMatrix({ tournament: t, selected, onSelect }: ResultsMatrixProps) {
+export function ResultsMatrix({
+  tournament: t,
+  authors = [],
+  selected,
+  onSelect,
+}: ResultsMatrixProps) {
   const reduced = useMotionReduced()
   const { cells, live } = useMemo(() => resultsMatrix(t), [t])
   const schedule = useMemo(
@@ -82,6 +91,11 @@ export function ResultsMatrix({ tournament: t, selected, onSelect }: ResultsMatr
   const isLive = (row: number, col: number) =>
     (liveSpec?.entrants.includes(row) && liveSpec.entrants.includes(col)) ?? false
   const names = t.entrants.map((e) => e.name)
+  /** `Dwarf by ASM Bots`: a header's title. */
+  const titleOf = (e: number) => {
+    const author = authors[e]
+    return author == null ? names[e] : `${names[e]} by ${author.name}`
+  }
 
   return (
     <div className="overflow-auto">
@@ -95,10 +109,10 @@ export function ResultsMatrix({ tournament: t, selected, onSelect }: ResultsMatr
               <th
                 key={`${col}-${name}`}
                 scope="col"
-                title={name}
+                title={titleOf(col)}
                 className={cx(CELL, 'font-normal text-muted')}
               >
-                <abbr title={name} className="no-underline">
+                <abbr title={titleOf(col)} className="no-underline">
                   {col + 1}
                 </abbr>
               </th>
@@ -110,6 +124,7 @@ export function ResultsMatrix({ tournament: t, selected, onSelect }: ResultsMatr
             <tr key={`${r}-${names[r]}`}>
               <th
                 scope="row"
+                title={titleOf(r)}
                 className="max-w-40 truncate pr-2 text-left font-normal whitespace-nowrap"
               >
                 <span className="text-muted">{r + 1}</span> {names[r]}

@@ -1,9 +1,9 @@
 /**
  * The new tournament form (PRODUCT_SPEC §4), in a modal: a name, the kind, the weight class (its
- * size band and spacing), the bots (roster bots and my bots, checked in a list, and `.asm` files
- * dropped on the form), the battle config with its rounds per match and presets, a bracket's
- * seeding and third-place match, and `start now`. Under the bots, what the tournament plays and
- * how long it may take, or why it cannot start.
+ * size band and spacing), the bots (roster bots and my bots by their authors, checked in a list,
+ * and `.asm` files dropped on the form), the battle config with its rounds per match and presets,
+ * a bracket's seeding and third-place match, and `start now`. Under the bots, what the tournament
+ * plays and how long it may take, or why it cannot start.
  */
 import {
   Button,
@@ -18,6 +18,8 @@ import {
 } from '@asmbots/ui'
 import { FileUp, X } from 'lucide-react'
 import { type DragEvent, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useMe } from '../../api/queries'
+import { type Author, sourceAuthor } from '../../app/author'
 import { useLocalBots } from '../../store/local-bots'
 import type { ArenaConfig } from '../../store/settings'
 import { assembleCached, fileAssembles, readBotFiles } from '../arena/setup/assembly'
@@ -74,9 +76,10 @@ const keyOf = (e: Pick<PickedEntrant, 'source' | 'ref'>) => `${e.source}:${e.ref
 /** The entrant a picker bot makes: a roster bot by slug, a local one with its source. */
 function entrantOf(bot: CatalogBot): PickedEntrant {
   const size = bot.assembled.bytes.length
+  const { name, author } = bot
   return bot.ref.kind === 'roster'
-    ? { source: 'roster', ref: bot.ref.slug, name: bot.name, size }
-    : { source: 'local', ref: bot.ref.id, name: bot.name, code: bot.source ?? undefined, size }
+    ? { source: 'roster', ref: bot.ref.slug, name, author, size }
+    : { source: 'local', ref: bot.ref.id, name, author, code: bot.source ?? undefined, size }
 }
 
 /** The preset a kind starts from, while the config is a preset: a crowd gets a melee's. */
@@ -111,6 +114,7 @@ function NewTournamentForm({
   const { toast } = useToast()
   const { create } = useTournamentActions()
   const localBots = useLocalBots()
+  const me = useMe().data
   const nameId = useId()
   const [name, setName] = useState('')
   const [kind, setKind] = useState<TournamentKind>('round-robin')
@@ -188,6 +192,7 @@ function NewTournamentForm({
         source: 'local',
         ref: file.file,
         name: file.assembled.name || file.file.replace(/\.asm$/i, ''),
+        author: file.assembled.author,
         code: file.source,
         size: file.assembled.bytes.length,
       })),
@@ -324,6 +329,7 @@ function NewTournamentForm({
               <PickRow
                 key={keyOf(entrantOf(bot))}
                 bot={bot}
+                author={sourceAuthor(bot.author, me, bot.origin === 'local')}
                 checked={pickedKeys.has(keyOf(entrantOf(bot)))}
                 onToggle={() => toggle(bot)}
               />
@@ -429,13 +435,18 @@ function NewTournamentForm({
   )
 }
 
-/** A bot in the picker: a checkbox, its identicon, name, size, and tier or `errors`. */
+/**
+ * A bot in the picker: a checkbox, its identicon, name and author, size, and tier or `errors`. The
+ * author is text: a click on the row picks the bot, and a link would leave the form.
+ */
 function PickRow({
   bot,
+  author,
   checked,
   onToggle,
 }: {
   bot: CatalogBot
+  author: Author
   checked: boolean
   onToggle: () => void
 }) {
@@ -453,7 +464,10 @@ function PickRow({
           className="size-3 shrink-0 accent-(--accent)"
         />
         <Identicon value={bytes.length > 0 ? bytes : (bot.source ?? '')} size={16} />
-        <span className="min-w-0 flex-1 truncate text-bright">{bot.name}</span>
+        <span className="min-w-0 flex-1 truncate">
+          <span className="text-bright">{bot.name}</span>{' '}
+          <span className="text-muted">by {author.name}</span>
+        </span>
         <span className="shrink-0 text-data text-muted">{broken ? '—' : `${bytes.length} B`}</span>
         {broken ? (
           <Chip variant="danger">errors</Chip>
