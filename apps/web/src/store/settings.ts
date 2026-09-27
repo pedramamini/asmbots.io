@@ -1,3 +1,4 @@
+import type { WeightClassSlug } from '@asmbots/protocol'
 import { applyMotion, useReducedMotion } from '@asmbots/ui'
 import {
   applyTheme,
@@ -54,6 +55,8 @@ export interface ArenaConfig {
   seed: number | null
   maxProcesses: number
   minSpacing: number
+  /** The one class of bot the arena takes, or `all` for any size. */
+  weight: 'all' | WeightClassSlug
 }
 
 /** What the settings store persists. */

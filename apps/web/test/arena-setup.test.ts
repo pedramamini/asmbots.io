@@ -20,6 +20,7 @@ import {
   fits,
   matchesQuery,
   maxSpacing,
+  outsideWeight,
   randomFill,
   replaySources,
   resolveSelection,
@@ -80,7 +81,7 @@ const NO_SOURCES = {
 }
 
 describe('config', () => {
-  it('starts as duel: the engine defaults, one round, a random seed', () => {
+  it('starts as duel: the engine defaults, one round, a random seed, any size', () => {
     expect(DEFAULT_ARENA_CONFIG).toEqual({
       preset: 'duel',
       seed: null,
@@ -88,6 +89,7 @@ describe('config', () => {
       maxCycles: DEFAULT_CONFIG.maxCycles,
       maxProcesses: DEFAULT_CONFIG.maxProcesses,
       minSpacing: DEFAULT_CONFIG.minSpacing,
+      weight: 'all',
     })
     expect(presetOf(DEFAULT_ARENA_CONFIG)).toBe('duel')
   })
@@ -101,12 +103,18 @@ describe('config', () => {
     expect(names).toEqual(['duel', 'melee 8', 'melee 16', 'hill rules'])
   })
 
-  it('applies a preset over everything but the seed', () => {
-    const fixed = { ...DEFAULT_ARENA_CONFIG, seed: 42 }
+  it('applies a preset over everything but the seed and the class', () => {
+    const fixed: ArenaConfig = { ...DEFAULT_ARENA_CONFIG, seed: 42, weight: 'middleweight' }
     expect(withPreset(fixed, 'melee 16')).toEqual({
       ...PRESETS['melee 16'],
       seed: 42,
       preset: 'melee 16',
+      weight: 'middleweight',
+    })
+    // A class is no preset's: the values still name theirs.
+    expect(withConfig(DEFAULT_ARENA_CONFIG, { weight: 'heavyweight' })).toEqual({
+      ...DEFAULT_ARENA_CONFIG,
+      weight: 'heavyweight',
     })
   })
 
@@ -132,6 +140,13 @@ describe('config', () => {
       minSpacing: 0,
       preset: null,
     })
+  })
+
+  it('takes a weight class by its slug, and anything else as all', () => {
+    expect(sanitizeConfig({ weight: 'super-heavy' }).weight).toBe('super-heavy')
+    for (const junk of ['open', 'light', 'MIDDLEWEIGHT', 7, null, undefined]) {
+      expect(sanitizeConfig({ weight: junk }).weight).toBe('all')
+    }
   })
 
   it('takes a uint32 seed, and anything else as random', () => {
@@ -160,6 +175,7 @@ describe('search', () => {
         rounds: 3,
         procs: 64,
         spacing: 1024,
+        w: 'middleweight',
       }),
     ).toEqual({
       b: 'roster:dwarf,roster:paper',
@@ -168,6 +184,7 @@ describe('search', () => {
       rounds: 3,
       procs: 64,
       spacing: 1024,
+      w: 'middleweight',
     })
   })
 
@@ -180,8 +197,11 @@ describe('search', () => {
         rounds: 1.5,
         procs: {},
         spacing: '',
+        w: 'open',
       }),
     ).toEqual({})
+    expect(validateArenaSearch({ w: 'lightweight!' })).toEqual({})
+    expect(validateArenaSearch({ w: 7 })).toEqual({})
     expect(validateArenaSearch({ rounds: 99, other: 'x' })).toEqual({ rounds: 99 })
   })
 })
@@ -218,8 +238,16 @@ describe('setup in the URL', () => {
   })
 
   it('starts a visit with no query from the fallback config', () => {
-    const last: ArenaConfig = { ...PRESETS['hill rules'], seed: 5, preset: 'hill rules' }
+    const last: ArenaConfig = {
+      ...PRESETS['hill rules'],
+      seed: 5,
+      preset: 'hill rules',
+      weight: 'lightweight',
+    }
     expect(setupFromSearch({}, last)).toEqual({ bots: [], config: last })
+    // A config kept before the class was a field takes any size.
+    const { weight: _, ...older } = last
+    expect(setupFromSearch({}, older as ArenaConfig).config.weight).toBe('all')
     // A link with only bots is not a fresh visit: its config is the default.
     expect(setupFromSearch({ b: 'roster:imp' }, last).config).toEqual(DEFAULT_ARENA_CONFIG)
   })
@@ -233,6 +261,7 @@ describe('setup in the URL', () => {
       maxCycles: 10_000,
       maxProcesses: 1,
       minSpacing: 8192,
+      weight: 'all',
     })
   })
 
@@ -253,6 +282,20 @@ describe('setup in the URL', () => {
       rounds: 1,
       procs: 64,
       spacing: 1024,
+    })
+  })
+
+  it('writes the class as w, only when there is one, and reads it back', () => {
+    const setup = spec([roster('mender')], { weight: 'heavyweight' })
+    const search = searchFromSetup(setup)
+    expect(search.w).toBe('heavyweight')
+    expect(setupFromSearch(search).config.weight).toBe('heavyweight')
+    expect(stringifySearch({ ...search })).toEndWith('&spacing=1024&w=heavyweight')
+    expect('w' in searchFromSetup(spec([roster('imp')]))).toBe(false)
+    // A link with only a class is not a fresh visit.
+    expect(setupFromSearch({ w: 'middleweight' }, DEFAULT_ARENA_CONFIG).config).toEqual({
+      ...DEFAULT_ARENA_CONFIG,
+      weight: 'middleweight',
     })
   })
 
@@ -329,6 +372,10 @@ describe('share fragment', () => {
     )
     expect([...sharedBots(parsed.hash)]).toEqual([['a1', IMP]])
     expect(shareUrl('https://x', spec([roster('imp')]), [])).not.toContain('#')
+    const classed = new URL(
+      shareUrl('https://x', spec([roster('imp')], { weight: 'lightweight' }), []),
+    )
+    expect(classed.search).toEndWith('&spacing=1024&w=lightweight')
   })
 })
 
@@ -367,16 +414,11 @@ describe('roster catalog', () => {
     expect(find('')).toHaveLength(ROSTER.length)
     expect(find('PAINTER')).toEqual(['painter-lcg', 'painter-spiral'])
     // Paper's family, and the bigger bots whose blurbs name their fights with paper.
-    expect(find('paper solid')).toEqual([
-      'bastion',
-      'mender',
-      'citadel',
-      'swarm',
-      'silk',
-      'twins',
-      'hybrid',
-      'hydra',
-    ])
+    expect(find('paper solid')).toEqual(
+      ROSTER.filter(
+        (r) => r.tier === 'solid' && (r.family === 'paper' || /paper/.test(r.blurb)),
+      ).map((r) => r.slug),
+    )
     expect(find('paper solid pad')).toEqual(['silk'])
     expect(find('nothing-like-this')).toEqual([])
   })
@@ -534,6 +576,22 @@ describe('fightStatus', () => {
     expect(got).toEqual({ label: 'fight · 2 bots · 1 round', ready: false, busy: true })
   })
 
+  it('names the bots outside the arena’s class', () => {
+    // Imp and Dwarf are lightweight, Mender heavyweight.
+    const refs = [roster('imp'), roster('mender'), roster('dwarf')]
+    expect(status(refs, { weight: 'lightweight' })).toEqual({
+      label: 'remove 1 bot outside lightweight',
+      ready: false,
+      busy: false,
+    })
+    expect(status(refs, { weight: 'heavyweight' }).label).toBe('remove 2 bots outside heavyweight')
+    expect(status(refs).ready).toBe(true)
+    // A bot not ready has no size yet: its own fix comes first.
+    expect(status([roster('mender'), local('gone')], { weight: 'lightweight' }).label).toBe(
+      'remove 1 missing bot',
+    )
+  })
+
   it('says when bots cannot place with a fixed seed', () => {
     // Eight images, each 8 KB clear of the others both ways: more than 64 KB.
     const refs = ['imp', 'dwarf', 'paper', 'stone', 'silk', 'gate', 'decoy', 'scanner'].map(roster)
@@ -542,6 +600,21 @@ describe('fightStatus', () => {
     )
     // A random seed decides at the fight.
     expect(status(refs, { seed: null, minSpacing: 8192 }).ready).toBe(true)
+  })
+})
+
+describe('outsideWeight', () => {
+  it('lists the ready bots of another class, none under all', () => {
+    const selection = resolveSelection(
+      [roster('imp'), roster('mender'), local('gone'), roster('citadel')],
+      NO_SOURCES,
+    )
+    const out = (weight: ArenaConfig['weight']) =>
+      outsideWeight(selection, weight).map((s) => s.index)
+    expect(out('all')).toEqual([])
+    expect(out('lightweight')).toEqual([1, 3])
+    expect(out('heavyweight')).toEqual([0, 3])
+    expect(out('super-heavy')).toEqual([0, 1])
   })
 })
 

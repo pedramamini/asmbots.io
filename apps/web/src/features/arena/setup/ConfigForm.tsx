@@ -2,6 +2,7 @@ import { IconButton, Input, Segmented, Slider, Toggle } from '@asmbots/ui'
 import { Info } from 'lucide-react'
 import { lazy, type ReactNode, Suspense, useId, useState } from 'react'
 import type { ArenaConfig } from '../../../store/settings'
+import { WEIGHT_FILTERS } from '../../hills/WeightChip'
 import {
   CYCLES,
   type Limits,
@@ -25,15 +26,25 @@ export interface ConfigFormProps {
   maxSpacing: number
   /** How many bots the spacing is for: what the cap's `ⓘ` names. */
   bots: number
+  /** Shows the class row: the arena's. A tournament picks its class apart. */
+  weight?: boolean | undefined
 }
 
 const count = (n: number) => n.toLocaleString('en-US')
 
 /**
  * The battle config (PRODUCT_SPEC §2): the preset chips, then rounds, max cycles, the seed (fixed
- * or random), the process cap, and the spacing. A preset lights up while the values are its own.
+ * or random), the process cap, the spacing, and in the arena the one weight class it takes. A
+ * preset lights up while the values are its own; the class is no preset's.
  */
-export function ConfigForm({ config, onChange, onPreset, maxSpacing, bots }: ConfigFormProps) {
+export function ConfigForm({
+  config,
+  onChange,
+  onPreset,
+  maxSpacing,
+  bots,
+  weight = false,
+}: ConfigFormProps) {
   const preset = presetOf(config)
   return (
     <div className="flex flex-col gap-3">
@@ -115,6 +126,20 @@ export function ConfigForm({ config, onChange, onPreset, maxSpacing, bots }: Con
             </>
           )}
         </Field>
+        {weight && (
+          <Field label="class">
+            {(id) => (
+              <Segmented<ArenaConfig['weight']>
+                id={id}
+                label="arena class"
+                options={WEIGHT_FILTERS}
+                value={config.weight}
+                onValueChange={(value) => onChange({ weight: value })}
+                className="flex-wrap"
+              />
+            )}
+          </Field>
+        )}
       </dl>
     </div>
   )

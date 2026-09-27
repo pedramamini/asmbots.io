@@ -30,6 +30,7 @@ The query names the bots and the config:
 | `rounds` | rounds per match, 1 to 10 |
 | `procs` | the process cap, 1 to 256 |
 | `spacing` | the least gap between bots, 0 to 8,192 bytes |
+| `w` | the one weight class the arena takes: `lightweight`, `middleweight`, `heavyweight`, or `super-heavy`. Left out, any size. |
 
 A field left out takes its `duel` value, so a link means the same battle in every browser. Any other value out of range is held to the range. The one exception is `/arena` with no query at all: that opens the setup you last used.
 

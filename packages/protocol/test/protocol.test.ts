@@ -259,11 +259,12 @@ describe('share links', () => {
       rounds: 3,
       procs: 64,
       spacing: 1024,
+      w: 'middleweight',
       sources: [{ id: '3f2a', source: 'mov ax, 1 ; é\n'.repeat(40) }],
     }
     const href = encodeShare(link)
     expect(href).toMatch(
-      /^\/arena\?b=roster:dwarf,local:3f2a&seed=42&cycles=100000&rounds=3&procs=64&spacing=1024#src=[A-Za-z0-9_-]+$/,
+      /^\/arena\?b=roster:dwarf,local:3f2a&seed=42&cycles=100000&rounds=3&procs=64&spacing=1024&w=middleweight#src=[A-Za-z0-9_-]+$/,
     )
     expect(decodeShare(href)).toEqual(link)
     expect(decodeShare(`https://asmbots.dev${href}`)).toEqual(link)
@@ -286,9 +287,10 @@ describe('share links', () => {
 
   it('leave out what does not parse, and say why a replay fragment is broken', async () => {
     const link = decodeShare(
-      '/arena?b=roster:dwarf,bogus,local:x!&seed=99999999999&cycles=abc&rounds=2',
+      '/arena?b=roster:dwarf,bogus,local:x!&seed=99999999999&cycles=abc&rounds=2&w=open',
     )
     expect(link).toEqual({ bots: ['roster:dwarf'], rounds: 2 })
+    expect(decodeShare('/arena?w=super-heavy')).toEqual({ bots: [], w: 'super-heavy' })
     expect(decodeSources('#src=!!!')).toEqual([])
     expect(decodeSources('')).toEqual([])
     expect(decodeSources(encodeSources([{ id: 'a', source: 'x' }]))).toEqual([

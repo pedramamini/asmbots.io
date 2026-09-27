@@ -8,6 +8,7 @@
 import 'fake-indexeddb/auto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, mock } from 'bun:test'
 import { loadRoster } from '@asmbots/bots'
+import { weightClassOf } from '@asmbots/protocol'
 import { ToastProvider } from '@asmbots/ui'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
@@ -39,8 +40,16 @@ useDom()
 window.scrollTo = () => {}
 
 const source = (slug: string) => loadRoster().get(slug)?.source ?? ''
+/** The names of the roster bots of weight class `slug`, sorted. */
+const namesIn = (slug: string) =>
+  [...loadRoster().values()]
+    .filter((bot) => weightClassOf(bot.assembled.bytes.length)?.slug === slug)
+    .map((bot) => bot.assembled.name)
+    .sort()
 const IMP = source('imp')
 const DWARF = source('dwarf')
+/** A heavyweight roster bot's source: 1,443 bytes. */
+const MENDER = source('mender')
 const BROKEN = '%name "Broken"\n        jmp nowhere\n'
 
 let restoreCanvas = () => {}
@@ -237,30 +246,44 @@ describe('arena setup', () => {
       within(screen.getByRole('list', { name: 'bots to add' }))
         .getAllByRole('listitem')
         .map((card) => card.getAttribute('aria-label'))
-    const weight = within(screen.getByRole('radiogroup', { name: 'weight class' }))
+    const group = screen.getByRole('radiogroup', { name: 'weight class' })
+    const weight = within(group)
+    // The label before the pills, and each pill's count of the roster in its class.
+    expect(group.parentElement?.textContent).toStartWith('weight class')
+    const classes = [...loadRoster().values()].map(
+      (bot) => weightClassOf(bot.assembled.bytes.length)?.slug,
+    )
+    const inClass = (slug: string) => classes.filter((c) => c === slug).length
     expect(weight.getAllByRole('radio').map((pill) => pill.textContent)).toEqual([
-      'all',
-      'light',
-      'middle',
-      'heavy',
-      'super',
+      `all ${classes.length}`,
+      `light ${inClass('lightweight')}`,
+      `middle ${inClass('middleweight')}`,
+      `heavy ${inClass('heavyweight')}`,
+      `super ${inClass('super-heavy')}`,
     ])
     expect(
       screen.getByRole('listitem', { name: 'Dwarf' }).querySelector('[data-weight]')?.textContent,
     ).toBe('light')
-    fireEvent.click(weight.getByRole('radio', { name: 'heavy' }))
-    expect(cardNames().sort()).toEqual(['Hydra', 'Mender'])
+    fireEvent.click(weight.getByRole('radio', { name: /^heavy / }))
+    expect(cardNames().sort()).toEqual(namesIn('heavyweight'))
     const mender = screen.getByRole('listitem', { name: 'Mender' })
     expect(mender.textContent).toContain('1443 B')
     expect(mender.querySelector('[data-weight]')?.textContent).toBe('heavy')
-    fireEvent.click(weight.getByRole('radio', { name: 'super' }))
-    expect(cardNames().sort()).toEqual(['Citadel', 'Swarm'])
+    fireEvent.click(weight.getByRole('radio', { name: /^super / }))
+    expect(cardNames().sort()).toEqual(namesIn('super-heavy'))
     fireEvent.change(screen.getByRole('textbox', { name: 'search bots' }), {
-      target: { value: 'imp' },
+      target: { value: 'painter' },
     })
-    expect(screen.getByText('no super roster bot matches "imp".')).toBeTruthy()
+    expect(screen.getByText('no super roster bot matches "painter".')).toBeTruthy()
+    // The counts follow the search: `all` is the classes' sum, fewer than the roster, none super.
+    const [all = 0, ...each] = weight
+      .getAllByRole('radio')
+      .map((pill) => Number(pill.textContent?.split(' ')[1]))
+    expect(all).toBe(each.reduce((sum, n) => sum + n, 0))
+    expect(all).toBeLessThan(classes.length)
+    expect(each[3]).toBe(0)
     fireEvent.click(screen.getByRole('button', { name: 'clear the filters' }))
-    expect(weight.getByRole('radio', { name: 'all' }).getAttribute('aria-checked')).toBe('true')
+    expect(weight.getByRole('radio', { name: /^all / }).getAttribute('aria-checked')).toBe('true')
     expect(cardNames().length).toBeGreaterThan(10)
   })
 
@@ -274,6 +297,24 @@ describe('arena setup', () => {
     fireEvent.click(screen.getByRole('button', { name: 'remove Imp' }))
     fireEvent.click(screen.getByRole('button', { name: 'remove Dwarf' }))
     expect(within(bots).queryByText('open weight: sizes mix')).toBeNull()
+  })
+
+  it('names each picked bot’s class, and clears the list, with an undo', async () => {
+    const { router } = await renderArena('/arena?b=roster:imp,roster:mender')
+    const rows = within(screen.getByRole('list', { name: 'bots picked' }))
+    expect(
+      rows.getAllByRole('listitem').map((row) => row.querySelector('[data-weight]')?.textContent),
+    ).toEqual(['light', 'heavy'])
+    expect(rows.getByRole('listitem', { name: 'Mender' }).textContent).toContain('1443 B')
+    const clear = () => screen.getByRole('button', { name: 'clear' }) as HTMLButtonElement
+    fireEvent.click(clear())
+    expect(screen.queryByRole('list', { name: 'bots picked' })).toBeNull()
+    expect(clear().disabled).toBe(true)
+    await waitFor(() => expect(search(router)).not.toContain('b='))
+    expect(await screen.findByText('cleared 2 bots.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'undo' }))
+    expect(picked()).toEqual(['Imp', 'Mender'])
+    await waitFor(() => expect(search(router)).toStartWith('?b=roster:imp,roster:mender&'))
   })
 
   it('applies a preset, and lights its chip while the values are its own', async () => {
@@ -315,7 +356,7 @@ describe('arena setup', () => {
 
   it('starts a visit with no query from the config last fought with', async () => {
     useSettings.setState({
-      lastArenaConfig: { ...PRESETS['hill rules'], seed: 9, preset: 'hill rules' },
+      lastArenaConfig: { ...PRESETS['hill rules'], seed: 9, preset: 'hill rules', weight: 'all' },
     })
     await renderArena('/arena')
     expect(screen.getByRole('radio', { name: 'hill rules' }).getAttribute('aria-checked')).toBe(
@@ -391,7 +432,8 @@ describe('bots from files, the store, a paste, and a share link', () => {
   it('assembles a paste as it is typed, and adds it once it assembles', async () => {
     await renderArena('/arena?b=roster:dwarf')
     fireEvent.click(screen.getByRole('radio', { name: 'paste' }))
-    const box = screen.getByRole('textbox', { name: 'bot source' })
+    // The paste box is its own chunk.
+    const box = await screen.findByRole('textbox', { name: 'bot source' })
     const add = () => screen.getByRole('button', { name: 'add' }) as HTMLButtonElement
     fireEvent.change(box, { target: { value: BROKEN } })
     expect(await screen.findByText('1 error')).toBeTruthy()
@@ -471,6 +513,83 @@ describe('bots from files, the store, a paste, and a share link', () => {
       true,
     )
     expect(within(screen.getByRole('region', { name: 'bots' })).getByText('16 / 16')).toBeTruthy()
+  })
+})
+
+describe('an arena held to one weight class', () => {
+  const classGroup = () => within(screen.getByRole('radiogroup', { name: 'arena class' }))
+  const filter = () => within(screen.getByRole('radiogroup', { name: 'weight class' }))
+  const cardNames = () =>
+    within(screen.getByRole('list', { name: 'bots to add' }))
+      .getAllByRole('listitem')
+      .map((card) => card.getAttribute('aria-label'))
+
+  it('reads the class from the URL, holds the filter to it, and blocks a bot outside it', async () => {
+    await renderArena('/arena?b=roster:imp,roster:mender,roster:dwarf&w=heavyweight')
+    expect(classGroup().getByRole('radio', { name: 'heavy' }).getAttribute('aria-checked')).toBe(
+      'true',
+    )
+    const heavy = filter().getByRole('radio', { name: /^heavy / })
+    expect(heavy.getAttribute('aria-checked')).toBe('true')
+    const others = filter()
+      .getAllByRole('radio')
+      .filter((pill) => pill !== heavy)
+    expect(others.every((pill) => (pill as HTMLButtonElement).disabled)).toBe(true)
+    expect(cardNames().sort()).toEqual(namesIn('heavyweight'))
+    expect(fightButton().textContent).toBe('remove 2 bots outside heavyweight')
+    // Sizes mix, but the class says what it takes: no open weight note.
+    const bots = screen.getByRole('region', { name: 'bots' })
+    expect(within(bots).queryByText('open weight: sizes mix')).toBeNull()
+  })
+
+  it('takes out the picked bots of another class when a class is chosen, and says so', async () => {
+    const { router } = await renderArena('/arena?b=roster:imp,roster:mender,roster:dwarf')
+    expect(within(screen.getByRole('region', { name: 'bots' })).getByText('open weight: sizes mix'))
+    fireEvent.click(classGroup().getByRole('radio', { name: 'light' }))
+    expect(picked()).toEqual(['Imp', 'Dwarf'])
+    expect(await screen.findByText('removed 1 bot outside lightweight.')).toBeTruthy()
+    await waitFor(() => expect(search(router)).toEndWith('&spacing=1024&w=lightweight'))
+    expect(fightButton().textContent).toBe('fight · 2 bots · 1 round')
+    // Back to all: the filter is free again, and the link has no class.
+    fireEvent.click(classGroup().getByRole('radio', { name: 'all' }))
+    expect(
+      filter()
+        .getAllByRole('radio')
+        .some((pill) => (pill as HTMLButtonElement).disabled),
+    ).toBe(false)
+    await waitFor(() => expect(search(router)).not.toContain('w='))
+  })
+
+  it('refuses bots outside the class: the starters, a paste, and dropped files, which it saves', async () => {
+    await renderArena('/arena?w=middleweight')
+    fireEvent.click(screen.getByRole('button', { name: /try dwarf vs paper/ }))
+    expect(await screen.findByText('2 bots are not middleweight: not added.')).toBeTruthy()
+    expect(screen.queryByRole('list', { name: 'bots picked' })).toBeNull()
+    drop([new File([MENDER], 'mender.asm')])
+    expect(
+      await screen.findByText('1 bot is not middleweight: saved to my bots, not added.'),
+    ).toBeTruthy()
+    expect((await listLocalBots()).map((bot) => bot.name)).toEqual(['Mender'])
+    expect(screen.queryByRole('list', { name: 'bots picked' })).toBeNull()
+    fireEvent.click(screen.getByRole('radio', { name: 'paste' }))
+    const box = await screen.findByRole('textbox', { name: 'bot source' })
+    fireEvent.change(box, { target: { value: IMP } })
+    expect(await screen.findByText('Imp · 15 B')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'add' }))
+    expect(await screen.findByText('1 bot is not middleweight: not added.')).toBeTruthy()
+    // Refused, the paste is not saved, and its text stays to change.
+    expect((box as HTMLTextAreaElement).value).toBe(IMP)
+    expect(await listLocalBots()).toHaveLength(1)
+    await settle()
+  })
+
+  it('fills at random from the class only', async () => {
+    await renderArena('/arena?w=heavyweight')
+    fireEvent.click(screen.getByRole('button', { name: /random fill/ }))
+    expect(picked()).toHaveLength(16)
+    const heavy = namesIn('heavyweight')
+    expect(picked().every((name) => heavy.includes(name?.replace(/ \d+$/, '') ?? ''))).toBe(true)
+    expect(fightButton().textContent).toBe('fight · 16 bots · 1 round')
   })
 })
 

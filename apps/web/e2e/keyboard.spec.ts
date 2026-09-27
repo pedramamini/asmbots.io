@@ -97,9 +97,12 @@ function uniqueBot(name: string, n: number): string {
   return `%name "${name}"\n\nstart:  mov     ax, ${n}\n        mov     bx, ax\n        jmp     start\n`
 }
 
-/** Tabs to the source, empties it, and types `source` as one input. */
+/**
+ * Tabs to the source, empties it, and types `source` as one input. The library comes first, two
+ * stops a roster bot, so the walk gets room for the whole roster.
+ */
 async function typeSource(page: Page, source: string): Promise<void> {
-  await tabTo(page, page.getByRole('textbox', { name: 'bot source' }))
+  await tabTo(page, page.getByRole('textbox', { name: 'bot source' }), 240)
   await page.keyboard.press('ControlOrMeta+a')
   await page.keyboard.press('Delete')
   await page.keyboard.insertText(source)

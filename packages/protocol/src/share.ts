@@ -3,7 +3,7 @@
  * the bots and the config; the fragment carries what a server does not have, so a link works in
  * a browser that has never seen its bots:
  *
- *     /arena?b=roster:dwarf,local:3f2a&seed=42&cycles=100000&rounds=3&procs=64&spacing=1024#src=…
+ *     /arena?b=roster:dwarf,local:3f2a&seed=42&cycles=100000&rounds=3&procs=64&spacing=1024&w=lightweight#src=…
  *     /arena/<match key>#r=…
  *
  * `src=` is the base64url of the deflated JSON `[[id, source], …]` of the local bots the query
@@ -26,10 +26,14 @@ export const BotRef = matching(/^(?:roster|local):[A-Za-z0-9_-]{1,64}$/)
 export const SharedSource = z.object({ id: matching(TOKEN), source: z.string() })
 export type SharedSource = z.output<typeof SharedSource>
 
+/** The one weight class an arena link holds its bots to: a class's slug. */
+const WEIGHT = /^(?:lightweight|middleweight|heavyweight|super-heavy)$/
+
 /**
  * An arena link. The counts are the query's; each one left out takes the arena's `duel` value,
- * and no `seed` means a random seed each battle. `sources` are the fragment's `src=`; `replay`
- * makes it a replay link, `/arena/<match key>#r=`, which has no query.
+ * and no `seed` means a random seed each battle. `w` holds the arena to one weight class; none
+ * takes any size. `sources` are the fragment's `src=`; `replay` makes it a replay link,
+ * `/arena/<match key>#r=`, which has no query.
  */
 export const ShareLink = z.object({
   bots: z.array(BotRef).check(z.maxLength(MAX_REPLAY_BOTS)),
@@ -38,6 +42,7 @@ export const ShareLink = z.object({
   rounds: z.optional(whole('rounds', 0, Number.MAX_SAFE_INTEGER)),
   procs: z.optional(whole('procs', 0, Number.MAX_SAFE_INTEGER)),
   spacing: z.optional(whole('spacing', 0, Number.MAX_SAFE_INTEGER)),
+  w: z.optional(matching(WEIGHT)),
   sources: z.optional(z.array(SharedSource).check(z.maxLength(MAX_REPLAY_BOTS))),
   replay: z.optional(Replay),
 })
@@ -128,14 +133,15 @@ export function encodeShare(link: ShareLink): string {
     const value = link[key]
     if (value !== undefined) query.set(key, String(value))
   }
+  if (link.w !== undefined) query.set('w', link.w)
   const text = query.toString().replace(/%3A/gi, ':').replace(/%2C/gi, ',')
   const fragment = encodeSources(link.sources ?? [])
   return `/arena${text === '' ? '' : `?${text}`}${fragment === '' ? '' : `#${fragment}`}`
 }
 
 /**
- * The link `href` holds: an absolute URL, or a path as `encodeShare` makes one. A bot ref or a
- * count that does not parse is left out, as the arena leaves it out; a replay fragment that does
+ * The link `href` holds: an absolute URL, or a path as `encodeShare` makes one. A bot ref, a
+ * count, or a class that does not parse is left out, as the arena leaves it out; a replay fragment that does
  * not read is a `ProtocolError`.
  */
 export function decodeShare(href: string): ShareLink {
@@ -160,6 +166,8 @@ export function decodeShare(href: string): ShareLink {
     const n = Number(text)
     if (key === 'seed' ? Seed.safeParse(n).success : Number.isSafeInteger(n)) link[key] = n
   }
+  const weight = url.searchParams.get('w')
+  if (weight !== null && WEIGHT.test(weight)) link.w = weight
   const sources = decodeSources(url.hash)
   if (sources.length > 0) link.sources = sources
   return link

@@ -79,11 +79,22 @@ scanlines, and vignette from `render/post.ts`), `render/canvas2d.ts` is the 2D f
 
 `/arena` is `ArenaPage.tsx`: `ArenaSetup.tsx` until the fight button, then `ArenaBattle.tsx`. The
 URL holds the setup, `?b=roster:dwarf,local:<id>&seed=42&cycles=100000&rounds=3&procs=64&spacing=1024`
-(`setup/url.ts`; no `seed` is a random seed each battle), and a share link carries its local bots'
-sources in `#src=` (deflated JSON, base64url). `setup/search.ts`, the route's `validateSearch`,
-imports nothing, since it rides the entry chunk. `setup/config.ts` has the limits and the presets,
-and `setup/bots.ts` the roster, the local and shared bots, dropped files, and the fight button's
-words. `vite.config.ts` loads the roster's `.asm` imports as text (`textImport` of the repo's
+(`setup/url.ts`; no `seed` is a random seed each battle; `&w=middleweight` holds the arena to one
+weight class, none takes any size), and a share link carries the same query (`@asmbots/protocol`'s
+`encodeShare`) and its local bots' sources in `#src=` (deflated JSON, base64url).
+`setup/search.ts`, the route's `validateSearch`, imports no code, since it rides the entry chunk.
+`setup/config.ts` has the limits, the presets, and the class (`ArenaConfig.weight`, which no preset
+sets), and `setup/bots.ts` the roster, the local and shared bots, the bots outside the class
+(`outsideWeight`), and the fight button's words. Click-only parts load as their own chunks, since
+the setup sits at the edge of its budget: the paste box (`setup/PasteBox.tsx`), dropped files
+(`setup/files.ts`, with the assembler), and the problem modal with the assembler's errors
+(`setup/Problems.tsx`, `setup/Diagnostics.tsx`).
+
+The class, when set, locks the picker's weight filter (its pills count the search's bots in each
+class) and random fill to it; `add` refuses a bot of another class with a warn toast (a dropped
+file is still saved to my bots); choosing a class removes the picked bots of the others; and
+`fightStatus` blocks a fight with one (`remove 1 bot outside middleweight`). The bots panel shows
+each ready bot's class chip, and `clear` empties it, with `undo` on the toast. `vite.config.ts` loads the roster's `.asm` imports as text (`textImport` of the repo's
 `scripts/text-import.ts`, which also reads the docs' figures; the API's Vitest pool uses it too).
 
 `ArenaBattle.tsx` is the battle, its parts in `battle/`: `Hud.tsx` (a band over the core that the

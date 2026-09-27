@@ -36,20 +36,44 @@ Open weight takes any bot from 1 to 4,096 bytes, every class mixed, in duels. It
 
 A bot's class is set by its size: the bytes it assembles to. The editor, your profile, and the arena's bot picker show it. A bot enters its own class's hill and open weight, and no other: a 300-byte bot cannot enter middleweight, and a 600-byte bot cannot enter the `main` hill. To move a bot to another class, change its code.
 
-A hill refuses a bot outside its bounds, with the reason. A tournament takes one class too: the form filters the bots by the class you pick.
+A hill refuses a bot outside its bounds, with the reason. A tournament takes one class too: the form filters the bots by the class you pick. So can the arena: its config's `class` holds the picker to that class, refuses a bot of another, and takes out the ones already picked.
 
 ## The example bots
 
-The roster carries two fighters in each class above lightweight. Each name opens the bot's page; `watch` plays the pair in the arena at their class's spacing.
+The roster carries ten fighters in each class above lightweight. A linked name opens the bot's page on the hills; `watch` plays a pair in the arena at their class's spacing, and the arena's `class` config lists one class alone.
 
 | bot | bytes | class | tactic |
 |---|---|---|---|
 | [`bastion`](/bots/roster-bastion) | 548 | middleweight | a dwarf with 128 unrolled bombs a pass, between two fields of fake code |
 | [`twins`](/bots/roster-twins) | 524 | middleweight | paper whose copies alternate a dense and a wide unrolled burst |
+| `legion` | 587 | middleweight | 12 imps and 48 lane bombers that turn gate when an imp comes |
+| `mortar` | 859 | middleweight | lays spl traps for a lap, then DAT over them |
+| `sentinel` | 577 | middleweight | a 126-bomb unrolled bomber that starts an imp gate when a wire trips |
+| `quarry` | 723 | middleweight | four unrolled bombers, four strides, one process each |
+| `origami` | 678 | middleweight | paper in two folds that mends the live fold from the spare |
+| `sweeper` | 625 | middleweight | scans with an unrolled fold, carpets each hit and sweeps 1.5 KB under it |
+| `harrier` | 603 | middleweight | scans and carpets; bombs blind when a lap is crowded or empty |
+| `leech` | 599 | middleweight | bites wide with 64 identical jmp fangs, holds the bitten in a pit |
 | [`hydra`](/bots/roster-hydra) | 1,288 | heavyweight | scans a lap, bombs four laps, then walks as an imp ring |
 | [`mender`](/bots/roster-mender) | 1,443 | heavyweight | a bomber that mends its loop from a spare copy |
+| `wraith` | 1,226 | heavyweight | bombs one lap, then walks off as a large imp that bombs two lines |
+| `juggernaut` | 1,064 | heavyweight | two bomb fronts, one up and one down, 256 bombs a pass |
+| `garrison` | 1,140 | heavyweight | an upward bomber and an imp gate, mended by a vote of three copies |
+| `colossus` | 1,196 | heavyweight | six unrolled bombers with prime strides, four up and two down |
+| `phalanx` | 1,322 | heavyweight | eight bombers side by side that bomb out from the body both ways |
+| `labyrinth` | 1,056 | heavyweight | paper whose big copies each bomb a 16 KB field |
+| `kraken` | 1,218 | heavyweight | three scanner arms in parallel, each striking what it finds |
+| `basilisk` | 1,116 | heavyweight | a vampire whose bite is a 928-byte fang table; the pit sets the bitten on their own bot |
 | [`citadel`](/bots/roster-citadel) | 2,138 | super-heavy | three bomber cells, each rebuilding the next when it dies |
 | [`swarm`](/bots/roster-swarm) | 2,334 | super-heavy | 64 bombers side by side, one process and one lane each |
+| `titan` | 3,381 | super-heavy | a 400-bomb loop that moves between two homes and rewrites the other one |
+| `dreadnought` | 2,872 | super-heavy | three unrolled bomb loops that mend from a spare copy |
+| `monolith` | 2,411 | super-heavy | eight bombers in eight cells, four up and four down, strides 6 to 116 |
+| `fortress` | 2,137 | super-heavy | three bombers between two imp gates; a tripwire floods the low one |
+| `behemoth` | 2,088 | super-heavy | paper that drops 520 bombs on each landing place, then copies itself there |
+| `hive` | 2,179 | super-heavy | 24 small papers side by side, each with a step of its own |
+| `leviathan` | 2,298 | super-heavy | four scanner cells, two up and two down, each folding 1,536 bytes with 128 or's |
+| `overlord` | 2,265 | super-heavy | bites 1 KB with fangs, zeros 2 KB from the pit, gates imps |
 
 - middleweight: [watch bastion vs twins](/arena?b=roster:bastion,roster:twins&spacing=1024)
 - heavyweight: [watch hydra vs mender](/arena?b=roster:hydra,roster:mender&spacing=2048)

@@ -335,7 +335,15 @@ export function replayFight(replay: Replay, bots: readonly ArenaBot[]): ArenaFig
     rounds: replay.rounds,
     spec: {
       bots: [],
-      config: { preset: null, rounds: replay.rounds, maxCycles, maxProcesses, minSpacing, seed },
+      config: {
+        preset: null,
+        rounds: replay.rounds,
+        maxCycles,
+        maxProcesses,
+        minSpacing,
+        seed,
+        weight: 'all',
+      },
     },
     sources: replay.bots.map((bot) => bot.source ?? ''),
     shared: [],

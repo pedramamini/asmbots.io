@@ -5,10 +5,10 @@
  *     /arena?b=roster:dwarf,local:3f2a…&seed=42&cycles=100000&rounds=3&procs=64&spacing=1024
  *
  * A roster bot is `roster:<slug>`; a bot of this browser is `local:<id>`, its id in the local bot
- * store. No `seed` means a random seed each battle; any other field left out takes its `duel`
- * value. A share link also carries the sources of its local bots in the fragment, `#src=` and the
- * base64url of their deflated JSON, so they load in a browser that does not have them
- * (PRODUCT_SPEC §10). `@asmbots/protocol`'s `ShareLink` is the encoding.
+ * store. No `seed` means a random seed each battle; `w=middleweight` holds the arena to one weight
+ * class, and no `w` takes any size; any other field left out takes its `duel` value. A share link
+ * also carries the sources of its local bots in the fragment, `#src=` and the base64url of their
+ * deflated JSON, so they load in a browser that does not have them (PRODUCT_SPEC §10). `@asmbots/protocol`'s `ShareLink` is the encoding.
  */
 import { decodeSources, encodeShare, encodeSources } from '@asmbots/protocol'
 import type { ArenaConfig } from '../../../store/settings'
@@ -73,11 +73,15 @@ export function setupFromSearch(
     ...(search.rounds !== undefined && { rounds: search.rounds }),
     ...(search.procs !== undefined && { maxProcesses: search.procs }),
     ...(search.spacing !== undefined && { minSpacing: search.spacing }),
+    ...(search.w !== undefined && { weight: search.w }),
   })
   return { bots, config }
 }
 
-/** The query of `setup`: the bots, then every config field, so the link keeps its meaning. */
+/**
+ * The query of `setup`: the bots, then every config field, so the link keeps its meaning; the
+ * class only when it is one, as a link with none takes any size.
+ */
 export function searchFromSetup({ bots, config }: ArenaSetupSpec): ArenaSearch {
   return {
     ...(bots.length > 0 && { b: bots.map(formatRef).join(',') }),
@@ -86,6 +90,7 @@ export function searchFromSetup({ bots, config }: ArenaSetupSpec): ArenaSearch {
     rounds: config.rounds,
     procs: config.maxProcesses,
     spacing: config.minSpacing,
+    ...(config.weight !== 'all' && { w: config.weight }),
   }
 }
 

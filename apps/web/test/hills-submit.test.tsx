@@ -317,6 +317,7 @@ describe('the words of a submission', () => {
       maxProcesses: 64,
       minSpacing: 1024,
       seed: 1,
+      weight: 'all',
     })
   })
 })

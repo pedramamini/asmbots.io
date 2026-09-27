@@ -4,6 +4,7 @@
  */
 import { HILL_RULES } from '@asmbots/bots'
 import { type BattleConfigInput, DEFAULT_CONFIG } from '@asmbots/engine'
+import { WEIGHT_CLASSES } from '@asmbots/protocol'
 import { MAX_MELEE_ENTRANTS } from '@asmbots/tourney'
 import type { ArenaConfig } from '../../../store/settings'
 
@@ -34,7 +35,7 @@ export const SPACING: Limits = { min: 0, max: 8192, step: 64 }
 /** Seeds are uint32 (ISA §5.5). */
 export const SEED: Limits = { min: 0, max: 0xffff_ffff, step: 1 }
 
-/** The config fields a preset sets: everything but the seed. */
+/** The config fields a preset sets: everything but the seed and the class. */
 export type PresetValues = Pick<ArenaConfig, 'rounds' | 'maxCycles' | 'maxProcesses' | 'minSpacing'>
 
 /** The preset chips, in order (PRODUCT_SPEC §2). */
@@ -69,11 +70,12 @@ export const PRESETS: Readonly<Record<PresetName, PresetValues>> = {
   },
 }
 
-/** A first visit's config: `duel`, with a random seed. */
+/** A first visit's config: `duel`, with a random seed, any size of bot. */
 export const DEFAULT_ARENA_CONFIG: ArenaConfig = Object.freeze({
   preset: 'duel',
   seed: null,
   ...PRESETS.duel,
+  weight: 'all',
 })
 
 /** The preset whose values `config` has, or null for a hand-made config. */
@@ -91,7 +93,7 @@ export function presetOf(config: PresetValues): PresetName | null {
   )
 }
 
-/** `config` with the values of preset `name`, the seed as it was. */
+/** `config` with the values of preset `name`, the seed and the class as they were. */
 export function withPreset(config: ArenaConfig, name: PresetName): ArenaConfig {
   return { ...config, ...PRESETS[name], preset: name }
 }
@@ -104,7 +106,8 @@ export function withConfig(config: ArenaConfig, change: Partial<ArenaConfig>): A
 
 /**
  * A config the form can show: each count an integer within its limits (the default in place of
- * junk), the seed a uint32 or null, and `preset` matching the values.
+ * junk), the seed a uint32 or null, the class a weight class's slug (else `all`), and `preset`
+ * matching the values.
  */
 export function sanitizeConfig(config: Partial<Record<keyof ArenaConfig, unknown>>): ArenaConfig {
   const values: PresetValues = {
@@ -113,7 +116,8 @@ export function sanitizeConfig(config: Partial<Record<keyof ArenaConfig, unknown
     maxProcesses: countOf(config.maxProcesses, PROCS) ?? DEFAULT_ARENA_CONFIG.maxProcesses,
     minSpacing: countOf(config.minSpacing, SPACING) ?? DEFAULT_ARENA_CONFIG.minSpacing,
   }
-  return { ...values, seed: seedOf(config.seed), preset: presetOf(values) }
+  const weight = WEIGHT_CLASSES.find((c) => c.slug === config.weight)?.slug ?? 'all'
+  return { ...values, seed: seedOf(config.seed), preset: presetOf(values), weight }
 }
 
 /**

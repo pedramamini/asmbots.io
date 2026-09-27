@@ -1,4 +1,3 @@
-import type { Diag } from '@asmbots/asm'
 import { weightClassOf } from '@asmbots/protocol'
 import {
   Button,
@@ -9,7 +8,6 @@ import {
   IconButton,
   Identicon,
   Input,
-  Modal,
   Panel,
   PanelGrid,
   Segmented,
@@ -22,7 +20,6 @@ import {
   lazy,
   type ReactNode,
   Suspense,
-  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
@@ -34,7 +31,7 @@ import { useLinkAction } from '../../app/link-action'
 import { PageIntro } from '../../app/PageIntro'
 import { useRouteStat } from '../../app/slots'
 import { type LocalBot, useLocalBotActions, useLocalBots } from '../../store/local-bots'
-import { useSettings } from '../../store/settings'
+import { type ArenaConfig, useSettings } from '../../store/settings'
 import {
   inWeight,
   WEIGHT_FILTERS,
@@ -43,10 +40,8 @@ import {
   type WeightFilter,
 } from '../hills/WeightChip'
 import { loadAssembly, useAssemble } from './setup/assembler'
-import type { BotFile } from './setup/assembly'
 import {
   type ArenaFight,
-  type Assemble,
   arenaFight,
   type CatalogBot,
   carriesFiles,
@@ -56,6 +51,7 @@ import {
   localCatalog,
   matchesQuery,
   maxSpacing,
+  outsideWeight,
   randomFill,
   resolveSelection,
   rosterCatalog,
@@ -72,22 +68,18 @@ import {
   withConfig,
   withPreset,
 } from './setup/config'
+import type { Problems } from './setup/files'
 import { type ArenaSetupSpec, type BotRef, formatRef } from './setup/url'
 import { copyShareLink } from './share'
 import { FightStep, RosterStep } from './tour'
 
-/** Assembler errors: their own chunk, loaded when a bot first fails to assemble. */
-const LazyDiagnostics = lazy(() =>
-  import('./setup/Diagnostics').then((m) => ({ default: m.Diagnostics })),
+/** The problem modal and the assembler's errors: a chunk loaded when a bot first fails to assemble. */
+const ProblemsModal = lazy(() =>
+  import('./setup/Problems').then((m) => ({ default: m.ProblemsModal })),
 )
 
-function Diagnostics(props: { source: string; diagnostics: readonly Diag[] }) {
-  return (
-    <Suspense fallback={null}>
-      <LazyDiagnostics {...props} />
-    </Suspense>
-  )
-}
+/** The paste box: its own chunk, loaded when `paste` is picked. */
+const PasteBox = lazy(() => import('./setup/PasteBox').then((m) => ({ default: m.PasteBox })))
 
 /**
  * The intro's banner, loaded after the page: the setup sits at the edge of its budget. Its box is
@@ -109,15 +101,6 @@ const STARTERS: readonly BotRef[] = [
   { kind: 'roster', slug: 'dwarf' },
   { kind: 'roster', slug: 'paper' },
 ]
-
-/** A file or a bot that did not assemble, as the problem modal lists it. */
-interface Problem {
-  readonly name: string
-  readonly source: string
-  /** Why it was not read at all, instead of diagnostics. */
-  readonly reason: string | null
-  readonly diagnostics: readonly Diag[]
-}
 
 export interface ArenaSetupProps {
   /** The bots and the config: the URL's. */
@@ -148,7 +131,7 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
   const [source, setSource] = useState<Source>('roster')
   const [query, setQuery] = useState('')
   const [weight, setWeight] = useState<WeightFilter>('all')
-  const [problems, setProblems] = useState<{ title: string; list: Problem[] } | null>(null)
+  const [problems, setProblems] = useState<Problems | null>(null)
   const [dragDepth, setDragDepth] = useState(0)
   const picker = useRef<HTMLInputElement>(null)
   // The setup as it stands, for the steps that finish after an await.
@@ -181,28 +164,46 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
         : localBots.data.map((bot) => localCatalog(bot, assemble)),
     [localBots.data, assemble],
   )
+  // The arena's class, when it has one, holds the picker's weight filter to it.
+  const locked = spec.config.weight !== 'all'
+  const filter: WeightFilter = locked ? spec.config.weight : weight
   // The bots the picker lists, which `random fill` draws from: the search's, in the weight class.
-  const listed = (
+  const searched = (
     source === 'roster' ? rosterCatalog() : source === 'mine' ? (mine ?? []) : []
-  ).filter((bot) => matchesQuery(bot, query) && inWeight(bot.assembled.bytes.length, weight))
+  ).filter((bot) => matchesQuery(bot, query))
+  const listed = searched.filter((bot) => inWeight(bot.assembled.bytes.length, filter))
+  // Each filter pill counts the search's bots in its class, and the other pills lock with a class.
+  const weightFilters = WEIGHT_FILTERS.map(({ value, label }) => ({
+    value,
+    label: (
+      <>
+        {label}{' '}
+        <span className="text-muted">
+          {searched.filter((bot) => inWeight(bot.assembled.bytes.length, value)).length}
+        </span>
+      </>
+    ),
+    disabled: locked && value !== filter,
+  }))
   const status = fightStatus(selection, spec)
   const full = spec.bots.length >= MAX_ARENA_BOTS
   // The tour's step: the roster until two bots are in, then the fight button.
   const tourStep =
     tour === undefined ? null : selection.length >= MIN_ARENA_BOTS ? 'fight' : 'roster'
   const clearSearch = {
-    label: weight === 'all' ? 'clear the search' : 'clear the filters',
+    label: locked || weight === 'all' ? 'clear the search' : 'clear the filters',
     onClick: () => {
       setQuery('')
       setWeight('all')
     },
   }
   // What an empty list names: `heavy roster bot matches "x"`, for the class and the search in force.
-  const kind = weight === 'all' ? '' : `${WEIGHT_SHORT[weight]} `
+  const kind = filter === 'all' ? '' : `${WEIGHT_SHORT[filter]} `
   const matching = query === '' ? '' : ` matches "${query}"`
   // Bots of more than one class fight as open weight: said, so a 4 KB bot against a 15 B imp is no
-  // surprise.
+  // surprise. An arena held to a class says what it refuses instead.
   const mixed =
+    !locked &&
     new Set(sizesOf(selection).flatMap((size) => weightClassOf(size)?.slug ?? [])).size > 1
 
   useRouteStat(
@@ -220,6 +221,26 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
     return Math.max(0, refs.length - room)
   }
 
+  /**
+   * The bots of `list` the arena's class takes, by their sizes. A warn toast says how many it
+   * refused, and `then`, what became of them.
+   */
+  const inClass = <T,>(list: readonly T[], sizeOf: (item: T) => number, then = 'not added') => {
+    const { weight } = latest.current.config
+    const kept = list.filter((item) => inWeight(sizeOf(item), weight))
+    const refused = list.length - kept.length
+    if (refused > 0) {
+      toast(`${refused} ${refused === 1 ? 'bot is' : 'bots are'} not ${weight}: ${then}.`, {
+        variant: 'warn',
+      })
+    }
+    return kept
+  }
+
+  /** Adds catalog bots the arena's class takes. */
+  const addBot = (bot: CatalogBot) =>
+    add(inClass([bot], (b) => b.assembled.bytes.length).map((b) => b.ref))
+
   /** Fills the selection to its cap with random picks from the bots listed. */
   const fill = () => {
     const room = MAX_ARENA_BOTS - latest.current.bots.length
@@ -232,6 +253,35 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
 
   const remove = (index: number) =>
     onSpecChange((s) => ({ ...s, bots: s.bots.filter((_, i) => i !== index) }))
+
+  /** Empties the selection; the toast's `undo` puts it back. */
+  const clear = () => {
+    const { bots } = latest.current
+    onSpecChange((s) => ({ ...s, bots: [] }))
+    toast(`cleared ${bots.length} ${bots.length === 1 ? 'bot' : 'bots'}.`, {
+      action: { label: 'undo', onClick: () => onSpecChange((s) => ({ ...s, bots })) },
+    })
+  }
+
+  /** Changes the config. A class takes out the picked bots of the others, and says so. */
+  const configure = (change: Partial<ArenaConfig>) => {
+    const { weight = 'all' } = change
+    const out = new Set(outsideWeight(selection, weight).map((s) => s.index))
+    onSpecChange((s) => ({
+      config: withConfig(s.config, change),
+      bots: s.bots.filter((_, i) => !out.has(i)),
+    }))
+    if (out.size > 0) {
+      toast(`removed ${out.size} ${out.size === 1 ? 'bot' : 'bots'} outside ${weight}.`, {
+        variant: 'warn',
+      })
+    }
+  }
+
+  /** A roster bot's size, for the starters' class. */
+  const rosterSize = (ref: BotRef) =>
+    rosterCatalog().find((bot) => formatRef(bot.ref) === formatRef(ref))?.assembled.bytes.length ??
+    0
 
   /** Saves each new source as a local bot, the same source once. Returns the refs, in order. */
   const saveSources = async (list: readonly { name: string; source: string }[]) => {
@@ -248,47 +298,20 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
     return refs
   }
 
+  /** Dropped or picked files: `setup/files.ts`, a chunk loaded with the assembler at the first. */
   const addFiles = async (files: readonly File[]) => {
     if (files.length === 0) return
-    let assembly: Awaited<ReturnType<typeof loadAssembly>>
+    let drop: typeof import('./setup/files')
     try {
-      assembly = await loadAssembly()
+      ;[drop] = await Promise.all([import('./setup/files'), loadAssembly()])
     } catch {
       toast('could not load the assembler: check the network and drop them again.', {
         variant: 'danger',
       })
       return
     }
-    const { fileAssembles, readBotFiles } = assembly
-    const read = await readBotFiles(files)
-    const good = read.filter(fileAssembles)
-    const bad = read.filter((file) => !fileAssembles(file))
-    try {
-      const refs = await saveSources(
-        good.map((file) => ({
-          name: file.assembled.name || file.file.replace(/\.asm$/i, ''),
-          source: file.source,
-        })),
-      )
-      const left = add(refs)
-      const added = refs.length - left
-      if (left > 0) {
-        toast(`${MAX_ARENA_BOTS} bots at most: ${left} saved to my bots, not added.`, {
-          variant: 'warn',
-        })
-      } else if (added > 0) {
-        const name = added === 1 ? good[0]?.assembled.name : undefined
-        toast(`added ${name ?? `${added} bots`}.`, { variant: 'accent' })
-      }
-    } catch {
-      toast('could not save the bots in this browser.', { variant: 'danger' })
-    }
-    if (bad.length > 0) {
-      setProblems({
-        title: `${bad.length === 1 ? (bad[0]?.file ?? 'a file') : `${bad.length} files`} did not assemble`,
-        list: bad.map(fileProblem),
-      })
-    }
+    const found = await drop.addBotFiles(files, { save: saveSources, inClass, add, toast })
+    if (found !== null) setProblems(found)
   }
 
   const showErrors = (bot: CatalogBot) =>
@@ -404,19 +427,25 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
         >
           <div className="flex flex-col gap-3">
             {source !== 'paste' && (
-              <Segmented<WeightFilter>
-                label="weight class"
-                options={WEIGHT_FILTERS}
-                value={weight}
-                onValueChange={setWeight}
-              />
+              <div className="flex flex-wrap items-center gap-2">
+                <span aria-hidden className="text-panel-status text-muted">
+                  weight class
+                </span>
+                <Segmented<WeightFilter>
+                  label="weight class"
+                  options={weightFilters}
+                  value={filter}
+                  onValueChange={setWeight}
+                  className="flex-wrap"
+                />
+              </div>
             )}
             {source === 'roster' && (
               <BotGrid
                 bots={listed}
                 picked={spec.bots}
                 full={full}
-                onAdd={(bot) => add([bot.ref])}
+                onAdd={addBot}
                 onErrors={showErrors}
                 empty={
                   <EmptyState action={clearSearch}>
@@ -437,22 +466,27 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
                 empty={`none of my ${kind}bots${matching}.`}
                 picked={spec.bots}
                 full={full}
-                onAdd={(bot) => add([bot.ref])}
+                onAdd={addBot}
                 onErrors={showErrors}
                 write={link('write a bot', '/editor')}
                 clearSearch={clearSearch}
               />
             )}
             {source === 'paste' && (
-              <PasteBox
-                full={full}
-                assemble={assemble}
-                onAdd={async (assembledName, text) => {
-                  const refs = await saveSources([{ name: assembledName, source: text }])
-                  add(refs)
-                  toast(`added ${assembledName}.`, { variant: 'accent' })
-                }}
-              />
+              <Suspense fallback={null}>
+                <PasteBox
+                  full={full}
+                  assemble={assemble}
+                  onAdd={async (assembledName, text, size) => {
+                    // A bot outside the class is not saved either: the text stays to change.
+                    if (inClass([size], (n) => n).length === 0) return false
+                    const refs = await saveSources([{ name: assembledName, source: text }])
+                    add(refs)
+                    toast(`added ${assembledName}.`, { variant: 'accent' })
+                    return true
+                  }}
+                />
+              </Suspense>
             )}
             <div className="flex items-center justify-between gap-3 rounded-sm border border-dashed border-border px-3 py-2 text-data text-muted">
               <span>drop .asm files anywhere here: each is assembled and saved to my bots.</span>
@@ -478,27 +512,39 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
           className="col-span-12 flex min-w-0 flex-col gap-3 lg:col-span-4"
           data-tour="arena-config"
         >
-          <Panel title="bots" status={`${selection.length} / ${MAX_ARENA_BOTS}`}>
+          <Panel
+            title="bots"
+            status={`${selection.length} / ${MAX_ARENA_BOTS}`}
+            actions={
+              <Button
+                size="sm"
+                title="remove every bot picked"
+                disabled={selection.length === 0}
+                onClick={clear}
+              >
+                clear
+              </Button>
+            }
+          >
             <Selection
               selection={selection}
               onRemove={remove}
               onSave={(index) => void saveShared(index)}
               onErrors={showErrors}
-              onStart={() => add(STARTERS)}
+              onStart={() => add(inClass(STARTERS, rosterSize))}
             />
             {mixed && <p className="mt-2 text-data text-muted">open weight: sizes mix</p>}
           </Panel>
           <Panel title="config" status={spec.config.preset ?? 'custom'}>
             <ConfigForm
               config={spec.config}
-              onChange={(change) =>
-                onSpecChange((s) => ({ ...s, config: withConfig(s.config, change) }))
-              }
+              onChange={configure}
               onPreset={(preset: PresetName) =>
                 onSpecChange((s) => ({ ...s, config: withPreset(s.config, preset) }))
               }
               maxSpacing={spacingCap}
               bots={selection.length}
+              weight
             />
           </Panel>
           <div className="relative flex items-center gap-2" data-tour="arena-fight">
@@ -529,32 +575,13 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
           <p className="text-nav text-accent-fg">drop .asm files to add them</p>
         </div>
       )}
-      <Modal
-        open={problems !== null}
-        onClose={() => setProblems(null)}
-        title={problems?.title ?? ''}
-        size="lg"
-      >
-        <ul className="flex flex-col gap-4">
-          {problems?.list.map((problem) => (
-            <li key={problem.name} className="flex min-w-0 flex-col gap-2">
-              <p className="text-bright">{problem.name}</p>
-              {problem.reason === null ? (
-                <Diagnostics source={problem.source} diagnostics={problem.diagnostics} />
-              ) : (
-                <p className="text-data text-danger">{problem.reason}</p>
-              )}
-            </li>
-          ))}
-        </ul>
-      </Modal>
+      {problems !== null && (
+        <Suspense fallback={null}>
+          <ProblemsModal problems={problems} onClose={() => setProblems(null)} />
+        </Suspense>
+      )}
     </div>
   )
-}
-
-function fileProblem(file: BotFile): Problem {
-  const diagnostics = file.assembled?.diagnostics.filter((d) => d.severity === 'error') ?? []
-  return { name: file.file, source: file.source, reason: file.problem, diagnostics }
 }
 
 /** How many times each bot is picked, by ref. */
@@ -725,76 +752,8 @@ function MineGrid({
 }
 
 /**
- * Raw source, pasted: assembled as it changes, its errors listed under the box, and `add` once it
- * assembles, which saves it to my bots and picks it.
- */
-function PasteBox({
-  full,
-  assemble,
-  onAdd,
-}: {
-  full: boolean
-  /** Null while the assembler loads. */
-  assemble: Assemble | null
-  onAdd: (name: string, source: string) => Promise<void>
-}) {
-  const [text, setText] = useState('')
-  const [adding, setAdding] = useState(false)
-  const deferred = useDeferredValue(text)
-  const blank = deferred.trim() === ''
-  const assembled = blank || assemble === null ? null : assemble(deferred)
-  const errors = assembled?.diagnostics.filter((d) => d.severity === 'error') ?? []
-  const ok = assembled !== null && errors.length === 0 && deferred === text
-  return (
-    <div className="flex flex-col gap-2">
-      <textarea
-        aria-label="bot source"
-        placeholder={'%name "my bot"\n\nstart:  jmp start'}
-        spellCheck={false}
-        rows={14}
-        value={text}
-        onChange={(event) => setText(event.currentTarget.value)}
-        className="w-full resize-y rounded-sm border border-border bg-panel-2 p-2 text-code text-text outline-hidden transition-colors duration-120 ease-out placeholder:text-dim hover:border-border-strong focus:border-accent"
-      />
-      <div className="flex items-center gap-3">
-        <p className="min-w-0 flex-1 truncate text-data text-muted">
-          {assembled === null
-            ? blank
-              ? 'paste x16c source: a %name line, then the code.'
-              : 'loading the assembler…'
-            : errors.length > 0
-              ? `${errors.length} ${errors.length === 1 ? 'error' : 'errors'}`
-              : `${assembled.name} · ${assembled.bytes.length} B`}
-        </p>
-        <Button
-          variant="primary"
-          icon={Plus}
-          disabled={!ok || full}
-          loading={adding}
-          onClick={async () => {
-            if (assembled === null) return
-            setAdding(true)
-            try {
-              await onAdd(assembled.name, text)
-              setText('')
-            } finally {
-              setAdding(false)
-            }
-          }}
-        >
-          add
-        </Button>
-      </div>
-      {assembled !== null && errors.length > 0 && (
-        <Diagnostics source={deferred} diagnostics={errors} />
-      )}
-    </div>
-  )
-}
-
-/**
  * The bots picked, in the order they load: each with its hue swatch, its battle name, where it
- * comes from, its size, and `remove`. A shared bot can be saved to my bots.
+ * comes from, its size and weight class, and `remove`. A shared bot can be saved to my bots.
  */
 function Selection({
   selection,
@@ -830,9 +789,7 @@ function Selection({
             <span className="w-5 shrink-0 text-right text-data text-muted">{index + 1}</span>
             <span className="min-w-0 flex-1 truncate text-bright">{name}</span>
             <SelectionState entry={entry} onErrors={onErrors} />
-            {state === 'ready' && bot !== null && (
-              <span className="text-data text-muted">{bot.assembled.bytes.length} B</span>
-            )}
+            {state === 'ready' && bot !== null && <SizeOf bytes={bot.assembled.bytes.length} />}
             {bot?.origin === 'shared' && (
               <IconButton
                 icon={Save}
@@ -853,6 +810,17 @@ function Selection({
         )
       })}
     </ol>
+  )
+}
+
+/** A picked bot's size and its class chip. */
+function SizeOf({ bytes }: { bytes: number }) {
+  const weight = weightClassOf(bytes)
+  return (
+    <>
+      <span className="text-data text-muted">{bytes} B</span>
+      {weight !== null && <WeightChip weight={weight} />}
+    </>
   )
 }
 

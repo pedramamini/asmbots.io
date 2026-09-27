@@ -19,7 +19,7 @@ export function hillArenaConfig(hill: Hill): ArenaConfig {
     maxProcesses: hill.config.maxProcesses,
     minSpacing: hill.config.minSpacing,
   }
-  return { ...values, preset: presetOf(values), seed: HILL_SEED }
+  return { ...values, preset: presetOf(values), seed: HILL_SEED, weight: 'all' }
 }
 
 /** My bot `mine` against bot `botId`'s version `source`, under `hill`'s rules, mine first. */

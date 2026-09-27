@@ -9,13 +9,15 @@ import type { Assembled, Diag } from '@asmbots/asm'
 import {
   hasRosterImage,
   largeImagesLoaded,
-  ROSTER,
   type RosterEntry,
+  rosterEntries,
   rosterImage,
 } from '@asmbots/bots'
 import { type BattleConfigInput, CORE_SIZE, Pcg32, PlacementError, place } from '@asmbots/engine'
+import { weightClassOf } from '@asmbots/protocol'
 import { roundOrder, roundSeed } from '@asmbots/tourney'
 import type { LocalBot } from '../../../store/local-bots'
+import type { ArenaConfig } from '../../../store/settings'
 import type { ArenaBot } from '../worker/protocol'
 import { battleConfig, MIN_ARENA_BOTS, randomSeed, SPACING } from './config'
 import { type ArenaSetupSpec, type BotRef, formatRef, type SharedBot } from './url'
@@ -68,7 +70,7 @@ let rosterWhole = false
 export function rosterCatalog(): readonly CatalogBot[] {
   if (roster !== undefined && rosterWhole === largeImagesLoaded()) return roster
   rosterWhole = largeImagesLoaded()
-  roster = [...ROSTER]
+  roster = [...rosterEntries()]
     .filter((entry) => hasRosterImage(entry.slug))
     .sort((a, b) => TIER_ORDER.indexOf(a.tier) - TIER_ORDER.indexOf(b.tier))
     .map(
@@ -231,6 +233,22 @@ export function sharedSources(selection: readonly SetupBot[]): SharedBot[] {
   return [...bots.values()]
 }
 
+/**
+ * The bots of `selection` the arena's class keeps out: the ready ones of another class. A bot not
+ * ready has no size yet.
+ */
+export function outsideWeight(
+  selection: readonly SetupBot[],
+  weight: ArenaConfig['weight'],
+): SetupBot[] {
+  return selection.filter(
+    (s) =>
+      s.state === 'ready' &&
+      weight !== 'all' &&
+      weightClassOf(s.bot?.assembled.bytes.length ?? 0)?.slug !== weight,
+  )
+}
+
 /** What the fight button says, and whether it fights. */
 export interface FightStatus {
   readonly label: string
@@ -255,6 +273,8 @@ export function fightStatus(selection: readonly SetupBot[], spec: ArenaSetupSpec
   }
   if (missing > 0) return not(`remove ${count(missing, 'missing bot')}`)
   if (broken > 0) return not(`remove ${count(broken, 'broken bot')}`)
+  const outside = outsideWeight(selection, spec.config.weight).length
+  if (outside > 0) return not(`remove ${count(outside, 'bot')} outside ${spec.config.weight}`)
   if (selection.some((s) => s.state === 'loading'))
     return { label: fight, ready: false, busy: true }
   const { seed, minSpacing, rounds } = spec.config
