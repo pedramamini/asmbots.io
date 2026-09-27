@@ -7,6 +7,7 @@
  * A new bot is a file under roster/, its import in `sources.ts` (`sources-large.ts` past 512
  * bytes), a row here (`entries-large.ts` past 512 bytes), and `bun run roster-images`.
  */
+import { largeEntries } from './large'
 
 /**
  * The families of roster/README.md: the six classic Core War families, the painters that make the
@@ -244,3 +245,9 @@ export const ROSTER_LIGHT: readonly RosterEntry[] = [
     blurb: 'Jumps into the middle of its own instructions: one process dies there, one spins.',
   },
 ]
+
+/** The roster's entries: the lightweight bots and the test bots, and the others once loaded. */
+export function rosterEntries(): readonly RosterEntry[] {
+  const large = largeEntries()
+  return large === undefined ? ROSTER_LIGHT : [...ROSTER_LIGHT, ...large]
+}

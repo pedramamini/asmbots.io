@@ -6,7 +6,7 @@
  * route can take the loaders without it. `loadRoster` (the CLI, the API, the tests) takes them at
  * once (`addLargeRoster`).
  */
-import { ROSTER_LIGHT, type RosterEntry } from './entries'
+import type { RosterEntry } from './entries'
 import type { RosterImageData } from './images.gen'
 
 let images: Readonly<Record<string, RosterImageData>> | undefined
@@ -38,9 +38,12 @@ export function addLargeRoster(
   sources ??= text
 }
 
-/** The roster's entries: the lightweight bots and the test bots, and the others once loaded. */
-export function rosterEntries(): readonly RosterEntry[] {
-  return entries === undefined ? ROSTER_LIGHT : [...ROSTER_LIGHT, ...entries]
+/**
+ * The entries of the bots past lightweight, once loaded. Type imports only here: the route loaders
+ * take this module into every page's shell, and the entries stay out of it (`rosterEntries`).
+ */
+export function largeEntries(): readonly RosterEntry[] | undefined {
+  return entries
 }
 
 /** Whether the images of the bots past lightweight have loaded. */
