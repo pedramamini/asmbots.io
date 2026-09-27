@@ -14,6 +14,13 @@ export const RULER_MARGIN = 44
 export const LATTICE_ZOOM = 4
 /** The column ruler's band over the top of the view from `LATTICE_ZOOM` on, CSS px. */
 export const COLUMN_RULER = 14
+/**
+ * From this cell size on, CSS px, the arena reads as a hex dump: each byte in view shows its value,
+ * and the cells' fill fades out behind it over the next half of this again.
+ */
+export const BYTE_CELL = 18
+/** The share of a cell's fill, and its glows, left once the hex dump shows: a tint behind the type. */
+export const HEX_FILL = 0.25
 
 /** The minimap's side: this share of the view's shorter side, held to 72..160 CSS px. */
 const MINIMAP_SHARE = 0.22
@@ -104,6 +111,16 @@ export class Camera {
   /** Whether the lattice and the column ruler show. */
   get lattice(): boolean {
     return this.level >= LATTICE_ZOOM
+  }
+
+  /** How far the arena reads as a hex dump: 0 below `BYTE_CELL`, 1 from 1.5x it. */
+  get hex(): number {
+    return Math.min(1, Math.max(0, (this.cell - BYTE_CELL) / (BYTE_CELL / 2)))
+  }
+
+  /** The share of each cell's light the renderers draw: 1, down to `HEX_FILL` in the hex dump. */
+  get fill(): number {
+    return 1 - this.hex * (1 - HEX_FILL)
   }
 
   /** The canvas's size, CSS px. */

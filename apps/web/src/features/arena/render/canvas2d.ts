@@ -354,7 +354,10 @@ export class Canvas2dRenderer implements ArenaRenderer {
     ctx.rect(left, top, width - left, height - top)
     ctx.clip()
     ctx.imageSmoothingEnabled = false
+    // Over the black arena: less of it as the hex dump takes over.
+    ctx.globalAlpha = camera.fill
     ctx.drawImage(this.core, 0, 0, SIDE, SIDE, x0, y0, SIDE * cell, SIDE * cell)
+    ctx.globalAlpha = 1
 
     if (camera.lattice) {
       const v = camera.visible()

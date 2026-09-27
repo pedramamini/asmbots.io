@@ -105,6 +105,8 @@ uniform float uHeight;
 uniform float uLattice;
 // 1 draws the trails and flashes; 0 draws the owner map alone (the minimap).
 uniform float uGlow;
+// The share of the cell's light kept: less as the hex dump takes over.
+uniform float uFill;
 
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outGlow;
@@ -143,7 +145,7 @@ void main() {
     color = mix(color, writeColor, write);
     outGlow = vec4(min(execColor * exec + writeColor * write, 1.0), 1.0);
   }
-  float keep = dimOf(tag);
+  float keep = dimOf(tag) * uFill;
   color = mix(bg, color, keep);
   outGlow.rgb *= keep;
   if (uLattice > 0.0) {

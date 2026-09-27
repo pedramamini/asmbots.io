@@ -139,7 +139,7 @@ test.describe('the WebGL2 renderer', () => {
       h.pixels([])
       h.apply({ writes: [[0x4000, 0x0241]], ips: [[0x8080, 1 | 0x100]] })
       const colors = h.pixels([0x1000, 0x1001, 0x4000].map(h.cellCenter))
-      camera.zoomBy(8)
+      camera.zoomBy(6)
       camera.centerOn(0x80, 0x80)
       const ratio = (canvas as HTMLCanvasElement).width / camera.width
       const left = (camera.originX + 0x80 * camera.cell) * ratio
@@ -160,7 +160,7 @@ test.describe('the WebGL2 renderer', () => {
     const [front, behind, inside] = await page.evaluate(() => {
       const h = window.harness
       const { camera, canvas } = h.arena()
-      camera.zoomBy(8)
+      camera.zoomBy(6)
       camera.centerOn(0x80, 0x80)
       h.apply({
         owner: [[0x8080, 1]],
@@ -203,6 +203,23 @@ test.describe('the WebGL2 renderer', () => {
     expectNear(below, [0, 0, 0], 0)
     expectNear(edge, LATTICE, 1)
     expectNear(interior, [0, 0, 0], 0)
+  })
+
+  test('fades the cells to a tint behind the hex dump when zoomed far in', async ({ page }) => {
+    await open(page)
+    const [before, after] = await page.evaluate(() => {
+      const h = window.harness
+      const { camera } = h.arena()
+      h.apply({ owner: [[0x8080, 1]], bytes: [[0x8080, 0xcc]] })
+      camera.zoomBy(6)
+      camera.centerOn(0x80, 0x80)
+      const before = h.pixels([h.cellCenter(0x8080)])
+      camera.zoomBy(16 / 6)
+      camera.centerOn(0x80, 0x80)
+      return [...before, ...h.pixels([h.cellCenter(0x8080)])]
+    })
+    expectNear(before, scale(HUE0, 0.55), 1)
+    expectNear(after, scale(HUE0, 0.55 * 0.25), 1)
   })
 
   test("fades a dead bot's territory 40% over 800 ms", async ({ page }) => {
@@ -293,7 +310,7 @@ test.describe('the post effects', () => {
     const [lit, dark] = await page.evaluate(() => {
       const h = window.harness
       const { camera, renderer } = h.arena()
-      camera.zoomBy(8)
+      camera.zoomBy(6)
       camera.centerOn(0x80, 0x80)
       h.apply({ owner: [], bytes: [] })
       h.apply({ writes: [[0x8080, 0x0101]] })

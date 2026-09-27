@@ -2,12 +2,14 @@
  * The arena's rulers (DESIGN_SYSTEM §5), drawn on a 2D canvas over the renderer's: hex row
  * addresses in the left margin, every 0x800 at zoom 1 and closer together as the rows spread,
  * bold every 0x1000; and from zoom 4 the column offsets along the top, every 0x10 and closer when
- * zoomed far in, on a band that keeps them legible over the arena.
+ * zoomed far in, on a band that keeps them legible over the arena. Once a cell is `BYTE_CELL` px
+ * wide the arena reads as a hex dump, as the boot screen's does: each byte in view in hex, in its
+ * owner's hue, a write flashing it white.
  */
 import { hexAddress, hexByte } from '@asmbots/ui'
 import { ARENA_COLORS, type Theme } from '@asmbots/ui/themes'
-import { type Camera, COLUMN_RULER, RULER_MARGIN } from './camera'
-import { SIDE } from './scene'
+import { BYTE_CELL, type Camera, type CellRange, COLUMN_RULER, RULER_MARGIN } from './camera'
+import { type ArenaScene, SIDE } from './scene'
 
 /** Rows between two row labels, from the closest: 0x100 to 0x1000 bytes. */
 const ROW_STEPS = [1, 2, 4, 8, 16] as const
@@ -23,6 +25,10 @@ const LABEL_PAD = 4
 const BAND_ALPHA = 0.85
 /** The hover crosshair's lines: the ruler's color at this opacity. The cell's outline is whole. */
 const CROSSHAIR_ALPHA = 0.45
+/** A byte's hex type: this share of the cell, held to 8..22 px. */
+const BYTE_TYPE_SHARE = 0.36
+const BYTE_TYPE_MIN = 8
+const BYTE_TYPE_MAX = 22
 
 export interface RulerLabel {
   readonly text: string
@@ -68,25 +74,55 @@ export function columnLabels(camera: Camera): RulerLabel[] {
   return labels
 }
 
+/** The cells whose bytes show in hex, ends excluded: those in view, none below `BYTE_CELL`. */
+export function byteCells(camera: Camera): CellRange | null {
+  if (camera.cell < BYTE_CELL) return null
+  const { left, top, right, bottom } = camera.visible()
+  if (right <= left || bottom <= top) return null
+  return {
+    left: Math.floor(left),
+    top: Math.floor(top),
+    right: Math.ceil(right),
+    bottom: Math.ceil(bottom),
+  }
+}
+
+/** A byte's hex type size at `cell` px a cell, CSS px. */
+export function byteType(cell: number): number {
+  return Math.min(BYTE_TYPE_MAX, Math.max(BYTE_TYPE_MIN, Math.round(cell * BYTE_TYPE_SHARE)))
+}
+
+/**
+ * The hex dump's drawing (`./byte-dump`): its own chunk, loaded the first time the camera zooms in
+ * to `BYTE_CELL`, so it stays out of `/arena`'s cold JS. Null until then.
+ */
+let drawBytes: typeof import('./byte-dump').drawBytes | null = null
+let bytesLoading: Promise<void> | null = null
+
 /**
  * Draws the rulers on their own canvas when the camera, the size, or the theme changes, and the
- * hover crosshair (DESIGN_SYSTEM §5) through the byte under the pointer.
+ * hover crosshair (DESIGN_SYSTEM §5) through the byte under the pointer; zoomed far enough in, the
+ * bytes in hex, again when the core changes.
  */
 export class RulerOverlay {
   private readonly canvas: HTMLCanvasElement
   private readonly context: CanvasRenderingContext2D | null
   private readonly camera: Camera
+  private readonly scene: ArenaScene
   private theme: Theme
   private ratio = 1
   private drawnCamera = -1
+  private drawnScene = -1
+  private minimapOn = true
   private dirty = true
   private hover: number | null = null
 
-  constructor(canvas: HTMLCanvasElement, camera: Camera, theme: Theme) {
+  constructor(canvas: HTMLCanvasElement, camera: Camera, scene: ArenaScene, theme: Theme) {
     this.canvas = canvas
     // None in a DOM without canvas support (a test): the rulers then draw nothing.
     this.context = canvas.getContext('2d')
     this.camera = camera
+    this.scene = scene
     this.theme = theme
   }
 
@@ -105,6 +141,13 @@ export class RulerOverlay {
     this.dirty = true
   }
 
+  /** Whether the minimap shows when zoomed in: the bytes' hex keeps off it. */
+  setMinimap(on: boolean): void {
+    if (on === this.minimapOn) return
+    this.minimapOn = on
+    this.dirty = true
+  }
+
   /** Draws again at the next `render`: when the web font arrives. */
   invalidate(): void {
     this.dirty = true
@@ -120,13 +163,28 @@ export class RulerOverlay {
   /** Draws the rulers if anything they show changed. Returns whether it drew. */
   render(): boolean {
     const ctx = this.context
-    if (ctx === null || (!this.dirty && this.camera.version === this.drawnCamera)) return false
+    if (ctx === null) return false
+    const cells = byteCells(this.camera)
+    // The scene only matters while the bytes show. Versions only go up: the sum moves with any.
+    const { scene } = this
+    const version =
+      cells === null
+        ? this.drawnScene
+        : scene.coreVersion + scene.ageVersion + scene.fadeVersion + scene.dimVersion
+    if (!this.dirty && this.camera.version === this.drawnCamera && version === this.drawnScene) {
+      return false
+    }
     this.dirty = false
     this.drawnCamera = this.camera.version
+    this.drawnScene = version
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
     ctx.setTransform(this.ratio, 0, 0, this.ratio, 0, 0)
     const colors = ARENA_COLORS[this.theme]
+    if (cells !== null) {
+      if (drawBytes === null) this.loadBytes()
+      else drawBytes(ctx, this.camera, this.scene, cells, this.theme, this.minimapOn)
+    }
     ctx.textBaseline = 'top'
 
     const columns = columnLabels(this.camera)
@@ -144,6 +202,16 @@ export class RulerOverlay {
     for (const label of rowLabels(this.camera)) this.label(ctx, label)
     if (this.hover !== null) this.crosshair(ctx, this.hover, colors.ruler)
     return true
+  }
+
+  /** Loads the hex dump's drawing, then draws again with it. */
+  private loadBytes(): void {
+    bytesLoading ??= import('./byte-dump').then((m) => {
+      drawBytes = m.drawBytes
+    })
+    void bytesLoading.then(() => {
+      this.dirty = true
+    })
   }
 
   /** A hairline across the view and one down it through byte `a`, and an outline round it. */

@@ -190,11 +190,11 @@ export function ArenaCanvas({
   useLayoutEffect(() => {
     const canvas = overlayRef.current
     if (canvas === null) return
-    const made = new RulerOverlay(canvas, camera, useSettings.getState().theme)
+    const made = new RulerOverlay(canvas, camera, scene, useSettings.getState().theme)
     setOverlay(made)
     // The rulers' type is a web font: draw them again once it is in.
     void document.fonts?.ready.then(() => made.invalidate())
-  }, [camera])
+  }, [camera, scene])
 
   useEffect(() => {
     renderer?.setTheme(theme)
@@ -207,7 +207,8 @@ export function ArenaCanvas({
 
   useEffect(() => {
     renderer?.setMinimap(minimap)
-  }, [renderer, minimap])
+    overlay?.setMinimap(minimap)
+  }, [renderer, overlay, minimap])
 
   useEffect(() => {
     scene.reducedMotion = reduced

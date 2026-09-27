@@ -305,7 +305,7 @@ export class GlRenderer implements ArenaRenderer {
     const originX = camera.originX * r
     const originY = camera.originY * r
     const cell = camera.cell * r
-    this.drawArena(res, originX, originY, cell, camera.lattice ? r : 0, 1, height)
+    this.drawArena(res, originX, originY, cell, camera.lattice ? r : 0, 1, camera.fill, height)
 
     gl.enable(gl.BLEND)
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
@@ -348,6 +348,7 @@ export class GlRenderer implements ArenaRenderer {
     cell: number,
     lattice: number,
     glow: number,
+    fill: number,
     height: number,
   ): void {
     const { gl } = this
@@ -358,6 +359,7 @@ export class GlRenderer implements ArenaRenderer {
     gl.uniform1f(uniform(p, 'uHeight'), height)
     gl.uniform1f(uniform(p, 'uLattice'), lattice)
     gl.uniform1f(uniform(p, 'uGlow'), glow)
+    gl.uniform1f(uniform(p, 'uFill'), fill)
     gl.bindVertexArray(res.empty)
     gl.drawArrays(gl.TRIANGLES, 0, 3)
   }
@@ -420,7 +422,7 @@ export class GlRenderer implements ArenaRenderer {
     this.fill(x - line, y - line, side + 2 * line, side + 2 * line, frame)
     this.fill(x, y, side, side, this.color(PALETTE_INDEX.bg))
     gl.scissor(x, height - y - side, side, side)
-    this.drawArena(res, x, y, side / SIDE, 0, 0, height)
+    this.drawArena(res, x, y, side / SIDE, 0, 0, 1, height)
 
     const v = camera.visible()
     const k = side / SIDE

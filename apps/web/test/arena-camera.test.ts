@@ -4,13 +4,15 @@
  */
 import { describe, expect, it } from 'bun:test'
 import {
+  BYTE_CELL,
   Camera,
   COLUMN_RULER,
+  HEX_FILL,
   LATTICE_ZOOM,
   MAX_ZOOM,
   RULER_MARGIN,
 } from '../src/features/arena/render/camera'
-import { columnLabels, rowLabels } from '../src/features/arena/render/overlay'
+import { byteCells, byteType, columnLabels, rowLabels } from '../src/features/arena/render/overlay'
 
 /** A 1000 x 720 canvas: the view is 956 x 720, so the core fits by height, 2.8125 px a cell. */
 function camera(): Camera {
@@ -153,5 +155,23 @@ describe('the rulers', () => {
     const at16 = columnLabels(c)
     expect(at16.map((l) => l.text).slice(0, 5)).toEqual(['00', '04', '08', '0C', '10'])
     expect(at16.filter((l) => l.bold).map((l) => l.text)).toEqual(['00', '10'])
+  })
+
+  it(`show the bytes in hex from ${BYTE_CELL} px a cell: the whole cells in view`, () => {
+    const c = camera()
+    c.zoomAt(6, RULER_MARGIN, 0)
+    expect(c.cell).toBeLessThan(BYTE_CELL)
+    expect(byteCells(c)).toBeNull()
+    c.zoomAt(16, RULER_MARGIN, 0)
+    // 45 px a cell: 956 / 45 = 21.2 columns and 16 rows in view.
+    expect(byteCells(c)).toEqual({ left: 0, top: 0, right: 22, bottom: 16 })
+    expect(byteType(BYTE_CELL)).toBe(8)
+    expect(byteType(c.cell)).toBe(16)
+    // The fill fades out behind the type over the next half of BYTE_CELL.
+    expect(c.hex).toBe(1)
+    expect(c.fill).toBe(HEX_FILL)
+    c.zoomAt(1, RULER_MARGIN, 0)
+    expect(c.hex).toBe(0)
+    expect(c.fill).toBe(1)
   })
 })
