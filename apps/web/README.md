@@ -198,7 +198,8 @@ only when asked, never on its own. Every typed array it sends is transferred, no
   and owner map instead, and every bot dead by then.
 - Pacing: `ArenaClient` asks for one frame per display frame, and never while one is owed, so a
   slow or hidden tab slows the battle instead of queueing frames. A frame runs `speed` cycles
-  (1 to 10,000, or `max`) and stops early at 12 ms (`FRAME_BUDGET_MS`): a slow machine gets fewer
+  (0.01 to 10,000, or `max`; below 1 the Worker adds up the shares and runs a cycle each time
+  they pass a whole one) and stops early at 12 ms (`FRAME_BUDGET_MS`): a slow machine gets fewer
   cycles per frame, not fewer frames. A seek waits while frames are owed, and a later seek
   replaces it, so a scrub drag sends its last.
 - Seeking: a keyframe `snapshot()` every 1,000 cycles, 128 at most, dropping the one farthest from

@@ -32,13 +32,13 @@ The soul. Layout: arena panel 8/12 columns, right rail 4/12.
 **Setup state** (no battle loaded):
 - Roster picker: grid of bot cards (identicon, name, author, size, weight class, hill rating, `+` to add). Filters: roster / mine / hill / search, and a `weight class` filter whose pills count the bots of each class that match the search (`all 28`, `light 22`, …). Drop zone accepts `.asm` files (multi). Paste box for raw source.
 - Bots picked: hue, name, origin, size and weight class chip, `remove`; `clear` empties the list, and its toast offers `undo`. Picked bots of more than one class note `open weight: sizes mix`.
-- Config: rounds (1..10), max cycles (10k..1M, default 100k), seed (random / fixed), process cap, spacing, and `class` (all / light / middle / heavy / super, default all; in the URL as `w=middleweight`). Preset chips: `duel`, `melee 8`, `melee 16`, `hill rules`; a preset neither sets nor reads the class.
+- Config: rounds (1..10), max cycles (10k..1M, default 100k), seed (random / fixed), process cap, spacing, `speed` (the cycles per frame a fight starts at, 0.01..10,000, default 100; kept in the settings, not the URL, and no preset's), and `class` (all / light / middle / heavy / super, default all; in the URL as `w=middleweight`). Preset chips: `duel`, `melee 8`, `melee 16`, `hill rules`; a preset neither sets nor reads the class.
 - A class holds the arena to bots of that class: the picker's weight filter locks to it and random fill draws from it; adding a bot of another class (a card, the starters, a paste, a dropped file) is refused with a warning, though a dropped file is still saved to my bots; choosing a class removes the picked bots of the others, with a toast; and a bot of another class that comes in anyway (a link) blocks the fight: `remove 1 bot outside middleweight`. The open weight note does not show.
 - `fight` button self-narrates: "add 1 more bot" → "fight · 4 bots · 1 round".
 
 **Battle state**:
 - Arena canvas (DESIGN_SYSTEM §5). Overlay HUD top-left: `cycle 12,480 / 100,000`, speed, fps. Top-right: zoom, minimap toggle, fullscreen (`f`), screenshot (`s`, saves PNG with theme and HUD, and a footer stamp: bots, seed, cycle, site URL), video (`v`, records the same frame to MP4/WebM in real time until `v` again or the match ends; `share ▾` → `export video` records the round from cycle 0).
-- Transport bar under the canvas: `⏮ step-back · ▶/⏸ · step ▶| · speed slider (1 cycle/frame … max) · scrub bar with death markers in bot hues · round N/K`.
+- Transport bar under the canvas: `⏮ step-back · ▶/⏸ · step ▶| · speed slider (0.01 cycle/frame, a cycle every 100 frames, … 10,000, then max; it moves the fight on the screen, live) · scrub bar with death markers in bot hues · round N/K`.
 - Right rail:
   - **Bots** table: hue swatch, name, procs (live count with sparkline), footprint (bytes owned), writes, status (`alive` / `dead @ cycle`). Click a row to isolate that bot's territory (others dim); shift-click to add.
   - **Events** log: filtered to spawns, deaths, first-blood, bot deaths, round ends; each line timestamped by cycle; click jumps the scrub bar there.
