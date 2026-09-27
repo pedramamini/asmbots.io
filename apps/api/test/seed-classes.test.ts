@@ -1,7 +1,9 @@
 /**
- * The launch seed's weight-class hills on the real roster, as `bun run seed:remote` seeds them:
+ * The launch seed's weight-class hills on real roster bots, as `bun run seed:remote` seeds them:
  * each class hill takes the roster bots of its class and no other, at least two of them. `main`
- * and `tiny` are left out, a few seconds of lightweight duels the read API's tests cover.
+ * and `tiny` are left out, a few seconds of lightweight duels the read API's tests cover. Three
+ * fighters of each class stand in for the roster: open weight fights every pair of its field, and
+ * the whole roster takes over a minute in the workers pool.
  */
 import { env, exports } from 'cloudflare:workers'
 import { loadRoster, ROSTER } from '@asmbots/bots'
@@ -18,11 +20,17 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { applySeed, buildSeed, fits, SEED_HILLS } from '../src/db/seed'
 
 const roster = loadRoster()
-const SOURCES = ROSTER.filter((e) => e.tier !== 'test').map((e) => ({
-  slug: e.slug,
-  source: roster.get(e.slug)?.source ?? '',
-  melee: e.tier === 'showcase',
-}))
+/** The fighters of each class the seed takes, the first in roster order. */
+const PER_CLASS = 3
+const taken = new Map<string | undefined, number>()
+const SOURCES = ROSTER.filter((e) => e.tier !== 'test').flatMap((e) => {
+  const bot = roster.get(e.slug)
+  const c = weightClassOf(bot?.assembled.bytes.length ?? 0)?.slug
+  const n = taken.get(c) ?? 0
+  if (n >= PER_CLASS) return []
+  taken.set(c, n + 1)
+  return [{ slug: e.slug, source: bot?.source ?? '', melee: e.tier === 'showcase' }]
+})
 
 beforeAll(async () => {
   const hills = SEED_HILLS.filter((h) => h.slug !== 'main' && h.slug !== 'tiny')
