@@ -116,13 +116,27 @@ describe('bandBytes', () => {
     expect(lit.slice(0, 4)).toEqual(['A5', '90', 'A5', '90'])
   })
 
-  it('spells the bio in the dim bytes, a 00 between words', () => {
-    const text = cells
+  /** The dim bytes of a band as text. */
+  const dimText = (word: string, cols: number) =>
+    bandBytes(word, cols)
+      .flat()
       .filter((cell) => !cell.on)
       .map((cell) => String.fromCharCode(Number.parseInt(cell.byte, 16)))
       .join('')
-    expect(text.startsWith('Built\0by\0Pedram\0Amini...\0Repeat\0cyber\0')).toBe(true)
-    expect(text).toContain('@RunMaestro.\0Built\0by\0')
+
+  it('spells the bio in the dim bytes, a 00 between words', () => {
+    const text = dimText('ASM BOTS', 64)
+    expect(text.startsWith('Built\0by\0Pedram\0with\0Maestro\0(RunMaestro.ai).\0Security\0')).toBe(
+      true,
+    )
+    expect(text).toContain('engineering.\0\0Specialties:\0')
+    expect(text).not.toContain('\0\0\0')
+  })
+
+  it('spells it once, then leaves the rest of the core empty', () => {
+    const text = dimText('ASM', 200)
+    expect(text.match(/Built\0by/g)).toHaveLength(1)
+    expect(text).toMatch(/foosball\0skills\.\0+$/)
   })
 })
 

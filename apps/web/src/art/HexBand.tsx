@@ -35,22 +35,31 @@ export function litCells(word: string, cols: number): boolean[][] {
   )
 }
 
-/** A byline, then Pedram's GitHub bio (https://github.com/pedramamini): what the unlit cells spell for anyone who decodes them. */
+/**
+ * What the unlit cells spell for anyone who decodes them: a byline, then Pedram's bio. Once through,
+ * no repeat; the widest band (64 bytes a row) ends partway into the second paragraph.
+ */
 const BIO =
-  'Built by Pedram Amini... Repeat cyber security founder, investor, and advisor. Vibing on @RunMaestro.'
+  'Built by Pedram with Maestro (RunMaestro.ai). Security researcher, bug bounty pioneer, published ' +
+  'author, founder, investor, advisor, local business owner, and hacker of all things. Strong ' +
+  "background in reverse engineering and creative problem-solving skills. I've presented a variety " +
+  'of research at security conferences such as BlackHat, DefCon, RECon, Ekoparty, Microsoft ' +
+  'Bluehat, ShmooCon, ToorCon, Virus Bulletin; and taught numerous sold-out courses on reverse ' +
+  'engineering.\n\nSpecialties: reverse engineering, software engineering, management, public ' +
+  'speaking, cloud architecture, amazing ping pong and foosball skills.'
 
-/** The bio as bytes, `00` in place of each space and at the end, so the words read as C strings. */
-const BIO_BYTES = [...BIO.replaceAll(' ', '\0'), '\0'].map((char) =>
+/** The bio as bytes, `00` for each space and line break, so the words read as C strings. */
+const BIO_BYTES = [...BIO.replace(/\s/g, '\0')].map((char) =>
   char.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0'),
 )
 
-/** Each cell's byte and whether it is lit: the imp's bytes in the letters, the bio in reading order around them. */
+/** Each cell's byte and whether it is lit: the imp's bytes in the letters, the bio once through around them, then the empty core's zeros. */
 export function bandBytes(word: string, cols: number): { byte: string; on: boolean }[][] {
   let imp = 0
   let bio = 0
   return litCells(word, cols).map((row) =>
     row.map((on) => ({
-      byte: (on ? IMP[imp++ % IMP.length] : BIO_BYTES[bio++ % BIO_BYTES.length]) ?? '00',
+      byte: (on ? IMP[imp++ % IMP.length] : BIO_BYTES[bio++]) ?? '00',
       on,
     })),
   )
