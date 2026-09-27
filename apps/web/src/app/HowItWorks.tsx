@@ -209,7 +209,9 @@ export function HowItWorks({ site }: { site?: ReactNode }) {
           >
             <div
               className={cx(
-                'flex flex-col gap-3 lg:col-span-5 lg:justify-center',
+                'flex flex-col gap-3 lg:col-span-5',
+                // The site list heads the first idea, so it starts at the figure's top edge.
+                index === 0 && site !== undefined ? 'lg:justify-start' : 'lg:justify-center',
                 index % 2 === 1 && 'lg:order-2',
               )}
             >
