@@ -11,6 +11,7 @@ import {
   Panel,
   PanelGrid,
   Segmented,
+  Slider,
   useToast,
 } from '@asmbots/ui'
 import { Dices, FileUp, Link, Plus, Save, Swords, X } from 'lucide-react'
@@ -39,6 +40,7 @@ import {
   WeightChip,
   type WeightFilter,
 } from '../hills/WeightChip'
+import { SPEED_SLIDER, speedOf } from './battle/speed'
 import { loadAssembly, useAssemble } from './setup/assembler'
 import {
   type ArenaFight,
@@ -547,7 +549,16 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
               maxSpacing={spacingCap}
               bots={selection.length}
               weight
-              speed={{ value: arenaSpeed, onChange: setArenaSpeed }}
+              speed={(id) => (
+                <Slider
+                  id={id}
+                  {...SPEED_SLIDER}
+                  className="flex-1"
+                  value={arenaSpeed}
+                  onValueChange={(value) => setArenaSpeed(speedOf(value))}
+                  showValue
+                />
+              )}
             />
           </Panel>
           <div className="relative flex items-center gap-2" data-tour="arena-fight">

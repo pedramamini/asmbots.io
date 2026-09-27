@@ -3,8 +3,6 @@ import { Info } from 'lucide-react'
 import { lazy, type ReactNode, Suspense, useId, useState } from 'react'
 import type { ArenaConfig } from '../../../store/settings'
 import { WEIGHT_FILTERS } from '../../hills/WeightChip'
-import { speedLabel, speedOf } from '../battle/speed'
-import { MAX_CYCLES_PER_FRAME, MIN_CYCLES_PER_FRAME } from '../worker/protocol'
 import {
   CYCLES,
   type Limits,
@@ -31,10 +29,11 @@ export interface ConfigFormProps {
   /** Shows the class row: the arena's. A tournament picks its class apart. */
   weight?: boolean | undefined
   /**
-   * The cycles per frame a fight starts at, and what sets it: the arena's speed row. A tournament
-   * has none. The transport under the fight moves the speed while it plays.
+   * The arena's speed row, the cycles per frame a fight starts at: its control, given the row's
+   * id. A tournament has none. The control comes from the arena, so the speed code stays out of
+   * the tournament pages.
    */
-  speed?: { value: number; onChange: (speed: number) => void } | undefined
+  speed?: ((id: string) => ReactNode) | undefined
 }
 
 const count = (n: number) => n.toLocaleString('en-US')
@@ -135,24 +134,7 @@ export function ConfigForm({
             </>
           )}
         </Field>
-        {speed !== undefined && (
-          <Field label="speed">
-            {(id) => (
-              <Slider
-                id={id}
-                min={MIN_CYCLES_PER_FRAME}
-                max={MAX_CYCLES_PER_FRAME}
-                step={MIN_CYCLES_PER_FRAME}
-                scale="log"
-                className="flex-1"
-                value={speed.value}
-                onValueChange={(value) => speed.onChange(speedOf(value))}
-                format={(value) => speedLabel(speedOf(value))}
-                showValue
-              />
-            )}
-          </Field>
-        )}
+        {speed !== undefined && <Field label="speed">{speed}</Field>}
         {weight && (
           <Field label="class">
             {(id) => (

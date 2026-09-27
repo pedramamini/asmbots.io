@@ -51,12 +51,14 @@ export const DEFAULT_SPEED: Speed = 100
 
 /** Whether `value` is a speed the Worker takes. */
 export function isSpeed(value: unknown): value is Speed {
-  if (value === 'max') return true
-  if (typeof value !== 'number' || !Number.isFinite(value)) return false
-  // A whole count from 1 up; below 1, a share of a cycle.
-  return value < 1
-    ? value >= MIN_CYCLES_PER_FRAME
-    : Number.isInteger(value) && value <= MAX_CYCLES_PER_FRAME
+  // A whole count from 1 up; below 1, a share of a cycle. NaN fails every comparison.
+  return (
+    value === 'max' ||
+    (typeof value === 'number' &&
+      value >= MIN_CYCLES_PER_FRAME &&
+      value <= MAX_CYCLES_PER_FRAME &&
+      (value < 1 || Number.isInteger(value)))
+  )
 }
 
 /**

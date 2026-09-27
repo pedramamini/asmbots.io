@@ -26,11 +26,15 @@ import { Route as SettingsRoute } from '../src/routes/settings'
 import { Route as TournamentsRoute } from '../src/routes/tournaments/index'
 
 /** The tab title a route's `head` writes. */
-function titleOf(route: { options: { head?: unknown } }, params: object = {}): string | undefined {
+function titleOf(
+  route: { options: { head?: unknown } },
+  params: object = {},
+  loaderData?: object,
+): string | undefined {
   const head = route.options.head as
     | ((context: object) => { meta?: { title?: string }[] })
     | undefined
-  return head?.({ params })?.meta?.find((meta) => meta.title !== undefined)?.title
+  return head?.({ params, loaderData })?.meta?.find((meta) => meta.title !== undefined)?.title
 }
 
 const manifest = pageManifest()
@@ -58,7 +62,7 @@ describe('the pages manifest', () => {
     expect(manifest.pages['/']?.label).toBe('')
   })
 
-  it('has every docs page, by its sidebar title and blurb, titled as its route’s head does', () => {
+  it('has every docs page, by its sidebar title and blurb, titled as its route’s head does', async () => {
     const entries = docEntries()
     expect(entries.length).toBeGreaterThan(40)
     for (const { page } of entries) {
@@ -69,7 +73,9 @@ describe('the pages manifest', () => {
         label: 'docs',
         headline: page.title,
       })
-      expect(meta?.title).toBe(titleOf(DocRoute, { _splat: page.slug }) as string)
+      // The route's head titles the page from its loader's data (the loader imports the nav).
+      const loaded = await DocRoute.options.loader?.({ params: { _splat: page.slug } } as never)
+      expect(meta?.title).toBe(titleOf(DocRoute, { _splat: page.slug }, loaded) as string)
     }
   })
 

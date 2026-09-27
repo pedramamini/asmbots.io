@@ -220,9 +220,7 @@ export function sanitizeSettings(stored: unknown): Partial<Settings> {
     out.lastArenaConfig = stored.lastArenaConfig
   }
   // The arena checks the speed again before it plays (`isSpeed`); here it only has to be a number.
-  if (typeof stored.arenaSpeed === 'number' && Number.isFinite(stored.arenaSpeed)) {
-    out.arenaSpeed = stored.arenaSpeed
-  }
+  if (typeof stored.arenaSpeed === 'number') out.arenaSpeed = stored.arenaSpeed
   return out
 }
 

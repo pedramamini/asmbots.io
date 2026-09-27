@@ -54,7 +54,14 @@ export function speedOf(value: number): number {
 
 /** A speed as the HUD shows it: `240/f`, `0.05/f`, or `max`. */
 export function speedLabel(speed: Speed): string {
-  return speed === 'max'
-    ? 'max'
-    : `${speed.toLocaleString('en-US', { maximumFractionDigits: 2 })}/f`
+  return speed === 'max' ? 'max' : `${speed.toLocaleString('en-US')}/f`
 }
+
+/** The speed slider's range and readout: the transport's, and the config's starting speed. */
+export const SPEED_SLIDER = {
+  min: MIN_CYCLES_PER_FRAME,
+  max: MAX_CYCLES_PER_FRAME,
+  step: MIN_CYCLES_PER_FRAME,
+  scale: 'log',
+  format: (value: number) => speedLabel(speedOf(value)),
+} as const

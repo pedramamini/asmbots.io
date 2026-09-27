@@ -287,7 +287,7 @@ export class ArenaClient {
   speed(cyclesPerFrame: Speed): void {
     if (!isSpeed(cyclesPerFrame)) {
       throw new RangeError(
-        `speed must be ${MIN_CYCLES_PER_FRAME}..1, or a whole 1..${MAX_CYCLES_PER_FRAME}, cycles per frame, or max`,
+        `speed must be ${MIN_CYCLES_PER_FRAME}..${MAX_CYCLES_PER_FRAME} cycles per frame, or max`,
       )
     }
     this.send({ type: 'speed', cyclesPerFrame })

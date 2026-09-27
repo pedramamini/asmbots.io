@@ -3,9 +3,9 @@ import { FastForward, Pause, Play, SkipForward, StepBack, StepForward } from 'lu
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { useStore } from 'zustand'
 import type { ArenaClient } from '../worker/client'
-import { MAX_CYCLES_PER_FRAME, MIN_CYCLES_PER_FRAME } from '../worker/protocol'
+import { MAX_CYCLES_PER_FRAME } from '../worker/protocol'
 import type { BattleLog } from './log'
-import { speedLabel, speedOf } from './speed'
+import { SPEED_SLIDER, speedLabel, speedOf } from './speed'
 
 export interface TransportProps {
   client: ArenaClient
@@ -87,13 +87,9 @@ export function Transport({
       />
       <Slider
         aria-label="speed"
-        min={MIN_CYCLES_PER_FRAME}
-        max={MAX_CYCLES_PER_FRAME}
-        step={MIN_CYCLES_PER_FRAME}
-        scale="log"
+        {...SPEED_SLIDER}
         value={shown}
         onValueChange={setSpeed}
-        format={(n) => speedLabel(speedOf(n))}
         showValue
         className="w-40 shrink-0"
         // At max the count is not in effect: the track fades, its value stays readable.
