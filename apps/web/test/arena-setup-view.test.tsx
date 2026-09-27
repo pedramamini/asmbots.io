@@ -238,9 +238,7 @@ describe('arena setup', () => {
       'Imp',
       'Paper',
     ])
-    expect(within(cards[0] as HTMLElement).getByTitle(/^rank/).textContent).toBe(
-      '#1 · 3-1-0 · 75%',
-    )
+    expect(within(cards[0] as HTMLElement).getByTitle(/^rank/).textContent).toBe('#1 · 3-1-0 · 75%')
     fireEvent.click(screen.getByRole('button', { name: /best fill/ }))
     expect(picked()).toHaveLength(16)
     expect(picked().slice(0, 2)).toEqual(['Imp', 'Paper'])
@@ -448,6 +446,30 @@ describe('bots from files, the store, a paste, and a share link', () => {
     expect(picked()).toEqual(['Imp'])
     fireEvent.click(within(cards).getByText('errors'))
     expect(await screen.findByRole('dialog', { name: 'Broken does not assemble' })).toBeTruthy()
+  })
+
+  it('fills from my bots only, on my bots, and from the weight pill only', async () => {
+    await saveLocalBot({ id: 'mine-1', name: 'my imp', source: IMP })
+    await renderArena()
+    fireEvent.click(screen.getByRole('radio', { name: 'my bots' }))
+    await screen.findByRole('list', { name: 'bots to add' })
+    for (const fill of [/random fill/, /best fill/]) {
+      fireEvent.click(screen.getByRole('button', { name: 'clear' }))
+      fireEvent.click(screen.getByRole('button', { name: fill }))
+      expect(picked()).toHaveLength(16)
+      expect(new Set(picked().map((name) => name?.replace(/ \d+$/, '')))).toEqual(new Set(['Imp']))
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'clear' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'roster' }))
+    const weight = within(screen.getByRole('radiogroup', { name: 'weight class' }))
+    fireEvent.click(weight.getByRole('radio', { name: /^heavy / }))
+    const heavy = namesIn('heavyweight')
+    for (const fill of [/random fill/, /best fill/]) {
+      fireEvent.click(screen.getByRole('button', { name: 'clear' }))
+      fireEvent.click(screen.getByRole('button', { name: fill }))
+      expect(picked()).toHaveLength(16)
+      expect(picked().every((name) => heavy.includes(name?.replace(/ \d+$/, '') ?? ''))).toBe(true)
+    }
   })
 
   it('says there are no local bots, and points to the editor', async () => {
