@@ -26,6 +26,7 @@ import { LoadFailure } from '../../app/LoadFailure'
 import { useLinkAction } from '../../app/link-action'
 import { Placeholder } from '../../app/Placeholder'
 import { preconnectAvatars } from '../account/avatars'
+import { ProfileBadges } from '../badges/ProfileBadges'
 import { ago, BotLink, CELL_LINK, count, day, plural } from '../hills/links'
 import {
   inWeight,
@@ -64,7 +65,7 @@ const sizesOf = (bots: readonly Bot[]) =>
 
 /**
  * `/u/$handle` (PRODUCT_SPEC §6): who they are and how long they have been here, then their
- * numbers as pictures: gauges for their rates, a calendar of their days, their bots and versions
+ * badges, their numbers as pictures: gauges for their rates, a calendar of their days, their bots and versions
  * over time, their bots by class and size, their place on each hill, their championships, and a
  * wall of their bots (the public ones, or all of them for the user themself). The avatars'
  * connection opens while the user loads.
@@ -96,6 +97,7 @@ export function ProfilePage({ handle }: { handle: string }) {
   return (
     <PanelGrid className="p-3">
       <Hero data={data} />
+      <ProfileBadges data={data} />
       <Record data={data} />
       <Activity data={data} />
       <Growth data={data} />

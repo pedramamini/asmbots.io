@@ -60,6 +60,13 @@ const APP_PAGES: Readonly<Record<string, PageMeta>> = {
     label: 'stats',
     headline: 'the site in numbers',
   },
+  '/stats/leaderboard': {
+    title: routeTitle('stats', 'leaderboard'),
+    description:
+      'Every ASM BOTS builder ranked by server match wins, with the badges they have earned: titles, one holder at a time, and milestones.',
+    label: 'stats',
+    headline: 'the leaderboard',
+  },
   '/docs': {
     title: routeTitle('docs'),
     description:

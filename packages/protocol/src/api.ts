@@ -4,6 +4,7 @@
  * row; and the write routes' requests and responses.
  */
 import * as z from 'zod/mini'
+import { BADGE_IDS } from './badge-ids'
 import { JobStatus } from './jobs'
 import { LiveMatch } from './live'
 import {
@@ -214,9 +215,17 @@ export const UserStats = z.object({
 })
 export type UserStats = z.output<typeof UserStats>
 
+/** A badge a user holds (`badges.ts`): its id, and for a title the number that won it. */
+export const EarnedBadge = z.object({
+  id: z.enum(BADGE_IDS),
+  value: z.nullable(z.number()),
+})
+export type EarnedBadge = z.output<typeof EarnedBadge>
+
 /**
  * `GET /api/users/:handle`: the user, the bots the reader may list, their best place on each hill
- * (in hill order), their championship results (latest first), and their numbers.
+ * (in hill order), their championship results (latest first), their numbers, and their badges
+ * (the leaderboard's: at most `STATS_TTL_SECONDS` old, over their public bots).
  */
 export const UserDetail = z.object({
   user: User,
@@ -224,6 +233,7 @@ export const UserDetail = z.object({
   hills: z.array(HillBest),
   championships: z.array(ChampionshipResult),
   stats: UserStats,
+  badges: z.array(EarnedBadge),
 })
 export type UserDetail = z.output<typeof UserDetail>
 
@@ -730,3 +740,46 @@ export type SiteStats = z.output<typeof SiteStats>
 
 /** How long the server answers the stats from its cache before it reads them again, seconds. */
 export const STATS_TTL_SECONDS = 300
+
+/**
+ * A user on the leaderboard: their rank (null for the house, whose bots are the roster), their
+ * public bots (how many, versions, the biggest and smallest by latest size), every server match
+ * of any of their bots (W/T/L, kills, rounds survived, cycles lived), their hills now (entries,
+ * kings, best rank), their hill challenges, the championships they entered and won, and their
+ * badges.
+ */
+export const LeaderRow = z.object({
+  user: User,
+  rank: z.nullable(whole('a rank', 1, Number.MAX_SAFE_INTEGER)),
+  bots: COUNT,
+  versions: COUNT,
+  biggest: z.nullable(COUNT),
+  smallest: z.nullable(COUNT),
+  matches: COUNT,
+  wins: COUNT,
+  ties: COUNT,
+  losses: COUNT,
+  kills: COUNT,
+  rounds: COUNT,
+  survived: COUNT,
+  cycles: COUNT,
+  entries: COUNT,
+  kings: COUNT,
+  bestRank: z.nullable(whole('a rank', 1, Number.MAX_SAFE_INTEGER)),
+  challenges: COUNT,
+  championships: COUNT,
+  titles: COUNT,
+  badges: z.array(EarnedBadge),
+})
+export type LeaderRow = z.output<typeof LeaderRow>
+
+/**
+ * `GET /api/leaderboard` (PRODUCT_SPEC §12): every user who signed in, ranked by match wins, then
+ * kings, then matches, and the house apart. Read again at most every `STATS_TTL_SECONDS`.
+ */
+export const Leaderboard = z.object({
+  at: Timestamp,
+  users: z.array(LeaderRow),
+  house: z.nullable(LeaderRow),
+})
+export type Leaderboard = z.output<typeof Leaderboard>

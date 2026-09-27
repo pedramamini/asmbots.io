@@ -427,8 +427,9 @@ robin's link opened in a fresh browser).
 
 ## Stats
 
-`/stats` (PRODUCT_SPEC §12) is the site in numbers, from one read, `GET /api/stats`, at most
-5 minutes old. The code is in `src/features/stats/`.
+`/stats` (PRODUCT_SPEC §12) is the site in numbers, from one read, `GET /api/stats`, and
+`/stats/leaderboard` the builders ranked with their badges, from `GET /api/leaderboard`; each at
+most 5 minutes old. The code is in `src/features/stats/` and `src/features/badges/`.
 
 | File | What it holds |
 | --- | --- |
@@ -436,11 +437,21 @@ robin's link opened in a fresh browser).
 | `series.ts` | Every day from the first to today (at least 30, at most 90 on the chart), running totals, uptime (`3d 04h`), the bots by class and by size in powers of two, `compact` (`142M`). |
 | `charts.tsx` | `DayChart` (a bar a day, the hovered or today's bright, its readout above), `SizeChart` (the size histogram, the classes under the bins they span), `ClassCounts`, `Split` (two counts as one bar). HTML boxes in the theme's tokens, no chart library; each chart is one image to assistive tech, its label the numbers. |
 | `StatsPage.tsx` | The panels: the site in numbers, activity, life and death, weight classes, records, hills. |
+| `StatsTabs.tsx` | The two tabs that head both pages, `the site` and `leaderboard`. |
+| `LeaderboardPage.tsx` | `/stats/leaderboard`: the builders ranked (the house last, dimmed), then every badge by group with its holders. |
+| `../badges/glyphs.ts`, `../badges/Badge.tsx` | Each badge's 8 × 8 glyph as 8 strings (`#` its color, `*` bright), `BadgeGlyph`, `BadgeTile`. A title is `--info`, a milestone the accent, a badge nobody holds `--border-strong`. |
+| `../badges/ProfileBadges.tsx` | The profile's badges panel. |
 
 The banner is the `chart` plate (DESIGN_SYSTEM §10). The footer's `compete` column links the page.
 
-Tests: `test/stats.test.tsx` (the series, the page, a failed read), API `test/stats.test.ts`; the
-page is in the smoke, axe, and focus specs.
+The header's `stats` holds both pages. The badge ids are their own module
+(`@asmbots/protocol` `badge-ids.ts`): every page's API schemas read them, and the catalog, with its
+words and rules, stays out of the shell.
+
+Tests: `test/stats.test.tsx` (the series, the page, a failed read), `test/leaderboard.test.tsx`
+(the glyphs, the board, the badges), the profile's badges in `test/api-pages.test.tsx`; API
+`test/stats.test.ts`, `test/leaderboard.test.ts`; protocol `test/badges.test.ts`. Both pages are in
+the smoke, axe, and focus specs.
 
 ## Empty and error states
 
@@ -625,10 +636,11 @@ about 5% over its page, so what grows one is a choice, made here and in `BUDGETS
 | `/hills` | 170.3 KB | 180 KB | |
 | `/hills/$slug` | 192.2 KB | 200 KB | |
 | `/bots/$id` | 186.9 KB | 195 KB | |
-| `/u/$handle` | 181.4 KB | 190 KB | the profile's charts: HTML boxes and SVG, no chart library, the stats page's size bars shared |
-| `/docs` | 170.1 KB | 180 KB | a page's own MDX loads after its route |
+| `/u/$handle` | 185.3 KB | 190 KB | the profile's charts: HTML boxes and SVG, no chart library, the stats page's size bars shared; its badges |
+| `/docs` | 179.5 KB | 182 KB | a page's own MDX loads after its route; 180 until the header's `stats` and the badge ids (every page's API schemas read them) |
 | `/docs/$` | 189.7 KB | 192 KB | 190.0 on CI before the profile's `User.name` and `github` (every page +0.2 KB) |
-| `/stats` | 179.6 KB | 190 KB | the charts are HTML boxes, no chart library |
+| `/stats` | 181.3 KB | 190 KB | the charts are HTML boxes, no chart library |
+| `/stats/leaderboard` | 177.0 KB | 185 KB | the badge catalog and its 8 × 8 glyphs |
 | `/settings` | 183.5 KB | 195 KB | |
 | `/embed/arena` | 214.2 KB | 225 KB | |
 | / art, after paint | 5.0 KB | 10 KB | `src/art`: the dither plates, the schematic, the scope trace, the hex band (DESIGN_SYSTEM §10) |
@@ -718,7 +730,7 @@ The battle page and the soak run on the preview, which needs the seeded dev Work
 | the build's manifest | `public/.assetsignore` | not deployed | `bun run bundle`, `e2e/network.spec.ts` |
 | replays, `GET /api/replays/:key` | API | `public, max-age=31536000, immutable` and an `ETag`: the key names the content | API `read-api.test.ts`, `e2e/network.spec.ts` |
 | hills and standings, `GET /api/hills`, `/api/hills/:slug` | API `edgeCached` | 30 s in the colo's edge cache (Cache API), `public, max-age=30`, with `Age`; a request with `Cache-Control: no-cache` gets them as they are | API `edge-cache.test.ts`, `hill-submit.test.ts`; web `api-cache.test.ts`; `e2e/network.spec.ts` |
-| the stats, `GET /api/stats` | API KV | 5 min in KV for every colo, no request skips it; `public, max-age=60` | API `stats.test.ts` |
+| the stats and the leaderboard, `GET /api/stats`, `/api/leaderboard` | API KV | 5 min in KV for every colo, no request skips it; `public, max-age=60` | API `stats.test.ts` |
 | GitHub avatars | `features/account/avatars.ts` | `preconnect` to `https://avatars.githubusercontent.com`: the header when the `signed_in` hint is there, the profile page always | `e2e/network.spec.ts` |
 
 The app reads a hill's board past the cache each time it reads it again (a job ended, a

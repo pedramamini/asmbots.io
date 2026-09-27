@@ -34,6 +34,7 @@ const COLUMNS: readonly Column[] = [
       { label: 'hills', to: '/hills' },
       { label: 'tournaments', to: '/tournaments' },
       { label: 'stats', to: '/stats' },
+      { label: 'leaderboard', to: '/stats/leaderboard' },
     ],
   },
   {

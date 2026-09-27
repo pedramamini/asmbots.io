@@ -20,6 +20,7 @@ const PAGES = [
   ['/hills', 'hills', 'king', '/docs/tournaments/hills'],
   ['/tournaments', 'tournaments', 'champion', '/docs/tournaments/formats'],
   ['/stats', 'stats', 'numbers', '/docs/machine/death'],
+  ['/stats/leaderboard', 'leaderboard', 'badges', '/docs/tournaments/hills'],
   // A hill's own page says what a hill is too: a shared link lands there first.
   ['/hills/main', 'hills', 'king', '/docs/tournaments/hills'],
 ] as const

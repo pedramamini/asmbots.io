@@ -22,6 +22,7 @@ import { bandWeight, hillOrder } from '../hills/rules'
 import { WeightChip } from '../hills/WeightChip'
 import { ClassCounts, DayChart, SizeChart, Split } from './charts'
 import { useStats } from './query'
+import { StatsTabs } from './StatsTabs'
 import { compact, type DayMetric, everyDay, runningTotal, sizeBins, uptime } from './series'
 
 /** The days the activity chart shows: at least the last 30, at most the last 90. */
@@ -49,6 +50,7 @@ export function StatsPage() {
   return (
     <PanelGrid className="p-3">
       <PageIntro about={STATS_ABOUT} art={<IntroArt name="chart" />} />
+      <StatsTabs />
       {error !== null && data === undefined ? (
         <Panel className="col-span-12" title="stats" status="error">
           <LoadFailure read={read} what="the stats" />

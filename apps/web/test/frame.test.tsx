@@ -218,7 +218,7 @@ describe('Frame', () => {
       within(nav)
         .getAllByRole('link')
         .map((link) => link.textContent),
-    ).toEqual(['home', 'arena', 'editor', 'tournaments', 'hills', 'docs'])
+    ).toEqual(['home', 'arena', 'editor', 'tournaments', 'hills', 'stats', 'docs'])
     expect(screen.getByRole('toolbar', { name: 'filters' })).toBeTruthy()
     const footer = screen.getByRole('contentinfo')
     expect(within(footer).getByText('x16c v1')).toBeTruthy()
@@ -325,7 +325,8 @@ describe('Frame', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/'))
     alt('BracketRight')
     await waitFor(() => expect(router.state.location.pathname).toBe('/arena'))
-    expect(cycleNav('/hills/main', 1)).toBe('/docs')
+    expect(cycleNav('/hills/main', 1)).toBe('/stats')
+    expect(cycleNav('/stats/leaderboard', 1)).toBe('/docs')
     expect(cycleNav('/settings', 1)).toBe('/')
     expect(cycleNav('/settings', -1)).toBe('/docs')
   })
@@ -382,6 +383,7 @@ describe('Frame', () => {
       'g ego to editor',
       'g tgo to tournaments',
       'g hgo to hills',
+      'g sgo to stats',
       'g dgo to docs',
       'alt+[go to the previous route',
       'alt+]go to the next route',

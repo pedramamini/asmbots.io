@@ -13,7 +13,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as GalleryRouteImport } from './routes/[_]gallery'
 import { Route as DocsRouteImport } from './routes/docs'
 import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as StatsRouteImport } from './routes/stats'
 import { Route as ArenaIndexRouteImport } from './routes/arena/index'
 import { Route as ArenaReplayIdRouteImport } from './routes/arena/$replayId'
 import { Route as BotsIdRouteImport } from './routes/bots/$id'
@@ -23,6 +22,8 @@ import { Route as EditorIndexRouteImport } from './routes/editor/index'
 import { Route as EditorBotIdRouteImport } from './routes/editor/$botId'
 import { Route as HillsIndexRouteImport } from './routes/hills/index'
 import { Route as HillsSlugRouteImport } from './routes/hills/$slug'
+import { Route as StatsIndexRouteImport } from './routes/stats/index'
+import { Route as StatsLeaderboardRouteImport } from './routes/stats/leaderboard'
 import { Route as TournamentsIndexRouteImport } from './routes/tournaments/index'
 import { Route as TournamentsIdRouteImport } from './routes/tournaments/$id'
 import { Route as UHandleRouteImport } from './routes/u/$handle'
@@ -47,11 +48,6 @@ const DocsRoute = DocsRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const StatsRoute = StatsRouteImport.update({
-  id: '/stats',
-  path: '/stats',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ArenaIndexRoute = ArenaIndexRouteImport.update({
@@ -99,6 +95,16 @@ const HillsSlugRoute = HillsSlugRouteImport.update({
   path: '/hills/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StatsIndexRoute = StatsIndexRouteImport.update({
+  id: '/stats/',
+  path: '/stats/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StatsLeaderboardRoute = StatsLeaderboardRouteImport.update({
+  id: '/stats/leaderboard',
+  path: '/stats/leaderboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TournamentsIndexRoute = TournamentsIndexRouteImport.update({
   id: '/tournaments/',
   path: '/tournaments/',
@@ -130,18 +136,19 @@ export interface FileRoutesByFullPath {
   '/_gallery': typeof GalleryRoute
   '/docs': typeof DocsRouteWithChildren
   '/settings': typeof SettingsRoute
-  '/stats': typeof StatsRoute
   '/arena/$replayId': typeof ArenaReplayIdRoute
   '/bots/$id': typeof BotsIdRoute
   '/docs/$': typeof DocsSplatRoute
   '/editor/$botId': typeof EditorBotIdRoute
   '/hills/$slug': typeof HillsSlugRoute
+  '/stats/leaderboard': typeof StatsLeaderboardRoute
   '/tournaments/$id': typeof TournamentsIdRoute
   '/u/$handle': typeof UHandleRoute
   '/arena/': typeof ArenaIndexRoute
   '/docs/': typeof DocsIndexRoute
   '/editor/': typeof EditorIndexRoute
   '/hills/': typeof HillsIndexRoute
+  '/stats/': typeof StatsIndexRoute
   '/tournaments/': typeof TournamentsIndexRoute
   '/embed/arena/$replayId': typeof EmbedArenaReplayIdRoute
   '/embed/arena/': typeof EmbedArenaIndexRoute
@@ -150,18 +157,19 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/_gallery': typeof GalleryRoute
   '/settings': typeof SettingsRoute
-  '/stats': typeof StatsRoute
   '/arena/$replayId': typeof ArenaReplayIdRoute
   '/bots/$id': typeof BotsIdRoute
   '/docs/$': typeof DocsSplatRoute
   '/editor/$botId': typeof EditorBotIdRoute
   '/hills/$slug': typeof HillsSlugRoute
+  '/stats/leaderboard': typeof StatsLeaderboardRoute
   '/tournaments/$id': typeof TournamentsIdRoute
   '/u/$handle': typeof UHandleRoute
   '/arena': typeof ArenaIndexRoute
   '/docs': typeof DocsIndexRoute
   '/editor': typeof EditorIndexRoute
   '/hills': typeof HillsIndexRoute
+  '/stats': typeof StatsIndexRoute
   '/tournaments': typeof TournamentsIndexRoute
   '/embed/arena/$replayId': typeof EmbedArenaReplayIdRoute
   '/embed/arena': typeof EmbedArenaIndexRoute
@@ -172,18 +180,19 @@ export interface FileRoutesById {
   '/_gallery': typeof GalleryRoute
   '/docs': typeof DocsRouteWithChildren
   '/settings': typeof SettingsRoute
-  '/stats': typeof StatsRoute
   '/arena/$replayId': typeof ArenaReplayIdRoute
   '/bots/$id': typeof BotsIdRoute
   '/docs/$': typeof DocsSplatRoute
   '/editor/$botId': typeof EditorBotIdRoute
   '/hills/$slug': typeof HillsSlugRoute
+  '/stats/leaderboard': typeof StatsLeaderboardRoute
   '/tournaments/$id': typeof TournamentsIdRoute
   '/u/$handle': typeof UHandleRoute
   '/arena/': typeof ArenaIndexRoute
   '/docs/': typeof DocsIndexRoute
   '/editor/': typeof EditorIndexRoute
   '/hills/': typeof HillsIndexRoute
+  '/stats/': typeof StatsIndexRoute
   '/tournaments/': typeof TournamentsIndexRoute
   '/embed/arena/$replayId': typeof EmbedArenaReplayIdRoute
   '/embed/arena/': typeof EmbedArenaIndexRoute
@@ -195,18 +204,19 @@ export interface FileRouteTypes {
     | '/_gallery'
     | '/docs'
     | '/settings'
-    | '/stats'
     | '/arena/$replayId'
     | '/bots/$id'
     | '/docs/$'
     | '/editor/$botId'
     | '/hills/$slug'
+    | '/stats/leaderboard'
     | '/tournaments/$id'
     | '/u/$handle'
     | '/arena/'
     | '/docs/'
     | '/editor/'
     | '/hills/'
+    | '/stats/'
     | '/tournaments/'
     | '/embed/arena/$replayId'
     | '/embed/arena/'
@@ -215,18 +225,19 @@ export interface FileRouteTypes {
     | '/'
     | '/_gallery'
     | '/settings'
-    | '/stats'
     | '/arena/$replayId'
     | '/bots/$id'
     | '/docs/$'
     | '/editor/$botId'
     | '/hills/$slug'
+    | '/stats/leaderboard'
     | '/tournaments/$id'
     | '/u/$handle'
     | '/arena'
     | '/docs'
     | '/editor'
     | '/hills'
+    | '/stats'
     | '/tournaments'
     | '/embed/arena/$replayId'
     | '/embed/arena'
@@ -236,18 +247,19 @@ export interface FileRouteTypes {
     | '/_gallery'
     | '/docs'
     | '/settings'
-    | '/stats'
     | '/arena/$replayId'
     | '/bots/$id'
     | '/docs/$'
     | '/editor/$botId'
     | '/hills/$slug'
+    | '/stats/leaderboard'
     | '/tournaments/$id'
     | '/u/$handle'
     | '/arena/'
     | '/docs/'
     | '/editor/'
     | '/hills/'
+    | '/stats/'
     | '/tournaments/'
     | '/embed/arena/$replayId'
     | '/embed/arena/'
@@ -258,16 +270,17 @@ export interface RootRouteChildren {
   GalleryRoute: typeof GalleryRoute
   DocsRoute: typeof DocsRouteWithChildren
   SettingsRoute: typeof SettingsRoute
-  StatsRoute: typeof StatsRoute
   ArenaReplayIdRoute: typeof ArenaReplayIdRoute
   BotsIdRoute: typeof BotsIdRoute
   EditorBotIdRoute: typeof EditorBotIdRoute
   HillsSlugRoute: typeof HillsSlugRoute
+  StatsLeaderboardRoute: typeof StatsLeaderboardRoute
   TournamentsIdRoute: typeof TournamentsIdRoute
   UHandleRoute: typeof UHandleRoute
   ArenaIndexRoute: typeof ArenaIndexRoute
   EditorIndexRoute: typeof EditorIndexRoute
   HillsIndexRoute: typeof HillsIndexRoute
+  StatsIndexRoute: typeof StatsIndexRoute
   TournamentsIndexRoute: typeof TournamentsIndexRoute
   EmbedArenaReplayIdRoute: typeof EmbedArenaReplayIdRoute
   EmbedArenaIndexRoute: typeof EmbedArenaIndexRoute
@@ -301,13 +314,6 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/stats': {
-      id: '/stats'
-      path: '/stats'
-      fullPath: '/stats'
-      preLoaderRoute: typeof StatsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/arena/': {
@@ -373,6 +379,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HillsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/stats/': {
+      id: '/stats/'
+      path: '/stats'
+      fullPath: '/stats/'
+      preLoaderRoute: typeof StatsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/stats/leaderboard': {
+      id: '/stats/leaderboard'
+      path: '/stats/leaderboard'
+      fullPath: '/stats/leaderboard'
+      preLoaderRoute: typeof StatsLeaderboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tournaments/': {
       id: '/tournaments/'
       path: '/tournaments'
@@ -428,16 +448,17 @@ const rootRouteChildren: RootRouteChildren = {
   GalleryRoute: GalleryRoute,
   DocsRoute: DocsRouteWithChildren,
   SettingsRoute: SettingsRoute,
-  StatsRoute: StatsRoute,
   ArenaReplayIdRoute: ArenaReplayIdRoute,
   BotsIdRoute: BotsIdRoute,
   EditorBotIdRoute: EditorBotIdRoute,
   HillsSlugRoute: HillsSlugRoute,
+  StatsLeaderboardRoute: StatsLeaderboardRoute,
   TournamentsIdRoute: TournamentsIdRoute,
   UHandleRoute: UHandleRoute,
   ArenaIndexRoute: ArenaIndexRoute,
   EditorIndexRoute: EditorIndexRoute,
   HillsIndexRoute: HillsIndexRoute,
+  StatsIndexRoute: StatsIndexRoute,
   TournamentsIndexRoute: TournamentsIndexRoute,
   EmbedArenaReplayIdRoute: EmbedArenaReplayIdRoute,
   EmbedArenaIndexRoute: EmbedArenaIndexRoute,

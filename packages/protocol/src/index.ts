@@ -26,6 +26,7 @@ export {
   CreatedTournament,
   CreateTournament,
   Diagnostic,
+  EarnedBadge,
   EnterTournament,
   HillBest,
   HillDetail,
@@ -39,6 +40,8 @@ export {
   ImportBotsRequest,
   ImportBotsResult,
   ImportedBot,
+  Leaderboard,
+  LeaderRow,
   MAX_API_TOKENS,
   MAX_BOTS_PER_USER,
   MAX_IMPORT,
@@ -84,6 +87,20 @@ export {
   UserDetail,
   UserStats,
 } from './api'
+export {
+  awardBadges,
+  BADGE_GROUPS,
+  BADGE_IDS,
+  BADGES,
+  type Badge,
+  type BadgeGroup,
+  type BadgeId,
+  badgeValue,
+  type Earned,
+  type MilestoneBadge,
+  type PlayerFacts,
+  type TitleBadge,
+} from './badges'
 export { fromBase64, fromBase64Url, sha256Hex, toBase64, toBase64Url } from './bytes'
 export { canonicalJson } from './canonical'
 export { ApiError, apiError, ERROR_STATUS, type ErrorCode } from './errors'

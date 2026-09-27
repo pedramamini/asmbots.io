@@ -11,14 +11,15 @@ import { readUserStats } from '../db/user-stats'
 import type { AppEnv } from '../env'
 import { classParam } from '../params'
 import { viewerId } from '../viewer'
+import { leaderboardOf } from './leaderboard'
 
 /**
  * `GET /api/users/:handle` (any case): the user and their public bots (all of them for the user
  * themself), each with its latest size, their best place on each hill, their championship
- * results, and their numbers over the same bots (`readUserStats`). An anonymous user's name,
- * GitHub login, and avatar are left out (`toUser`). `?class=` (a weight class slug) keeps only the bots whose latest version is in that
- * class; any other value is a 400. `deleted`, the owner of what deleted accounts leave on hills,
- * is a 404.
+ * results, their numbers over the same bots (`readUserStats`), and their badges (the
+ * leaderboard's). An anonymous user's name, GitHub login, and avatar are left out (`toUser`).
+ * `?class=` (a weight class slug) keeps only the bots whose latest version is in that class; any
+ * other value is a 400. `deleted`, the owner of what deleted accounts leave on hills, is a 404.
  */
 export const users = new Hono<AppEnv>().get('/:handle', async (c) => {
   const handle = c.req.param('handle')
@@ -28,11 +29,13 @@ export const users = new Hono<AppEnv>().get('/:handle', async (c) => {
   if (user === null || user.handle === DELETED_HANDLE)
     throw new HTTPException(404, { message: `no user ${handle}` })
   const publicOnly = user.id !== viewerId(c)
-  const [bots, hills, championships, stats] = await Promise.all([
+  const [bots, hills, championships, stats, board] = await Promise.all([
     listBotsByOwner(c.env.DB, user.id, publicOnly, band),
     listUserHillBests(c.env.DB, user.id),
     listUserChampionships(c.env.DB, user.id),
     readUserStats(c.env.DB, user.id, publicOnly),
+    leaderboardOf(c.env, Date.now()),
   ])
-  return c.json({ user, bots, hills, championships, stats } satisfies UserDetail)
+  const badges = board.users.find((row) => row.user.id === user.id)?.badges ?? []
+  return c.json({ user, bots, hills, championships, stats, badges } satisfies UserDetail)
 })

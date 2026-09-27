@@ -148,6 +148,7 @@ describe('the boot screen', () => {
       expect.stringContaining('editor'),
       expect.stringContaining('tournaments'),
       expect.stringContaining('hills'),
+      expect.stringContaining('stats'),
       expect.stringContaining('docs'),
     ])
     expect(within(tour).queryByRole('button', { name: 'skip the tour' })).toBeNull()

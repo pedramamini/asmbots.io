@@ -82,6 +82,8 @@ const STUBS = [
   '/arena',
   '/arena/$replayId',
   '/editor',
+  '/stats',
+  '/stats/leaderboard',
 ]
 
 /**

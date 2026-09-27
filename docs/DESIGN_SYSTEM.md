@@ -118,7 +118,7 @@ Bot 13+ wraps with a hatched marker in the roster so two bots never share an unm
 
 ## 6. Iconography
 
-Lucide icons, 12 px in nav/chips, 16 px in toolbars, stroke 1.75. Semantic set: arena `grid-2x2`, editor `code-2`, tournaments `trophy`, hills `mountain`, docs `book-open`, play `play`, pause `pause`, step `step-forward`, step-back `step-back`, seek `gauge`, theme `palette`, keys `keyboard`, share `link`, verified `shield-check`, source `git-fork` (lucide has no brand marks). No emoji in UI chrome. Bot avatars are 8x8 identicons generated from the bot's bytes hash in its hue.
+Lucide icons, 12 px in nav/chips, 16 px in toolbars, stroke 1.75. Semantic set: arena `grid-2x2`, editor `code-2`, tournaments `trophy`, hills `mountain`, stats `chart-column`, docs `book-open`, play `play`, pause `pause`, step `step-forward`, step-back `step-back`, seek `gauge`, theme `palette`, keys `keyboard`, share `link`, verified `shield-check`, source `git-fork` (lucide has no brand marks). No emoji in UI chrome. Bot avatars are 8x8 identicons generated from the bot's bytes hash in its hue.
 
 ## 7. Sound (opt-in, default off, persisted)
 

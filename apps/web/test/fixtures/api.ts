@@ -191,6 +191,10 @@ export const SYSTEM: UserDetail = {
     lastAt: T,
     days: [{ day: T.slice(0, 10), bots: 1, versions: 2, matches: 5, wins: 4 }],
   },
+  badges: [
+    { id: 'heavy-metal', value: 4096 },
+    { id: 'hello-world', value: null },
+  ],
   championships: [
     {
       tournament: { id: 't8', slug: 'weekly-8', name: 'Weekly 8', startsAt: T },

@@ -27,6 +27,7 @@ import { bots } from './routes/bots'
 import { championships } from './routes/championships'
 import { health } from './routes/health'
 import { hills } from './routes/hills'
+import { leaderboard } from './routes/leaderboard'
 import { live } from './routes/live'
 import { matches } from './routes/matches'
 import { me } from './routes/me'
@@ -70,6 +71,7 @@ app.route('/api/assemble', assembler)
 app.route('/api/bots', bots)
 app.route('/api/championships', championships)
 app.route('/api/hills', hills)
+app.route('/api/leaderboard', leaderboard)
 app.route('/api/live', live)
 app.route('/api/matches', matches)
 app.route('/api/pages', pages)

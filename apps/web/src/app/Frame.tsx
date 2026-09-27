@@ -18,6 +18,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { createLink, Link, useLocation, useRouter } from '@tanstack/react-router'
 import {
   BookOpen,
+  ChartColumn,
   CodeXml,
   Grid2x2,
   House,
@@ -69,6 +70,7 @@ export const NAV = [
   { to: '/editor', label: 'editor', icon: CodeXml, key: 'e' },
   { to: '/tournaments', label: 'tournaments', icon: Trophy, key: 't' },
   { to: '/hills', label: 'hills', icon: Mountain, key: 'h' },
+  { to: '/stats', label: 'stats', icon: ChartColumn, key: 's' },
   { to: '/docs', label: 'docs', icon: BookOpen, key: 'd' },
 ] as const
 
@@ -312,12 +314,15 @@ export function navActive(to: string, pathname: string): boolean {
   return pathname === to || (to !== '/' && pathname.startsWith(`${to}/`))
 }
 
-/** The six routes; under `md` each is its icon alone, its label left to screen readers. */
+/**
+ * The routes; under `xl` each is its icon alone, its label left to screen readers: seven labels
+ * do not fit beside the brand and the actions.
+ */
 function Nav() {
   const pathname = useLocation({ select: (location) => location.pathname })
   return NAV.map(({ to, label, icon }) => (
     <NavLink key={to} to={to} icon={icon} active={navActive(to, pathname)}>
-      <span className="max-md:sr-only">{label}</span>
+      <span className="max-xl:sr-only">{label}</span>
     </NavLink>
   ))
 }

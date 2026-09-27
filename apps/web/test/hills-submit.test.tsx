@@ -708,6 +708,7 @@ describe('/hills', () => {
         ],
         championships: [],
         stats: NO_STATS,
+        badges: [],
       }),
     )
     await renderAt('/hills', HillsPage)

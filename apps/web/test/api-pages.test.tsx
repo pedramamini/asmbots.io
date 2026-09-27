@@ -388,6 +388,22 @@ describe('/u/$handle', () => {
     expect(cups.textContent).toContain('champion')
   })
 
+  it('shows their badges, titles first, and says so when they have none', async () => {
+    await renderAt('/u/system', () => <ProfilePage handle="system" />)
+    const badges = await screen.findByRole('region', { name: 'badges' })
+    const tiles = within(badges).getAllByRole('listitem')
+    expect(tiles).toHaveLength(2)
+    expect(tiles[0]?.textContent).toContain('heavy metal')
+    expect(tiles[0]?.textContent).toContain('4,096 bytes')
+    expect(tiles[1]?.textContent).toContain('hello, world')
+    expect(within(badges).getByRole('link', { name: 'every badge' }).getAttribute('href')).toBe(
+      '/stats/leaderboard#badges',
+    )
+    server.use(answer('/users/nobody', { ...SYSTEM, badges: [] }))
+    await renderAt('/u/nobody', () => <ProfilePage handle="nobody" />)
+    await waitFor(() => expect(screen.getAllByText('no badges yet.').length).toBeGreaterThan(0))
+  })
+
   it('shows the github name and login when they show them', async () => {
     server.use(
       answer('/users/system', {
