@@ -3,6 +3,7 @@ import { Terms } from './parts'
 
 export const BOT_ABOUT: PageAbout = {
   name: 'bots',
+  title: 'Read the bot. Fork it. Challenge it.',
   docs: 'tournaments/ratings',
   lead: (
     <>

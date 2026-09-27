@@ -9,6 +9,8 @@ import { useRouteAbout } from './slots'
 export interface PageAbout {
   /** The page's name, as the `ⓘ` and its dialog say it: `hills`. */
   readonly name: string
+  /** The bold line over the lead, as the docs home's: `Submit a bot. Climb the hill. Be the king.` */
+  readonly title: string
   /** The line at the top of the page: what the page is, in a sentence or two. */
   readonly lead: ReactNode
   /** The dialog's body: how the page works. */
@@ -25,7 +27,7 @@ export interface PageIntroProps {
   about: PageAbout
   /**
    * The section's banner at the right end (DESIGN_SYSTEM §10): an `IntroArt`. The intro stands
-   * taller for it from `md` on.
+   * as tall as the docs home's banner for it from `md` on.
    */
   art?: ReactNode
   /** More classes for the box, which spans the page's 12 columns. */
@@ -33,9 +35,10 @@ export interface PageIntroProps {
 }
 
 /**
- * The top of a page that explains itself: the page's `lead`, and its `ⓘ` in the header beside the
- * page's name, which opens a dialog with its `details` and a link to its docs. It sits in the
- * page's `PanelGrid`.
+ * The top of a page that explains itself: the page's `title` in bold over its `lead`, and its `ⓘ`
+ * in the header beside the page's name, which opens a dialog with its `details` and a link to its
+ * docs. It sits in the page's `PanelGrid`. The title is not a heading: the page's `<h1>` is its
+ * name (`PageHeading`).
  */
 export function PageIntro({ about, art, className }: PageIntroProps) {
   useRouteAbout(about)
@@ -43,12 +46,15 @@ export function PageIntro({ about, art, className }: PageIntroProps) {
     <section
       aria-label={`about ${about.name}`}
       className={cx(
-        'col-span-12 flex items-start gap-3 rounded-md border border-border bg-panel px-3 py-2',
-        art != null && 'md:min-h-20',
+        'col-span-12 flex items-center gap-6 rounded-md border border-border bg-panel px-3 py-2',
+        art != null && 'md:min-h-42',
         className,
       )}
     >
-      <p className="min-w-0 flex-1 text-body text-muted">{about.lead}</p>
+      <div className="flex min-w-0 flex-1 flex-col gap-3 py-1">
+        <p className="text-modal-title text-bright">{about.title}</p>
+        <p className="text-body text-muted">{about.lead}</p>
+      </div>
       {art}
     </section>
   )

@@ -681,10 +681,12 @@ describe('the docs home', () => {
   it('has a card for each section with pages, at its anchor, listing its pages', async () => {
     await renderDocs('/docs', { docs: TEST_DOCS })
     const home = screen.getByRole('region', { name: 'docs home' })
-    expect(within(home).getByRole('heading', { level: 1 }).textContent).toBe(
+    // The banner spans the sidebar too, so it stands over the home, not in it.
+    expect(within(home).queryByRole('heading', { level: 1 })).toBeNull()
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(
       'Learn the machine. Write a bot. Take the hill.',
     )
-    expect(within(home).getByText(/^3 pages in 2 sections\./)).toBeTruthy()
+    expect(screen.getByText(/^3 pages in 2 sections\./)).toBeTruthy()
     // The home's own name, in sight: the only <h1> of the page.
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     const card = within(home).getByRole('region', { name: 'strategy guide' })
@@ -743,7 +745,7 @@ describe('the docs home', () => {
       expect(findDoc(slug)).toBeDefined()
     }
     await act(async () => {
-      fireEvent.click(within(home).getByRole('button', { name: 'search the docs' }))
+      fireEvent.click(screen.getByRole('button', { name: 'search the docs' }))
     })
     expect(document.activeElement).toBe(screen.getByRole('searchbox', { name: 'search the docs' }))
   })

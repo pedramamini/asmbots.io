@@ -3,6 +3,7 @@ import { Steps, Terms } from './parts'
 
 export const EDITOR_ABOUT: PageAbout = {
   name: 'the editor',
+  title: 'Write a bot. Step through it. Test it.',
   docs: 'machine/debugger',
   lead: (
     <>

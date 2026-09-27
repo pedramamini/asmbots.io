@@ -3,6 +3,7 @@ import { Terms } from './parts'
 
 export const LEADERBOARD_ABOUT: PageAbout = {
   name: 'leaderboard',
+  title: 'Win matches. Earn badges. Top the board.',
   docs: 'tournaments/hills',
   lead: (
     <>

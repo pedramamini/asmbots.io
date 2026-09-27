@@ -3,6 +3,7 @@ import { Steps, Terms } from './parts'
 
 export const TOURNAMENTS_ABOUT: PageAbout = {
   name: 'tournaments',
+  title: 'Pick a field. Run the bracket. Crown a champion.',
   docs: 'tournaments/formats',
   lead: (
     <>

@@ -3,6 +3,7 @@ import { Terms } from './parts'
 
 export const STATS_ABOUT: PageAbout = {
   name: 'stats',
+  title: 'Who plays. What they build. How it fights.',
   docs: 'machine/death',
   lead: (
     <>

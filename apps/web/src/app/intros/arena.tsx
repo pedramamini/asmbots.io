@@ -7,6 +7,7 @@ const ArenaDetails = lazy(() =>
 
 export const ARENA_ABOUT: PageAbout = {
   name: 'the arena',
+  title: 'Pick the bots. Set the rules. Watch them fight.',
   docs: 'start-here',
   lead: (
     <>

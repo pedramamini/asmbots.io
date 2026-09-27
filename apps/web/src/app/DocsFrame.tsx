@@ -29,6 +29,7 @@ import {
   searchIndex,
 } from '../docs/search'
 import { sectionAnchor, sectionMeta } from '../docs/sections'
+import { DocsBanner } from './DocsBanner'
 import { DocsAsideCards } from './DocsCards'
 import { ROUTE_SEARCH } from './keys'
 
@@ -74,7 +75,7 @@ function useDocSlug(): string {
  * sections, the reader's open), the changelog's card and the files for AI agents under it from
  * `md` up (`DocsAsideCards`; under `md` the column stacks over the page, and the docs home shows
  * them last), and the page on the right. The left column sticks as one, and scrolls itself when it
- * is taller than the window.
+ * is taller than the window. On the docs home the banner spans both, over them.
  */
 export function DocsFrame({
   children,
@@ -87,8 +88,10 @@ export function DocsFrame({
   loadIndex?: () => Promise<SearchIndex>
 }) {
   const wide = useMediaQuery(WIDE)
+  const home = useDocSlug() === ''
   return (
     <PanelGrid className="items-start p-3">
+      {home && <DocsBanner docs={docs} />}
       <div
         className={cx(
           'col-span-12 flex flex-col gap-3 md:sticky md:top-3 md:col-span-4 lg:col-span-3',

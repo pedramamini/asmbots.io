@@ -3,6 +3,7 @@ import { Steps, Terms } from './parts'
 
 export const HILLS_ABOUT: PageAbout = {
   name: 'hills',
+  title: 'Submit a bot. Climb the hill. Be the king.',
   docs: 'tournaments/hills',
   lead: (
     <>
