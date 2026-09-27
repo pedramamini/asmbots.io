@@ -5,11 +5,9 @@ import type { ReactNode } from 'react'
 import { Plate, Schematic, ScopeTrace } from '../art/lazy'
 import { NavLink } from './Frame'
 import { DocsLink } from './PageIntro'
+import { useShotSrc } from './shots'
 
-/** Where the screenshots are served (`e2e/docs-shots.spec.ts` takes them), 1280 × 800 each. */
-const SHOTS = '/docs-shots/'
-
-/** A small screenshot of a page, framed like a window, that opens the page. */
+/** A small screenshot of a page in the reader's theme, framed like a window, that opens the page. */
 function Shot({
   to,
   name,
@@ -24,6 +22,7 @@ function Shot({
   zoom?: { scale: number; origin: string } | undefined
   children: string
 }) {
+  const src = useShotSrc(name)
   return (
     <figure className="flex min-w-0 flex-col gap-1.5">
       <Link
@@ -35,7 +34,7 @@ function Shot({
           <span>{`// ${page}`}</span>
         </span>
         <img
-          src={`${SHOTS}${name}.webp`}
+          src={src}
           width={1280}
           height={800}
           loading="lazy"

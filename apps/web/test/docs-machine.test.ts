@@ -19,6 +19,8 @@ import {
   SP,
   simulate,
 } from '@asmbots/engine'
+import { THEMES } from '@asmbots/ui/themes'
+import { shotSrc } from '../src/app/shots'
 import { SHOT_PATH } from '../src/docs/blocks'
 import { reasonText } from '../src/features/arena/battle/log'
 
@@ -106,15 +108,27 @@ describe('the bots on the pages', () => {
     }
   })
 
-  it('each <Shot> has its file in public/docs-shots', () => {
-    for (const page of PAGES) {
-      for (const [, src] of mdx(page).matchAll(/<Shot src="([^"]+)"/g)) {
-        expect({ src, there: existsSync(`${PUBLIC_DIR}${SHOT_PATH}${src}.webp`) }).toEqual({
-          src,
-          there: true,
-        })
+  it('each <Shot> of the docs and the home page has its file in public/docs-shots, in every theme', () => {
+    const home = readFileSync(new URL('../src/app/HowItWorks.tsx', import.meta.url), 'utf8')
+    const names = [
+      ...PAGES.flatMap((page) => [...mdx(page).matchAll(/<Shot src="([^"]+)"/g)].map((m) => m[1])),
+      ...[...home.matchAll(/name="(tour-[\w-]+)"/g)].map((m) => m[1]),
+    ]
+    expect(new Set(names)).toEqual(new Set(['tour-arena', 'tour-editor', 'tour-tournament']))
+    for (const name of new Set(names)) {
+      for (const theme of THEMES) {
+        const file = shotSrc(name as string, theme)
+        expect({ file, there: existsSync(`${PUBLIC_DIR}${file}`) }).toEqual({ file, there: true })
       }
     }
+  })
+
+  it("names a shot's file by its theme; the default theme's is the plain name", () => {
+    expect(shotSrc('tour-arena')).toBe(`${SHOT_PATH}tour-arena.webp`)
+    expect(shotSrc('tour-arena', 'sentinel')).toBe('/docs-shots/tour-arena.webp')
+    expect(shotSrc('tour-arena', 'catppuccin-latte')).toBe(
+      '/docs-shots/tour-arena.catppuccin-latte.webp',
+    )
   })
 })
 

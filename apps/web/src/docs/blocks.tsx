@@ -1,6 +1,7 @@
 /** The docs' small blocks: `Keys`, the `Note` and `Warn` callouts, `Fig`, and `Shot`. */
 import { cx, Kbd } from '@asmbots/ui'
 import { Fragment, type ReactNode } from 'react'
+import { SHOT_PATH, useShotSrc } from '../app/shots'
 import { FIGURES } from './figures'
 import { textOf } from './text'
 
@@ -82,21 +83,22 @@ export function Fig({ src, alt, children }: { src: string; alt: string; children
   )
 }
 
-/** Where the docs' screenshots are served: `public/docs-shots/<name>.webp`. */
-export const SHOT_PATH = '/docs-shots/'
+/** Where the docs' screenshots are served: `public/docs-shots/<name>.webp` (`app/shots.ts`). */
+export { SHOT_PATH }
 
 /** Every screenshot's size in px: the viewport `e2e/docs-shots.spec.ts` takes them at. */
 export const SHOT_SIZE = { width: 1280, height: 800 } as const
 
 /**
- * A screenshot of the app: `<Shot src="tour-arena" alt="…">caption</Shot>`. It loads lazily, and
- * its size is set, so the page does not move when it arrives.
+ * A screenshot of the app in the reader's theme: `<Shot src="tour-arena" alt="…">caption</Shot>`.
+ * It loads lazily, and its size is set, so the page does not move when it arrives.
  */
 export function Shot({ src, alt, children }: { src: string; alt: string; children?: ReactNode }) {
+  const file = useShotSrc(src)
   return (
     <figure className="my-4">
       <img
-        src={`${SHOT_PATH}${src}.webp`}
+        src={file}
         alt={alt}
         width={SHOT_SIZE.width}
         height={SHOT_SIZE.height}
