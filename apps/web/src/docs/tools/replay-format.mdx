@@ -65,7 +65,7 @@ The dwarf against the imp, one round, seed 1, at the arena's `duel` config:
 |---|---|
 | `isa` | `x16c-v1`: the instruction set the bots are written for (see [ISA versions](/docs/isa-versions)) |
 | `createdAt` | optional: when the replay was made, ISO 8601 |
-| `config` | the battle config, every field written out, less the seed |
+| `config` | the battle config, every field written out, less the seed. `minBotBytes`, a weight class's floor, is optional: without it the floor is 1 |
 | `seed` | the match's first seed: round i is placed with `seed + i`, mod 2^32 |
 | `rounds` | rounds in the match, 1 to 10 |
 | `bots` | 2 to 16 bots, in the order they were loaded |

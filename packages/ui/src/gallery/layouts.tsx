@@ -411,10 +411,10 @@ export function HillLayout() {
             <option>tiny</option>
             <option>melee</option>
           </Select>
-          <Select aria-label="size" className="w-32" defaultValue="any size">
-            <option>any size</option>
-            <option>≤ 256 B</option>
-            <option>≤ 512 B</option>
+          <Select aria-label="class" className="w-32" defaultValue="any class">
+            <option>any class</option>
+            <option>lightweight</option>
+            <option>middleweight</option>
           </Select>
           <Select aria-label="visibility" className="w-28" defaultValue="public">
             <option>public</option>
@@ -430,7 +430,7 @@ export function HillLayout() {
       status={
         <>
           <Chip>hill · main</Chip>
-          <Chip>10 rounds · 512 B</Chip>
+          <Chip>10 rounds · lightweight</Chip>
         </>
       }
     >
@@ -459,7 +459,7 @@ export function HillLayout() {
         <Panel
           className="col-span-8 row-span-3"
           title="standings"
-          status="32 entrants · 10 rounds · 512 B"
+          status="32 entrants · 10 rounds · lightweight"
           actions={
             <Button size="sm" icon={Download}>
               export

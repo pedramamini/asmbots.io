@@ -79,7 +79,7 @@ const PARTS: readonly Part[] = [
         editor
       </Link>
     ),
-    text: 'Write 8086 assembly, 512 bytes at most. The debugger steps it forward and back.',
+    text: 'Write 8086 bots of variable sizes, in weight classes. The debugger steps them forward and back.',
   },
   {
     key: 'hills',

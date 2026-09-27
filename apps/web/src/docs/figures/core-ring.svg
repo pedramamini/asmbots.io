@@ -32,7 +32,7 @@
     <rect x="268" y="60" width="14" height="14" fill="var(--bot-0)" />
     <rect x="268" y="80" width="14" height="14" fill="var(--bot-1)" />
     <rect x="268" y="100" width="14" height="14" fill="var(--bot-2)" />
-    <text x="290" y="71" fill="var(--text)">a bot: 512 bytes at most</text>
+    <text x="290" y="71" fill="var(--text)">a bot: 1 byte to 4 KB</text>
     <text x="290" y="91" fill="var(--text)">each in its own hue</text>
     <text x="290" y="111" fill="var(--text-muted)">(not to scale)</text>
     <rect x="272" y="134" width="6" height="6" fill="var(--bot-0)" />

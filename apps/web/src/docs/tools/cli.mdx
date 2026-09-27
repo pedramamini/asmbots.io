@@ -37,7 +37,7 @@ Assembles a source file and prints each diagnostic as `file:line:col: severity: 
 bot.asm:4:7: error: far jumps and pointers are not supported: x16c has no segments [unsupported]
 ```
 
-`--listing` prints each line's address and bytes beside its source. `--bin` writes the bytes to a file; without it, nothing is written. `--max-bytes` fails the build of a bot over that size (the arena's limit is 512).
+`--listing` prints each line's address and bytes beside its source. `--bin` writes the bytes to a file; without it, nothing is written. `--max-bytes` fails the build of a bot over that size: 4,096 by default, the largest bot. Give it your [weight class](/docs/tournaments/weight-classes)'s limit: 512 (lightweight), 1024 (middleweight), 2048 (heavyweight), or 4096 (super-heavy).
 
 ## dis
 
@@ -121,7 +121,7 @@ Known gaps in this build:
 
 - `fight --rounds K` runs K rounds with the seeds `seed` to `seed + K - 1`, but it does not rotate the bot order as a match does, and it prints only the last round. For a match, use `tourney roundrobin` with two bots.
 - `tourney` has no `--seed`, and only a bracket's `--out` file records the seeds it used.
-- `hill submit`, the local hill, does not work: the second bot fails with "is 8192 bytes, not 1..512". Use `submit` for the server's hills.
+- `hill submit`, the local hill, does not work: the second bot fails with "is 8192 bytes, not 1..4096". Use `submit` for the server's hills.
 - `golden` runs `bun run golden`, which it finds only at the repository root: run it there.
 - `--json` does nothing for `asm` and `dis`.
 

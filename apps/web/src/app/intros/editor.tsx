@@ -14,8 +14,8 @@ export const EDITOR_ABOUT: PageAbout = {
     <>
       <p>
         The source assembles as you type. The gutter shows each line&rsquo;s address and bytes;
-        errors and lint warnings mark the line and say how to fix it. A bot is 512 bytes at most,
-        and its <code>%name</code> is the name the arena shows.
+        errors and lint warnings mark the line and say how to fix it. The size badge names the
+        bot&rsquo;s weight class, and its <code>%name</code> is the name the arena shows.
       </p>
       <Steps>
         <li>

@@ -6,7 +6,7 @@ The loader places the bots one at a time, in the order they were entered. For ea
 
 <Fig src="placement-gap" alt="placement: each bot is at least 1,024 free bytes from every other bot on both sides, around the wrap too; a bot's stack grows down from its base into the gap below it">No enemy byte is ever within 1,024 bytes of your bot at the start.</Fig>
 
-It copies the bot's bytes to the base as they are: no relocation, no fix-ups. Then the bot's first process starts at the base, with sp at the base too, so the stack grows down into the free gap below it. Each bot may draw 1,000 times; if one finds no place, the battle is invalid and does not run. That takes a crowded core: 8 bots of 512 bytes fit with ease.
+It copies the bot's bytes to the base as they are: no relocation, no fix-ups. Then the bot's first process starts at the base, with sp at the base too, so the stack grows down into the free gap below it. Each bot may draw 1,000 times; if one finds no place, the battle is invalid and does not run. That takes a crowded core. The spacing widens with the [weight class](/docs/tournaments/weight-classes): 1,024 bytes for lightweights and middleweights, so 8 of them fit with ease; 2,048 for heavyweights, and 4,096 for super-heavies and open weight, which fight duels only. This page uses the default, 1,024.
 
 What this means for a bot:
 

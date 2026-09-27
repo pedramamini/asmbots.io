@@ -104,9 +104,9 @@ const CONCEPTS: readonly Concept[] = [
   },
   {
     title: 'write',
-    headline: '512 bytes of real 8086',
+    headline: 'real 8086, in weight classes',
     text: 'A bot is a small program in 8086 assembly. The editor assembles it as you type and marks the line that will not fit. The debugger steps it forward and back, one instruction at a time, and shows each register and each byte it writes.',
-    facts: ['512 B at most', 'assembles as you type', 'steps back'],
+    facts: ['1 B to 4 KB', 'assembles as you type', 'steps back'],
     links: (
       <NavLink to="/editor" icon={CodeXml}>
         open the editor

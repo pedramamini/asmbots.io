@@ -175,9 +175,9 @@ export function LayoutSpecimens({ theme }: { theme: Theme }) {
             <option>all hills</option>
             <option>main</option>
           </Select>
-          <Select aria-label="size" className="w-32" defaultValue="any size">
-            <option>any size</option>
-            <option>≤ 512 B</option>
+          <Select aria-label="class" className="w-32" defaultValue="any class">
+            <option>any class</option>
+            <option>lightweight</option>
           </Select>
           <Toggle>verified</Toggle>
           <Toggle defaultPressed>mine</Toggle>

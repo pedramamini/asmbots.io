@@ -225,8 +225,8 @@ export const TOUR_STEPS: readonly TourStep[] = [
     title: 'the editor: write a bot',
     body: (
       <p>
-        A bot is 8086 machine code, 512 bytes at most, written in assembly. It assembles as you
-        type. Start from a template, or from nothing.
+        A bot is 8086 machine code, written in assembly. Its size puts it in a weight class. It
+        assembles as you type. Start from a template, or from nothing.
       </p>
     ),
   },

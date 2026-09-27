@@ -293,7 +293,7 @@ flowchart LR
 
 | Part | Where |
 | --- | --- |
-| Assemble on idle | `asm/useAssembler.ts` sends the source to `asm/asm.worker.ts` 300 ms after the last change (the first at once); only the answer to the last request counts. `asm/run.ts` assembles at the 512-byte cap, lints, and measures a bot past the cap. `asm/client.ts` falls back to the main thread if the Worker fails. |
+| Assemble on idle | `asm/useAssembler.ts` sends the source to `asm/asm.worker.ts` 300 ms after the last change (the first at once); only the answer to the last request counts. `asm/run.ts` assembles at the 4,096-byte cap (the top of super-heavy), lints, and measures a bot past the cap. `asm/client.ts` falls back to the main thread if the Worker fails. |
 | Results in the editor | `cm/diagnostics.ts`: `showResult` hands a result whose source the editor still holds to `@codemirror/lint` (`setDiagnostics`: squiggles, tooltips with the fix, `lintGutter` marks) and to `setAssembled`. `problemsOf` reads the mapped findings back for `Problems.tsx`. |
 | Listing gutter | `cm/listing.ts`: `0x000D  C7 05 00 00` per line from the last assemble without errors, mapped through edits until the next; `l` shows and hides it. |
 | Toolbar | `EditorToolbar.tsx`: name, `%name`, size (warn from 90%, danger past the cap), assemble (Mod-Enter), format (Shift-Alt-f; `diff.ts` turns the formatter's text into small changes so the cursor stays in its token), lint, save (Mod-s), versions, share, `test vs ▾`, templates, listing. |
@@ -402,7 +402,7 @@ A tournament on the page is this browser's by that id. When there is none, the p
 link's fragment. `share` copies `/tournaments/<id>#t=<base64url of the deflated JSON>`, schema
 `asmbots-tournament-link/1`: the name, kind, status, config (written out in full), rounds, a
 bracket's seeding and third-place flag, the entrants, and every match played. A roster bot travels
-as its slug; a local bot as its machine code in base64url, up to 512 B (`MAX_BOT_BYTES`, so every
+as its slug; a local bot as its machine code in base64url, up to 4,096 B (`MAX_BOT_BYTES`, so every
 bot that assembles), and so its rounds can be watched from the link. The page rebuilds the
 bracket, standings, progress, and champion from the matches with `@asmbots/tourney`, and rejects a
 link whose matches do not fit its entrants (`this tournament link is broken: …`). A shared
