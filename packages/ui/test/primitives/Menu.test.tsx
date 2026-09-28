@@ -417,12 +417,11 @@ describe('Menu', () => {
     const labels = () => screen.queryAllByRole('menuitem').map((node) => node.textContent)
     const type = (text: string) => fireEvent.change(search(), { target: { value: text } })
 
-    it('opens on the search field, outside the menu, with every item listed', () => {
+    it('opens on the search field, in a group in the menu, with every item listed', () => {
       renderFilterMenu()
       clickOpen()
       expect(document.activeElement).toBe(search())
-      expect(menu()?.contains(search())).toBe(false)
-      expect(search().getAttribute('aria-controls')).toBe(menu()?.id ?? null)
+      expect(screen.getByRole('group', { name: 'filter' }).contains(search())).toBe(true)
       expect(labels()).toEqual([
         'blank',
         'imp',
@@ -473,8 +472,9 @@ describe('Menu', () => {
       renderFilterMenu()
       clickOpen()
       press('ArrowDown')
-      expect(press('d')).toBe(false)
+      expect(press('d')).toBe(true)
       expect(document.activeElement).toBe(search())
+      expect((search() as HTMLInputElement).value).toBe('d')
       expect(press('Home')).toBe(false)
       expect(press('ArrowLeft')).toBe(false)
     })
