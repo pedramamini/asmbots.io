@@ -400,14 +400,26 @@ describe('Frame', () => {
     }
   })
 
-  it('lists the global keys in the key help', async () => {
+  it('lists every key of the app in the key help, a section for each place they work', async () => {
     await renderAndWait()
     key('?')
     const dialog = await screen.findByRole('dialog', { name: 'keys' })
+    // On the home page too: the arena's and the editor's keys, each under where they work.
+    expect([...dialog.querySelectorAll('caption')].map((caption) => caption.textContent)).toEqual([
+      'everywhere',
+      'go to a page',
+      'arena · in a battle',
+      'arena · the core focused',
+      'editor',
+      'editor · in the source',
+      'editor · debugger open',
+    ])
     const rows = within(dialog)
       .getAllByRole('row')
       .map((row) => row.textContent)
-    expect(rows).toEqual([
+    expect(rows).toContain('[slower')
+    expect(rows).toContain('F5run')
+    expect(rows.slice(0, 12)).toEqual([
       '?show the keys',
       'mod+kcommands and themes',
       '/search this page',

@@ -22,6 +22,7 @@ import { fileURLToPath } from 'node:url'
 import { loadRoster, ROSTER, rosterSource } from '@asmbots/bots'
 import { createProcessor } from '@mdx-js/mdx'
 import { type Zippable, zipSync } from 'fflate'
+import { allBindings } from '../src/app/all-keys'
 import { SITE_URL, sitePath } from '../src/app/site'
 import { blockSource } from '../src/docs/Asm'
 import {
@@ -32,7 +33,6 @@ import {
   SKILL_ZIP,
 } from '../src/docs/agent-files'
 import { SHOT_PATH } from '../src/docs/blocks'
-import { allBindings } from '../src/docs/keymap'
 import { DOCS, type DocPage, docSource } from '../src/docs/nav'
 import { encodingFields, findForm } from '../src/docs/reference'
 import { REMARK_PLUGINS } from '../src/docs/remark'

@@ -46,7 +46,7 @@ export function KeyHelp({ bindings, className, ...rest }: KeyHelpProps) {
                     </Fragment>
                   ))}
                 </th>
-                <td className="h-6 truncate border-b border-border group-last/row:border-b-0">
+                <td className="h-6 border-b border-border py-0.5 group-last/row:border-b-0">
                   {binding.description}
                 </td>
               </tr>

@@ -5,7 +5,6 @@ import {
   IconButton,
   IconLink,
   Kbd,
-  KeyHelp,
   Modal,
   NavButton,
   StatusBar,
@@ -45,13 +44,7 @@ import { useSettings } from '../store/settings'
 import { BootLayer } from './boot/BootLayer'
 import { GitHubIcon } from './github-icon'
 import { CYCLE_KEYS, GLOBAL_KEYS, goKey } from './keymaps'
-import {
-  focusRouteSearch,
-  type KeyCommand,
-  useKeyBindings,
-  useKeymapListener,
-  useKeys,
-} from './keys'
+import { focusRouteSearch, type KeyCommand, useKeymapListener, useKeys } from './keys'
 import { useOnline } from './online'
 import { AboutButton } from './PageIntro'
 import { usePaintedAndIdle } from './paint'
@@ -96,6 +89,8 @@ const CommandMenu = lazy(() => import('./CommandMenu').then((m) => ({ default: m
 const NavSheet = lazy(() => import('./NavSheet').then((m) => ({ default: m.NavSheet })))
 
 /** The site's footer, the hills' dither range and the links: after the page paints, in a chunk of its own. */
+/** The key help (`?`): its own chunk, with the editor's key tables. */
+const KeysModal = lazy(() => import('./KeysModal').then((m) => ({ default: m.KeysModal })))
 const SiteFooter = lazy(() => import('./SiteFooter').then((m) => ({ default: m.SiteFooter })))
 
 /** The routes that fill the screen and have no footer: an app, not a page. */
@@ -130,7 +125,6 @@ export function Frame({ children }: { children: ReactNode }) {
   const [keysOpen, setKeysOpen] = useState(false)
   /** The command menu's first search while it is open; null while it is closed. */
   const [menu, setMenu] = useState<string | null>(null)
-  const bindings = useKeyBindings()
   useGlobalKeys(
     useCallback(() => setKeysOpen((open) => !open), []),
     useCallback(() => setMenu((query) => (query === null ? '' : null)), []),
@@ -182,9 +176,11 @@ export function Frame({ children }: { children: ReactNode }) {
         </main>
       </ToolbarSlot>
       <FrameStatus />
-      <Modal open={keysOpen} onClose={() => setKeysOpen(false)} title="keys" size="lg">
-        <KeyHelp bindings={bindings} />
-      </Modal>
+      {keysOpen && (
+        <Suspense fallback={null}>
+          <KeysModal onClose={() => setKeysOpen(false)} />
+        </Suspense>
+      )}
       {menu !== null && (
         <Suspense fallback={null}>
           <CommandMenu query={menu} onClose={() => setMenu(null)} />

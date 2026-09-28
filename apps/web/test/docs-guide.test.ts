@@ -20,6 +20,7 @@ import {
   runMatch,
   updateRating,
 } from '@asmbots/tourney'
+import { allBindings } from '../src/app/all-keys'
 import {
   DEBUG_FUNCTION_KEYS,
   DEBUG_KEYS,
@@ -28,7 +29,6 @@ import {
 } from '../src/app/editor-keymaps'
 import { ISA, NAV } from '../src/app/Frame'
 import { ARENA_KEYS, GLOBAL_KEYS } from '../src/app/keymaps'
-import { allBindings } from '../src/docs/keymap'
 import { replayName } from '../src/features/arena/battle/files'
 import { readReplay } from '../src/features/arena/battle/replay'
 import {
@@ -282,7 +282,7 @@ describe('tools/keys', () => {
     for (const line of want) expect(shown).toContain(line)
     for (const { key, label } of NAV) expect(shown).toContain(`g ${key}: go to ${label}`)
     const functionKeys = allBindings().filter(
-      (b) => b.group === 'debugger' && /^(shift\+)?F\d+$/.test(b.keys.join(' ')),
+      (b) => b.group === 'editor · debugger open' && /^(shift\+)?F\d+$/.test(b.keys.join(' ')),
     )
     expect(functionKeys).toHaveLength(DEBUG_FUNCTION_KEYS.length)
     expect(shown).toContain('1..9: isolate bot n')

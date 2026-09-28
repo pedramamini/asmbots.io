@@ -1,44 +1,11 @@
 /**
  * The docs' keyboard map (`/docs/tools/keys`): every key the app binds, drawn by the key help's
- * own table from the same data the routes register (`app/keymaps.ts`, `app/editor-keymaps.ts`), so the page cannot drift
- * from the keys.
+ * own table from the same list (`app/all-keys.ts`), so the page cannot drift from the keys.
  */
-import { type KeyBinding, KeyHelp } from '@asmbots/ui'
-import {
-  DEBUG_FUNCTION_KEYS,
-  DEBUG_KEYS,
-  EDITOR_KEYS,
-  functionKey,
-  SOURCE_KEYS,
-} from '../app/editor-keymaps'
-import { NAV } from '../app/Frame'
-import { ARENA_KEYS, CYCLE_KEYS, DIGIT_BOTS, GLOBAL_KEYS, goKey } from '../app/keymaps'
+import { KeyHelp } from '@asmbots/ui'
+import { allBindings } from '../app/all-keys'
 
-/** Every binding, by group: what the key help shows on each route, all at once. */
-export function allBindings(): KeyBinding[] {
-  const { fullscreen, screenshot, record, ...arena } = ARENA_KEYS
-  const binding = ({ keys, description, group }: KeyBinding): KeyBinding => ({
-    keys,
-    description,
-    group,
-  })
-  return [
-    ...Object.values(GLOBAL_KEYS),
-    ...NAV.map(({ key, label }) => goKey(key, label)),
-    ...Object.values(CYCLE_KEYS),
-    ...Object.values(arena),
-    { keys: [`1..${DIGIT_BOTS}`], description: 'isolate bot n', group: 'arena' },
-    fullscreen,
-    screenshot,
-    record,
-    ...Object.values(EDITOR_KEYS),
-    ...Object.values(SOURCE_KEYS).map(binding),
-    ...DEBUG_FUNCTION_KEYS.map(functionKey),
-    ...Object.values(DEBUG_KEYS),
-  ]
-}
-
-/** `<KeyMap />`: every key of the app, a table per group. */
+/** `<KeyMap />`: every key of the app, a table per place its keys work. */
 export function KeyMap() {
   return <KeyHelp bindings={allBindings()} className="my-4" />
 }

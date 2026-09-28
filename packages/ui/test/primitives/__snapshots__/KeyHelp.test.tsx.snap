@@ -28,7 +28,7 @@ exports[`KeyHelp draws a table per group 1`] = `
             </kbd>
           </th>
           <td
-            class="h-6 truncate border-b border-border group-last/row:border-b-0"
+            class="h-6 border-b border-border py-0.5 group-last/row:border-b-0"
           >
             key help
           </td>
@@ -47,7 +47,7 @@ exports[`KeyHelp draws a table per group 1`] = `
             </kbd>
           </th>
           <td
-            class="h-6 truncate border-b border-border group-last/row:border-b-0"
+            class="h-6 border-b border-border py-0.5 group-last/row:border-b-0"
           >
             cycle theme
           </td>
@@ -72,7 +72,7 @@ exports[`KeyHelp draws a table per group 1`] = `
             </kbd>
           </th>
           <td
-            class="h-6 truncate border-b border-border group-last/row:border-b-0"
+            class="h-6 border-b border-border py-0.5 group-last/row:border-b-0"
           >
             go to arena
           </td>
@@ -102,7 +102,7 @@ exports[`KeyHelp draws a table per group 1`] = `
             </kbd>
           </th>
           <td
-            class="h-6 truncate border-b border-border group-last/row:border-b-0"
+            class="h-6 border-b border-border py-0.5 group-last/row:border-b-0"
           >
             play or pause
           </td>
@@ -121,7 +121,7 @@ exports[`KeyHelp draws a table per group 1`] = `
             </kbd>
           </th>
           <td
-            class="h-6 truncate border-b border-border group-last/row:border-b-0"
+            class="h-6 border-b border-border py-0.5 group-last/row:border-b-0"
           >
             step
           </td>

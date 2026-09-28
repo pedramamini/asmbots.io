@@ -15,8 +15,14 @@ import { mergeRefs } from '../refs'
 import { cx } from '../style'
 import { IconButton } from './IconButton'
 
-/** The panel's widest, by size: 360, 480, and 640 px; `full` fills the overlay, less its 12 px. */
-const WIDTH = { sm: 'max-w-90', md: 'max-w-120', lg: 'max-w-160', full: 'h-full' } as const
+/** The panel's widest, by size: 360, 480, 640, and 960 px; `full` fills the overlay, less 12 px. */
+const WIDTH = {
+  sm: 'max-w-90',
+  md: 'max-w-120',
+  lg: 'max-w-160',
+  xl: 'max-w-240',
+  full: 'h-full',
+} as const
 
 export interface ModalProps
   extends Omit<ComponentProps<'dialog'>, 'open' | 'title' | 'onClose' | 'onCancel'> {
@@ -28,7 +34,7 @@ export interface ModalProps
   title: ReactNode
   /** The buttons at the foot, right-aligned: `cancel`, then the primary action. */
   actions?: ReactNode
-  /** The panel's widest: `sm` 360, `md` 480, `lg` 640 px; `full` the whole screen (a phone's menu). */
+  /** The panel's widest: `sm` 360, `md` 480, `lg` 640, `xl` 960 px; `full` the whole screen. */
   size?: keyof typeof WIDTH | undefined
 }
 

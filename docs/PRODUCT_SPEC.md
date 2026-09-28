@@ -48,7 +48,7 @@ The soul. Layout: arena panel 8/12 columns, right rail 4/12.
 
 **Replay** `/arena/:replayId`: same UI, bots and seed loaded from the server (or from a `#` URL fragment for local shares). Shows a `verified` chip after the local simulation matches the recorded result hash.
 
-Keyboard: `space` play/pause, `.` step, `,` step back, `[`/`]` speed, `0` reset zoom, `1..9` isolate bot N, `f` fullscreen, `s` screenshot, `v` video, `?` key help.
+Keyboard: `space` play/pause, `.` step, `,` step back, `[`/`]` speed, `0` reset zoom, `1..9` isolate bot N, `f` fullscreen, `s` screenshot, `v` video, `?` key help (every key of the app on any page, a section for each place its keys work: everywhere, go to a page, the arena in a battle, the arena's core focused, the editor, the source, the debugger).
 
 ## 3. Editor and debugger `/editor`, `/editor/:botId`
 

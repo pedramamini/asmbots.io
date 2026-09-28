@@ -2,14 +2,25 @@ import { Button, cx, useToast } from '@asmbots/ui'
 import { Link } from '@tanstack/react-router'
 import { Copy } from 'lucide-react'
 import type { MDXComponents } from 'mdx/types'
-import { type ComponentProps, isValidElement, type ReactNode } from 'react'
+import { type ComponentProps, isValidElement, lazy, type ReactNode, Suspense } from 'react'
 import { sitePath } from '../app/site'
 import { Asm } from './Asm'
 import { isAgentFile } from './agent-files'
 import { Fig, Keys, Note, Shot, Warn } from './blocks'
-import { KeyMap } from './keymap'
 import { Encoding, Flags } from './reference'
 import { headingId, textOf } from './text'
+
+/** The keyboard map: its own chunk, since one page shows it and it holds every key table. */
+const LazyKeyMap = lazy(() => import('./keymap').then((m) => ({ default: m.KeyMap })))
+
+/** `<KeyMap />` in MDX: the map, loaded when the page draws it. */
+function KeyMap() {
+  return (
+    <Suspense fallback={null}>
+      <LazyKeyMap />
+    </Suspense>
+  )
+}
 
 /** Keyboard focus on a link: the kit's 1 px accent outline. */
 const FOCUS = 'focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-accent'
