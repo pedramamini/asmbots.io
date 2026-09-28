@@ -1,6 +1,6 @@
 /**
  * The arena's keys (PRODUCT_SPEC §2), in the app's key registry while a battle shows: `space`
- * play and pause, `.` step, `,` step back, `[` and `]` speed, `0` reset the zoom, `1`..`9`
+ * play and pause, `.` step, `,` step back, `-` and `+` (or `=`, `[`, `]`) speed, `0` reset the zoom, `1`..`9`
  * isolate a bot, `f` fullscreen, `s` screenshot, `v` video, `m` sound on or off. `?` lists them.
  */
 import { type RefObject, useMemo } from 'react'
@@ -76,8 +76,16 @@ export function useArenaKeys({
           client.seek(cycle - 1)
         },
       },
-      { ...ARENA_KEYS.slower, run: () => client.speed(slower(store.getState().speed)) },
-      { ...ARENA_KEYS.faster, run: () => client.speed(faster(store.getState().speed)) },
+      // `=` is `+` without shift; `[` and `]` step the speed as in the debugger.
+      ...[ARENA_KEYS.slower, { ...ARENA_KEYS.slower, keys: ['['] }].map((key) => ({
+        ...key,
+        run: () => client.speed(slower(store.getState().speed)),
+      })),
+      ...['+', '=', ']'].map((key) => ({
+        ...ARENA_KEYS.faster,
+        keys: [key],
+        run: () => client.speed(faster(store.getState().speed)),
+      })),
       { ...ARENA_KEYS.zoom, run: () => canvas.current?.camera.reset() },
       ...Array.from({ length: Math.min(DIGIT_BOTS, bots) }, (_, bot) => ({
         ...isolateKey(bot),

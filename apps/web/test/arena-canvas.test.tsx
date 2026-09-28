@@ -108,10 +108,10 @@ describe('ArenaCanvas', () => {
     expect(mount({ status: 'loading' }).seek).not.toHaveBeenCalled()
   })
 
-  it('zooms with + and -, pans with the arrows, and resets with 0', () => {
+  it('zooms with z and x, pans with the arrows, and resets with 0', () => {
     const { handle, app } = mount()
     const camera = handle().camera
-    fireEvent.keyDown(app, { key: '+' })
+    fireEvent.keyDown(app, { key: 'z' })
     expect(camera.zoom).toBe(2)
     const x = camera.originX
     const y = camera.originY
@@ -121,11 +121,12 @@ describe('ArenaCanvas', () => {
     expect(camera.originY).toBeGreaterThan(y)
     fireEvent.keyDown(app, { key: '0' })
     expect(camera.zoom).toBe(1)
-    fireEvent.keyDown(app, { key: '=' })
-    fireEvent.keyDown(app, { key: '-' })
+    fireEvent.keyDown(app, { key: 'z' })
+    fireEvent.keyDown(app, { key: 'x' })
     expect(camera.zoom).toBe(1)
-    // Other keys, and keys with a modifier, are not the arena's.
-    expect(fireEvent.keyDown(app, { key: 'x' })).toBe(true)
+    // Other keys (`+` and `-` are the speed's), and keys with a modifier, are not the camera's.
+    expect(fireEvent.keyDown(app, { key: '+' })).toBe(true)
+    expect(fireEvent.keyDown(app, { key: '-' })).toBe(true)
     expect(fireEvent.keyDown(app, { key: '0', metaKey: true })).toBe(true)
   })
 

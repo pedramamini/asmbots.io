@@ -87,7 +87,7 @@ export function Hud({
           size="sm"
           icon={ZoomIn}
           label="zoom in"
-          shortcut="+"
+          shortcut="z"
           disabled={zoom >= MAX_ZOOM}
           onClick={() => camera.zoomBy(2)}
         />
@@ -95,7 +95,7 @@ export function Hud({
           size="sm"
           icon={ZoomOut}
           label="zoom out"
-          shortcut="-"
+          shortcut="x"
           disabled={zoom <= MIN_ZOOM}
           onClick={() => camera.zoomBy(0.5)}
         />

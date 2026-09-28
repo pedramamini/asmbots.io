@@ -103,7 +103,7 @@ export interface ArenaCanvasProps extends Omit<ComponentProps<'div'>, 'ref'> {
  * The arena (DESIGN_SYSTEM §5): the renderer on a canvas that fills the box, and the rulers on a
  * canvas over it. It draws `client`'s frames each display frame, in the theme and effects of the
  * settings. The camera: the wheel zooms at the cursor, a drag pans, a press on the minimap moves
- * the view there, and with the arena focused the arrows pan, `+` and `-` zoom, and `0` resets. A
+ * the view there, and with the arena focused the arrows pan, `z` and `x` zoom, and `0` resets. A
  * pointer resting on a byte draws a crosshair through it and a tooltip of what it holds. Where
  * WebGL2 is missing it draws in 2D, and a `2D` chip says so. `children` lie over the arena: the
  * HUD, which then shows the chip, and reads the arena through `useArenaCanvas`. With
@@ -370,12 +370,11 @@ export function ArenaCanvas({
       case 'ArrowDown':
         camera.panBy(0, -step)
         break
-      case '+':
-      case '=':
+      // Not `+` and `-`: those are the arena's speed.
+      case 'z':
         camera.zoomBy(2)
         break
-      case '-':
-      case '_':
+      case 'x':
         camera.zoomBy(0.5)
         break
       case '0':

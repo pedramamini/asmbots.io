@@ -216,7 +216,7 @@ describe('the battle', () => {
     expect(screen.getByRole('button', { name: 'step back' }).hasAttribute('disabled')).toBe(true)
   })
 
-  it('plays and pauses with space, and steps the speed with [ and ]', async () => {
+  it('plays and pauses with space, and steps the speed with + and - (and = [ ])', async () => {
     const { client, frames } = await renderBattle()
     press(' ')
     expect(client.store.getState().status).toBe('playing')
@@ -225,10 +225,16 @@ describe('the battle', () => {
     expect(client.store.getState().cycle).toBe(100)
     press(' ')
     expect(client.store.getState().status).toBe('paused')
+    press('+')
+    expect(client.store.getState().speed).toBe(200)
+    press('-')
+    press('-')
+    expect(client.store.getState().speed).toBe(50)
+    press('=')
     press(']')
     expect(client.store.getState().speed).toBe(200)
     press('[')
-    press('[')
+    press('-')
     expect(client.store.getState().speed).toBe(50)
     fireEvent.click(screen.getByRole('button', { name: 'max speed' }))
     expect(client.store.getState().speed).toBe('max')
