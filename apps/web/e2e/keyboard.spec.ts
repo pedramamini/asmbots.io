@@ -87,15 +87,8 @@ test('load two bots and fight, and hear where the battle stands', async ({ page 
   // The arena itself is a Tab stop, and its keys move the view.
   const map = arena.getByRole('application')
   await tabTo(page, map)
-  await page.keyboard.press('z')
-  await expect(arena.getByText(/^zoom 2x$/)).toBeVisible()
-  // `+` and `-` step the speed, the arena focused or not.
-  const speed = arena.getByRole('slider', { name: 'speed' })
-  const before = (await speed.getAttribute('aria-valuetext')) ?? ''
   await page.keyboard.press('+')
-  await expect(speed).not.toHaveAttribute('aria-valuetext', before)
-  await page.keyboard.press('-')
-  await expect(speed).toHaveAttribute('aria-valuetext', before)
+  await expect(arena.getByText(/^zoom 2x$/)).toBeVisible()
   expect(errors).toEqual([])
 })
 
