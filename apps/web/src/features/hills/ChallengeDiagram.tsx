@@ -55,8 +55,8 @@ export const STEPS = [
 ] as const satisfies readonly { value: ChallengeStep; label: string; title: string; text: string }[]
 
 /** How long each step shows while it plays, ms; the fight moves on a bout at a time. */
-const HOLD_MS = 2600
-const BOUT_MS = 520
+const HOLD_MS = 6000
+const BOUT_MS = 1200
 
 const ROW = 30
 
@@ -242,6 +242,28 @@ export function ChallengeDiagram() {
               {ENTRIES.at(-1)?.name} is pushed off.
             </p>
           )}
+          {/* A dot a step: the reader jumps to one, and the play stops there. */}
+          <div className="mt-2 flex justify-center gap-1">
+            {STEPS.map((s, i) => (
+              <button
+                key={s.value}
+                type="button"
+                aria-label={`step ${i + 1}: ${s.title}`}
+                aria-current={i === index ? 'step' : undefined}
+                onClick={() => pick(s.value)}
+                className="group flex h-6 w-6 items-center justify-center rounded-sm focus-visible:outline-1 focus-visible:outline-accent"
+              >
+                <span
+                  className={cx(
+                    'block h-2 rounded-full transition-[width,background-color] duration-120 ease-out',
+                    i === index
+                      ? 'w-5 bg-accent'
+                      : 'w-2 bg-border-strong group-hover:bg-accent-45',
+                  )}
+                />
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>

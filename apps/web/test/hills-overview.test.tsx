@@ -3,10 +3,14 @@
  * board of the challenge diagram at each step.
  */
 import { describe, expect, it } from 'bun:test'
-import { boardRows } from '../src/features/hills/ChallengeDiagram'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { useDom } from '../../../packages/ui/test/dom'
+import { boardRows, ChallengeDiagram } from '../src/features/hills/ChallengeDiagram'
 import { mountainOrder } from '../src/features/hills/HillCard'
 import { challengeCost, cycles } from '../src/features/hills/HillsLower'
 import { HILLS } from './fixtures/api'
+
+useDom()
 
 describe('mountainOrder', () => {
   it('puts the king in the middle, then the ranks outward, the empty places at the edges', () => {
@@ -49,5 +53,21 @@ describe('the challenge diagram', () => {
     const rows = boardRows('fight', 2)
     expect(rows.map((r) => r.state).slice(0, 4)).toEqual(['fought', 'fought', 'fighting', 'idle'])
     expect(rows.at(-1)?.score).toBe(12 + 40 + 58)
+  })
+})
+
+describe('the challenge diagram’s dots', () => {
+  it('jump to their step and stop the play there', () => {
+    const view = render(<ChallengeDiagram />)
+    const dots = screen.getAllByRole('button', { name: /^step \d: / })
+    expect(dots).toHaveLength(4)
+    expect(dots[0]?.getAttribute('aria-current')).toBe('step')
+    expect(screen.getByRole('button', { name: 'pause' })).toBeTruthy()
+    fireEvent.click(dots[2] as HTMLElement)
+    expect(dots[2]?.getAttribute('aria-current')).toBe('step')
+    expect(dots[0]?.getAttribute('aria-current')).toBeNull()
+    expect(screen.getByText('The whole field ranks by score')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'play' })).toBeTruthy()
+    view.unmount()
   })
 })
