@@ -2,6 +2,7 @@
  * The dither plates' scenes (DESIGN_SYSTEM §10). Each measures in plate heights from its center
  * line, so it keeps its shape on any width; a scene that needs a width says so on its doc comment.
  */
+import { BOT_NAMES, BOTS, type BotName, type Sprite } from './bots'
 import { aspect, BRIGHT, clamp01, type Grid, noise, type Scene, smoothstep } from './dither'
 
 /** A peak of a `range`: where it stands, how high, and how wide its foot. */
@@ -26,6 +27,42 @@ export interface RangeOptions {
   readonly pole?: number | undefined
   /** The near ridge's lowest height, 0..1 of the plate's, rolling a little: none when absent. */
   readonly floor?: number | undefined
+  /** Bots standing about the range, each ringed in a cell of sky so it reads over the rock. */
+  readonly bots?: readonly Placed[] | undefined
+}
+
+/** A bot placed on a plate: its feet at (`x`, `y`), 0..1, drawn at `scale`, facing left if `flip`. */
+export interface Placed {
+  readonly bot: BotName
+  readonly x: number
+  readonly y: number
+  readonly scale: number
+  readonly flip?: boolean | undefined
+}
+
+/** The tone of the first placed bot at (x, y), 0 on the cell of sky around one, -1 off them. */
+function placedTone(bots: readonly Placed[], x: number, y: number, grid: Grid): number {
+  const cell = 1 / grid.rows
+  const wide = aspect(grid)
+  let ring = false
+  for (const placed of bots) {
+    const sprite: Sprite = BOTS[placed.bot]
+    const u = ((x - placed.x) * wide * (placed.flip === true ? -1 : 1)) / placed.scale
+    const v = (y - placed.y) / placed.scale
+    const local = cell / placed.scale
+    // Every bot fits a box 0.25 either side and 0.45 up: skip the rest of the plate.
+    if (Math.abs(u) > 0.25 + local || v < -0.45 - local || v > local) continue
+    const tone = sprite(u, v, local)
+    if (tone >= 0) return tone
+    if (!ring) {
+      ring =
+        sprite(u + local, v, local) >= 0 ||
+        sprite(u - local, v, local) >= 0 ||
+        sprite(u, v + local, local) >= 0 ||
+        sprite(u, v - local, local) >= 0
+    }
+  }
+  return ring ? 0 : -1
 }
 
 /** The height of the near ridge at `x`, 0..1 of the plate's: the highest peak there. */
@@ -42,6 +79,11 @@ export function ridgeHeight(peaks: readonly Peak[], x: number): number {
   return height
 }
 
+/** The ground's height at `x`, 0..1 of the plate's: the near ridge over its rolling `floor`. */
+export function groundHeight(peaks: readonly Peak[], floor: number, x: number): number {
+  return Math.max(ridgeHeight(peaks, x), floor * (1 + 0.2 * Math.sin(x * 17 + 0.7)))
+}
+
 /** The height of the far ridge at `x`: low rolling hills behind the peaks. */
 function farHeight(x: number): number {
   return (
@@ -54,10 +96,16 @@ function farHeight(x: number): number {
  * a flag on each peak that has one (a hill with a king), a banded sun, and stars. The footer's
  * range and the `/hills` banner.
  */
-export function range({ peaks, sun, stars = 0, pole = 0.24, floor = 0 }: RangeOptions): Scene {
+export function range({
+  peaks,
+  sun,
+  stars = 0,
+  pole = 0.24,
+  floor = 0,
+  bots = [],
+}: RangeOptions): Scene {
   const flag = pole / 0.24
-  const ground = (x: number) =>
-    Math.max(ridgeHeight(peaks, x), floor * (1 + 0.2 * Math.sin(x * 17 + 0.7)))
+  const ground = (x: number) => groundHeight(peaks, floor, x)
   return (x, y, grid) => {
     const cell = 1 / grid.rows
     const wide = aspect(grid)
@@ -70,6 +118,10 @@ export function range({ peaks, sun, stars = 0, pole = 0.24, floor = 0 }: RangeOp
       const cloth = dx >= 0 && dx < 0.13 * flag && y >= top - pole
       const wave = 0.012 * flag * Math.sin((dx / flag) * 55)
       if (cloth && y + wave < top - pole + 0.075 * flag) return BRIGHT
+    }
+    if (bots.length > 0) {
+      const tone = placedTone(bots, x, y, grid)
+      if (tone >= 0) return tone
     }
     const near = 1 - ground(x)
     if (y >= near) {
@@ -105,6 +157,7 @@ export const FOOTER_HILLS = ['tiny', 'main', 'melee'] as const
 /** A footer's range: its peaks (the flags' links stand on them) and the picture. */
 export interface FooterRange {
   readonly peaks: readonly Peak[]
+  readonly bots: readonly Placed[]
   readonly scene: Scene
 }
 
@@ -130,7 +183,8 @@ const FOOTER_FLAGS = [
 /**
  * The footer's range for a page (`seed`, its path): the three seeded hills, each with its king's
  * flag, foothills between them over a rolling floor, so no valley drops to the far ridge, a sun,
- * and stars. Each page moves the peaks and the sun a little, so each footer differs and all match.
+ * stars, and three bots of the 24 about the slopes. Each page moves the peaks and the sun a
+ * little and picks its own bots, so each footer differs and all match.
  */
 export function footerRange(seed: string): FooterRange {
   const random = seeded(seed)
@@ -170,7 +224,49 @@ export function footerRange(seed: string): FooterRange {
     }
   }
   const sun = { x: sunX, y: between(0.36, 0.5), r: between(0.2, 0.25) }
-  return { peaks, scene: range({ peaks, sun, stars: 1, pole: FOOTER_POLE, floor: 0.2 }) }
+  // Three bots about the range, off the flags, their labels, and the sun, each on a gentle stretch.
+  const floor = 0.2
+  const bots: Placed[] = []
+  const names = [...BOT_NAMES]
+  for (let draw = 0; draw < 200 && bots.length < FOOTER_BOTS; draw++) {
+    const x = between(0.04, 0.96)
+    const slope = groundHeight(peaks, floor, x + 0.012) - groundHeight(peaks, floor, x - 0.012)
+    const offFlags = flags.every((peak) => x < peak.x - 0.05 || x > peak.x + 0.09)
+    const apart = bots.every((placed) => Math.abs(placed.x - x) > 0.1)
+    const offSun = Math.abs(x - sun.x) > 0.08
+    // The slope allowed widens as the draws go, so a steep range still gets its three.
+    if (!offFlags || !apart || !offSun || Math.abs(slope) > 0.03 + draw * 0.0005) continue
+    const [bot] = names.splice(Math.floor(random() * names.length), 1)
+    if (bot === undefined) break
+    // Its feet on the ground's mean under it, so neither foot hangs in the air for long.
+    const y =
+      1 - (groundHeight(peaks, floor, x - 0.008) + groundHeight(peaks, floor, x + 0.008)) / 2
+    bots.push({ bot, x, y: y + 0.01, scale: FOOTER_BOT_SCALE, flip: random() < 0.5 })
+  }
+  return { peaks, bots, scene: range({ peaks, sun, stars: 1, pole: FOOTER_POLE, floor, bots }) }
+}
+
+/** How many bots stand about each footer's range. */
+export const FOOTER_BOTS = 3
+
+/** A footer bot's scale: about a quarter of the plate's height. */
+const FOOTER_BOT_SCALE = 0.75
+
+/**
+ * One bot, large, on a floor under a sky of stars: a portrait for any plate that wants a bot.
+ * Needs a plate at least 0.8 as wide as it is high.
+ */
+export function botPortrait(name: BotName): Scene {
+  const sprite = BOTS[name]
+  return (x, y, grid) => {
+    const cell = 1 / grid.rows
+    const dx = (x - 0.5) * aspect(grid)
+    const tone = sprite(dx / 2, (y - 0.9) / 2, cell / 2)
+    if (tone >= 0) return tone
+    if (y >= 0.9) return y < 0.9 + cell * 1.2 ? 0.7 : 0.1
+    if (y < 0.6 && noise(x, y) > 0.996) return 1
+    return 0
+  }
 }
 
 /** Whether (dx, y) is on a small four-point sparkle centered at (px, py), in heights. */
@@ -274,14 +370,6 @@ function digitAt(digit: 1 | 2 | 3, dx: number, y: number, cx: number, cy: number
   return DIGITS[digit][row]?.[col] === '#'
 }
 
-/** The distance from (x, y) to the segment from (ax, ay) to (bx, by). */
-function toSegment(x: number, y: number, ax: number, ay: number, bx: number, by: number): number {
-  const vx = bx - ax
-  const vy = by - ay
-  const t = clamp01(((x - ax) * vx + (y - ay) * vy) / (vx * vx + vy * vy))
-  return Math.hypot(x - ax - t * vx, y - ay - t * vy)
-}
-
 /** The podium's steps: each place's center, half width, and top, in heights. */
 const STEPS = [
   { place: 1, x: 0, half: 0.19, top: 0.5 },
@@ -291,74 +379,6 @@ const STEPS = [
 
 /** The podium's floor, 0..1 down the plate. */
 const FLOOR = 0.92
-
-/** The champion: a boxy bot, arms up, a crown on its head. Its feet at `top`. */
-function champion(dx: number, y: number, top: number): number {
-  const ax = Math.abs(dx)
-  if (y >= top - 0.36 && y < top - 0.3 && ax < 0.065) {
-    // The crown: a band and three points.
-    if (y >= top - 0.32) return BRIGHT
-    const point = Math.min(Math.abs(dx + 0.05), Math.abs(dx), Math.abs(dx - 0.05))
-    if (y >= top - 0.36 + point * 1.6) return BRIGHT
-  }
-  if (y >= top - 0.3 && y < top - 0.2 && ax < 0.065) {
-    if (y >= top - 0.27 && y < top - 0.245 && Math.abs(ax - 0.03) < 0.013) return BRIGHT
-    if (y >= top - 0.225 && y < top - 0.215 && ax < 0.03) return 0
-    return 0.9
-  }
-  if (y >= top - 0.2 && y < top - 0.18 && ax < 0.02) return 1
-  if (y >= top - 0.18 && y < top - 0.06 && ax < 0.08) {
-    // A grille across the chest.
-    if (ax < 0.045 && y > top - 0.15 && y < top - 0.09 && Math.sin(y * 260) > 0.3) return 0
-    return 0.7
-  }
-  if (y >= top - 0.06 && y < top && Math.abs(ax - 0.042) < 0.02) return 0.85
-  // The arms, raised.
-  if (toSegment(ax, y, 0.075, top - 0.16, 0.16, top - 0.29) < 0.016) return 0.85
-  if (Math.hypot(ax - 0.165, y - (top - 0.305)) < 0.024) return 1
-  return -1
-}
-
-/** The runner-up: a round bot, a visor with one eye, an antenna. Its feet at `top`. */
-function dome(dx: number, y: number, top: number): number {
-  const ax = Math.abs(dx)
-  if (y >= top - 0.03 && y < top && Math.abs(ax - 0.05) < 0.03) return 0.85
-  if (Math.hypot(dx, y - (top - 0.32)) < 0.02) return BRIGHT
-  if (ax < 0.009 && y >= top - 0.3 && y < top - 0.22) return 1
-  const r = Math.hypot(dx, y - (top - 0.13))
-  if (r < 0.11 && y < top - 0.02) {
-    if (y >= top - 0.17 && y < top - 0.12 && ax < 0.08) {
-      return Math.abs(dx - 0.02) < 0.02 && y >= top - 0.155 && y < top - 0.135 ? BRIGHT : 0
-    }
-    if (Math.hypot(dx - 0.045, y - (top - 0.2)) < 0.015) return BRIGHT
-    // Lit from the upper right.
-    return 0.4 + 0.5 * clamp01(0.5 + (dx - (y - (top - 0.13))) / 0.2)
-  }
-  return -1
-}
-
-/** The third: a squat tank on treads, a round turret, one arm out. Its treads at `top`. */
-function tank(dx: number, y: number, top: number): number {
-  // The treads: a capsule, its wheels dark hubs.
-  const tread = Math.max(0, Math.abs(dx) - 0.11)
-  if (Math.hypot(tread, y - (top - 0.032)) < 0.032) {
-    for (const wx of [-0.11, -0.037, 0.037, 0.11]) {
-      if (Math.hypot(dx - wx, y - (top - 0.032)) < 0.014) return 0
-    }
-    return 1
-  }
-  if (y >= top - 0.11 && y < top - 0.07 && Math.abs(dx) < 0.13) return y < top - 0.1 ? 1 : 0.55
-  if (toSegment(dx, y, 0.04, top - 0.15, 0.16, top - 0.22) < 0.011) return 1
-  if (Math.hypot(dx - 0.17, y - (top - 0.225)) < 0.018) return BRIGHT
-  const turret = Math.hypot(dx, y - (top - 0.11))
-  if (turret < 0.08 && y < top - 0.11) {
-    if (y >= top - 0.16 && y < top - 0.14 && Math.abs(dx) < 0.05) {
-      return Math.abs(dx - 0.015) < 0.012 ? BRIGHT : 0
-    }
-    return turret > 0.07 ? 1 : 0.8
-  }
-  return -1
-}
 
 /**
  * The `climb` plate: a podium, first in the middle, second left, third right, a different bot
@@ -370,9 +390,9 @@ export const podium: Scene = (x, y, grid: Grid) => {
   if (sparkle(dx, y, -0.3, 0.14, cell) || sparkle(dx, y, 0.28, 0.08, cell)) return BRIGHT
   const [first, second, third] = STEPS
   for (const tone of [
-    champion(dx - first.x, y, first.top),
-    dome(dx - second.x, y, second.top),
-    tank(dx - third.x, y, third.top),
+    BOTS.champion(dx - first.x, y - first.top, cell),
+    BOTS.dome(dx - second.x, y - second.top, cell),
+    BOTS.tank(dx - third.x, y - third.top, cell),
   ]) {
     if (tone >= 0) return tone
   }

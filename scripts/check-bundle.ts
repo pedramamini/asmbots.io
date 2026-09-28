@@ -95,13 +95,13 @@ export const BUDGETS: Budgets = {
       label: '/ art, after paint',
       page: '/',
       src: 'src/art/index.tsx',
-      kb: 10,
+      kb: 14,
     },
     {
       label: 'site footer, after paint',
       page: '/',
       src: 'src/app/SiteFooter.tsx',
-      kb: 6,
+      kb: 10,
     },
     {
       label: '404 live imp, after the shell',

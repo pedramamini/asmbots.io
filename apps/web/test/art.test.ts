@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'bun:test'
 import { fillsScreen, hasFooter } from '../src/app/Frame'
 import { arenaFloor, bracket, chart, disk, manual, summit, terminal } from '../src/art/banners'
+import { BOT_NAMES, BOTS } from '../src/art/bots'
 import { BRIGHT, ditherCells, LIT, OFF, ON, type Scene } from '../src/art/dither'
 import { bandBytes, litCells } from '../src/art/HexBand'
 import { tracePoints } from '../src/art/ScopeTrace'
 import {
+  botPortrait,
   chip,
+  FOOTER_BOTS,
   FOOTER_HILLS,
   FOOTER_POLE,
   footerRange,
@@ -77,12 +80,52 @@ describe('the scenes', () => {
     }
   })
 
+  it('stand three different bots about each footer, off the flags', () => {
+    for (const path of ['/', '/hills', '/stats', '/docs/tools/cli', '/u/someone']) {
+      const { peaks, bots } = footerRange(path)
+      expect(bots).toHaveLength(FOOTER_BOTS)
+      expect(new Set(bots.map((placed) => placed.bot)).size).toBe(FOOTER_BOTS)
+      for (const placed of bots) {
+        for (const peak of peaks.filter((p) => p.flag)) {
+          expect(placed.x < peak.x - 0.05 || placed.x > peak.x + 0.09).toBe(true)
+        }
+      }
+    }
+  })
+
   it('seed the footer by page: the same path, the same range; another path, another', () => {
     const grid = { cols: 240, rows: 45 }
     expect(footerRange('/hills').peaks).toEqual(footerRange('/hills').peaks)
     expect(ditherCells(footerRange('/hills').scene, grid)).not.toEqual(
       ditherCells(footerRange('/tournaments').scene, grid),
     )
+  })
+})
+
+describe('the bots', () => {
+  it('are 24, each drawn inside its box: 0.25 either side, its feet at 0, 0.45 up', () => {
+    expect(BOT_NAMES).toHaveLength(24)
+    for (const name of BOT_NAMES) {
+      let on = 0
+      for (let y = -0.6; y <= 0.1; y += 0.005) {
+        for (let dx = -0.4; dx <= 0.4; dx += 0.005) {
+          if (BOTS[name](dx, y, 0.005) < 0) continue
+          on++
+          expect(Math.abs(dx)).toBeLessThanOrEqual(0.25)
+          expect(y).toBeGreaterThanOrEqual(-0.45)
+          expect(y).toBeLessThanOrEqual(0.001)
+        }
+      }
+      expect(on).toBeGreaterThan(200)
+    }
+  })
+
+  it('each make a portrait that is neither empty nor solid', () => {
+    for (const name of BOT_NAMES) {
+      const share = coverage(botPortrait(name), 90, 90)
+      expect(share).toBeGreaterThan(0.03)
+      expect(share).toBeLessThan(0.5)
+    }
   })
 })
 

@@ -37,8 +37,8 @@ about 5% over its page, so what grows one is a choice, made here and in `BUDGETS
 | `/stats/leaderboard` | 177.0 KB | 185 KB | the badge catalog and its 8 × 8 glyphs |
 | `/settings` | 183.5 KB | 195 KB | |
 | `/embed/arena` | 214.2 KB | 225 KB | |
-| / art, after paint | 5.0 KB | 10 KB | `src/art`: the dither plates, the schematic, the scope trace, the hex band (DESIGN_SYSTEM §10) |
-| site footer, after paint | 3.1 KB | 6 KB | every page that scrolls; the dither scenes it shares with the art |
+| / art, after paint | 12.2 KB | 14 KB | `src/art`: the dither plates, the 24 dither bots, the schematic, the scope trace, the hex band (DESIGN_SYSTEM §10) |
+| site footer, after paint | 7.9 KB | 10 KB | every page that scrolls; the dither scenes and the 24 bots it shares with the art |
 | 404 live imp, after the shell | 34.0 KB | 36 KB | the 404 page's imp: the arena's renderer and client |
 | arena Worker, at the first fight | 14.2 KB | 20 KB | |
 | assembler Worker, with the editor | 15.8 KB | 20 KB | |
