@@ -28,7 +28,7 @@ import {
 } from 'react'
 import { useMe } from '../../api/queries'
 import { type Author, AuthorLink, ByAuthor, ownerAuthor, sourceAuthor } from '../../app/author'
-import { ARENA_ABOUT } from '../../app/intros/arena'
+import { ARENA_ABOUT, ArenaKinds } from '../../app/intros/arena'
 import { ROUTE_SEARCH } from '../../app/keys'
 import { useLinkAction } from '../../app/link-action'
 import { PageIntro } from '../../app/PageIntro'
@@ -395,6 +395,7 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
       <PanelGrid>
         <PageIntro
           about={ARENA_ABOUT}
+          more={<ArenaKinds />}
           art={
             <Suspense
               fallback={<div className="-my-2 hidden w-80 shrink-0 self-stretch md:block" />}

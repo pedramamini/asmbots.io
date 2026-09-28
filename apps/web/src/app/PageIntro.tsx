@@ -30,6 +30,8 @@ export interface PageIntroProps {
    * as tall as the docs home's banner for it from `md` on.
    */
   art?: ReactNode
+  /** More under the lead, in the text's column: the arena's battle kinds. */
+  more?: ReactNode
   /** More classes for the box, which spans the page's 12 columns. */
   className?: string | undefined
 }
@@ -40,7 +42,7 @@ export interface PageIntroProps {
  * docs. It sits in the page's `PanelGrid`. The title is not a heading: the page's `<h1>` is its
  * name (`PageHeading`).
  */
-export function PageIntro({ about, art, className }: PageIntroProps) {
+export function PageIntro({ about, art, more, className }: PageIntroProps) {
   useRouteAbout(about)
   return (
     <section
@@ -54,6 +56,7 @@ export function PageIntro({ about, art, className }: PageIntroProps) {
       <div className="flex min-w-0 flex-1 flex-col gap-3 py-1">
         <p className="text-modal-title text-bright">{about.title}</p>
         <p className="text-body text-muted">{about.lead}</p>
+        {more}
       </div>
       {art}
     </section>
