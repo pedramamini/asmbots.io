@@ -35,7 +35,7 @@ export function WeightRuler({ hills }: { hills: readonly HillSummary[] }) {
               style={{ left: at(c.min - 1), width: at(c.max - c.min + 1) }}
             >
               <span className="truncate text-bright text-panel-status">{WEIGHT_SHORT[c.slug]}</span>
-              <span className="truncate text-dim text-panel-status">{kb(c.minSpacing)} apart</span>
+              <span className="truncate text-muted text-panel-status">{kb(c.minSpacing)} apart</span>
             </div>
           ))}
         </div>
@@ -55,7 +55,7 @@ export function WeightRuler({ hills }: { hills: readonly HillSummary[] }) {
             const max = hill.config.maxBotBytes
             return (
               <tr key={hill.id} className="flex items-center gap-2">
-                <th scope="row" className="w-28 shrink-0 truncate text-left font-normal">
+                <th scope="row" className="w-28 shrink-0 whitespace-nowrap text-left font-normal">
                   <Link to="/hills/$slug" params={{ slug: hill.slug }} className={CELL_LINK}>
                     {hill.name}
                   </Link>
@@ -100,7 +100,7 @@ export function WeightRuler({ hills }: { hills: readonly HillSummary[] }) {
             <span
               key={m}
               className={cx(
-                'absolute top-0.5 text-dim text-panel-status tabular-nums',
+                'absolute top-0.5 text-muted text-panel-status tabular-nums',
                 i === 0 ? '' : i === MARKS.length - 1 ? '-translate-x-full' : '-translate-x-1/2',
               )}
               style={{ left: at(m) }}
@@ -109,7 +109,7 @@ export function WeightRuler({ hills }: { hills: readonly HillSummary[] }) {
             </span>
           ))}
         </div>
-        <span className="hidden w-32 shrink-0 text-right text-dim text-panel-status sm:block">
+        <span className="hidden w-32 shrink-0 text-right text-muted text-panel-status sm:block">
           bytes
         </span>
       </div>
