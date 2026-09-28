@@ -204,7 +204,10 @@ export function HowItWorks({ site }: { site?: ReactNode }) {
           >
             <div
               className={cx(
-                'flex flex-col gap-3 lg:col-span-5',
+                'flex flex-col gap-3',
+                // The first idea's drawing is one wide figure, not two: it takes less of the row,
+                // so it stands no taller than the site list and the text beside it.
+                index === 0 ? 'lg:col-span-7 2xl:col-span-8' : 'lg:col-span-5',
                 // The site list heads the first idea, so it starts at the figure's top edge.
                 index === 0 && site !== undefined ? 'lg:justify-start' : 'lg:justify-center',
                 index % 2 === 1 && 'lg:order-2',
@@ -230,7 +233,8 @@ export function HowItWorks({ site }: { site?: ReactNode }) {
             </div>
             <div
               className={cx(
-                'grid min-w-0 content-center gap-3 lg:col-span-7',
+                'grid min-w-0 content-center gap-3',
+                index === 0 ? 'lg:col-span-5 2xl:col-span-4' : 'lg:col-span-7',
                 index > 0 && 'sm:grid-cols-2',
                 index % 2 === 1 && 'lg:order-1',
               )}
