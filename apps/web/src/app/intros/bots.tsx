@@ -5,6 +5,11 @@ export const BOT_ABOUT: PageAbout = {
   name: 'bots',
   title: 'Read the bot. Fork it. Challenge it.',
   docs: 'tournaments/ratings',
+  figure: {
+    kind: 'diagram',
+    name: 'versions',
+    caption: 'Each save makes a version, and each result belongs to the version that fought it.',
+  },
   lead: (
     <>
       A bot&rsquo;s page: who wrote it, how big it is, and how it does on the hills. Fork a public

@@ -26,11 +26,14 @@ export const ARENA_ABOUT: PageAbout = {
   name: 'the arena',
   title: 'Pick the bots. Set the rules. Watch them fight.',
   docs: 'start-here',
-  lead: (
-    <>
-      Your sandbox: any bots, any rules, one 64 KB core. Nothing here goes on a ladder.
-    </>
-  ),
+  figure: {
+    kind: 'shot',
+    name: 'tour-arena',
+    page: 'ARENA',
+    caption:
+      'A battle mid-fight: each bot’s hue marks the bytes it wrote last, and its outlines are its live processes.',
+  },
+  lead: <>Your sandbox: any bots, any rules, one 64 KB core. Nothing here goes on a ladder.</>,
   // The dialog's prose: its own chunk, loaded on the first open (`/arena` sits at its budget).
   details: (
     <Suspense fallback={null}>

@@ -1,7 +1,7 @@
 import { Button, cx, IconButton, Modal } from '@asmbots/ui'
 import { Link } from '@tanstack/react-router'
 import { BookOpen, Info } from 'lucide-react'
-import { type ReactNode, useState } from 'react'
+import { lazy, type ReactNode, Suspense, useState } from 'react'
 import { NavLink } from './Frame'
 import { useRouteAbout } from './slots'
 
@@ -17,7 +17,33 @@ export interface PageAbout {
   readonly details: ReactNode
   /** The docs page that says it all, under `/docs/`: `tournaments/hills`. */
   readonly docs: string
+  /** The dialog's picture, beside its text: a screenshot of a page, or a diagram. */
+  readonly figure?: AboutFigure | undefined
 }
+
+/**
+ * An intro dialog's picture. `shot`: a screenshot in the reader's theme (`app/shots.ts`), framed as
+ * a window of `page`. `diagram`: one of the drawings in `intros/figures.tsx`. The caption says
+ * what it shows, so the drawing itself is art (DESIGN_SYSTEM §10).
+ */
+export type AboutFigure =
+  | {
+      readonly kind: 'shot'
+      readonly name: string
+      readonly page: string
+      readonly caption: string
+    }
+  | {
+      readonly kind: 'diagram'
+      readonly name: 'hill' | 'match' | 'versions' | 'badges'
+      readonly caption: string
+    }
+
+/** The figure's drawing and frame: their own chunk, loaded when a dialog first opens. */
+const FigureView = lazy(() => import('./intros/figures'))
+
+/** The figure's box while its chunk loads: its frame at 16:10, so the dialog does not move. */
+const FIGURE_BOX = 'aspect-[16/10] w-full rounded-sm border border-border bg-panel-2'
 
 /** A link inside an intro's text: underlined, as a link in running text is (DESIGN_SYSTEM §8). */
 const INTRO_LINK =
@@ -82,7 +108,7 @@ export function AboutButton({ about }: { about: PageAbout }) {
         open={open}
         onClose={close}
         title={`about ${about.name}`}
-        size="lg"
+        size="xl"
         actions={
           <>
             <Button variant="ghost" onClick={close}>
@@ -94,7 +120,21 @@ export function AboutButton({ about }: { about: PageAbout }) {
           </>
         }
       >
-        <div className="flex flex-col gap-3 text-body text-text">{about.details}</div>
+        <div
+          className={cx(
+            'grid gap-5 text-body text-text',
+            about.figure && 'lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]',
+          )}
+        >
+          <div className="flex min-w-0 flex-col gap-3">{about.details}</div>
+          {about.figure && (
+            <div className="min-w-0 lg:sticky lg:top-0 lg:self-start">
+              <Suspense fallback={<div className={FIGURE_BOX} />}>
+                <FigureView figure={about.figure} />
+              </Suspense>
+            </div>
+          )}
+        </div>
       </Modal>
     </>
   )

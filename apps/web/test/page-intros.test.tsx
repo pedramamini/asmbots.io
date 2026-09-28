@@ -56,6 +56,10 @@ describe('page intros', () => {
       const dialog = await screen.findByRole('dialog', { name: `about ${name}` })
       const link = within(dialog).getByRole('link', { name: 'read the docs' })
       expect(link.getAttribute('href')).toBe(docs)
+      // Its picture beside the text, loaded as it opens; and its lines wrap, though the ⓘ sits
+      // in the header's `nowrap` brand: the dialog sets its own white-space.
+      expect(await within(dialog).findByRole('figure')).toBeTruthy()
+      expect(dialog.className).toContain('whitespace-normal')
 
       // The header's `×` and the footer's `close` both close it.
       const [, footer] = within(dialog).getAllByRole('button', { name: 'close' })

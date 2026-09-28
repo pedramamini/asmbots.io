@@ -2,7 +2,7 @@
 import type { ReactNode } from 'react'
 
 const STEPS = 'flex list-decimal flex-col gap-1 pl-7 marker:text-muted'
-const TERMS = 'grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1'
+const TERMS = 'grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-1'
 
 export function Steps({ children }: { children: ReactNode }) {
   return <ol className={STEPS}>{children}</ol>

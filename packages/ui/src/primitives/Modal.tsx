@@ -46,6 +46,10 @@ export interface ModalProps
  * on the control the content marks `autoFocus`, else on its first control, else on the close
  * button, and gives the focus back to what had it when it closes. `className` goes on the panel;
  * every other prop, the ref included, goes to the `<dialog>`.
+ *
+ * Its body scrolls down, never across: lines wrap, a long word breaks. A `<dialog>` in the top
+ * layer still inherits text styles from where it sits in the DOM (the header's `ⓘ` sits in a
+ * `nowrap` brand), so the dialog sets its own white-space and alignment.
  */
 export function Modal({ open, ...props }: ModalProps) {
   return open ? <OpenModal {...props} /> : null
@@ -130,7 +134,7 @@ function OpenModal({
         pressedOverlay.current = false
         if (overlay && !event.defaultPrevented) onClose()
       }}
-      className="fixed inset-0 z-modal m-0 size-full max-h-none max-w-none overflow-auto overscroll-contain border-0 bg-[rgba(0,0,0,0.7)] p-3 text-body text-text transition-opacity duration-120 ease-out backdrop:bg-transparent open:flex starting:open:opacity-0 motion-reduce:transition-none"
+      className="fixed inset-0 z-modal m-0 size-full max-h-none max-w-none overflow-auto overscroll-contain border-0 bg-[rgba(0,0,0,0.7)] p-3 text-left text-body text-text whitespace-normal transition-opacity duration-120 ease-out backdrop:bg-transparent open:flex starting:open:opacity-0 motion-reduce:transition-none"
     >
       <div
         className={cx(
@@ -153,7 +157,9 @@ function OpenModal({
           />
         </header>
         <div ref={content} className="flex min-h-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 overflow-auto">{children}</div>
+          <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto wrap-break-word">
+            {children}
+          </div>
           {hasContent(actions) && (
             <footer className="mt-4 flex shrink-0 items-center justify-end gap-2 border-t border-border pt-3">
               {actions}

@@ -5,6 +5,12 @@ export const TOURNAMENTS_ABOUT: PageAbout = {
   name: 'tournaments',
   title: 'Pick a field. Run the bracket. Crown a champion.',
   docs: 'tournaments/formats',
+  figure: {
+    kind: 'shot',
+    name: 'tour-tournament',
+    page: 'TOURNAMENTS',
+    caption: 'A bracket of eight roster bots: the winner of each match goes on, the loser is out.',
+  },
   lead: (
     <>
       A tournament is a one-time event that ends with a champion; a hill never ends. Pick any bots

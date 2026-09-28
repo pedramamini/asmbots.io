@@ -5,6 +5,13 @@ export const EDITOR_ABOUT: PageAbout = {
   name: 'the editor',
   title: 'Write a bot. Step through it. Test it.',
   docs: 'machine/debugger',
+  figure: {
+    kind: 'shot',
+    name: 'tour-editor',
+    page: 'EDITOR',
+    caption:
+      'The imp in the debugger: the source and its bytes, the registers, the processes, and the memory as it changes.',
+  },
   lead: (
     <>
       The editor is where a bot is made: write 8086 assembly, see its bytes as you type, test it

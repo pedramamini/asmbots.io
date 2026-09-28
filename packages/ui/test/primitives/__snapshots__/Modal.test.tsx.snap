@@ -10,7 +10,7 @@ exports[`Modal draws the title row, the body, and the actions in a panel over th
   <dialog
     aria-labelledby="id-1"
     aria-modal="true"
-    class="fixed inset-0 z-modal m-0 size-full max-h-none max-w-none overflow-auto overscroll-contain border-0 bg-[rgba(0,0,0,0.7)] p-3 text-body text-text transition-opacity duration-120 ease-out backdrop:bg-transparent open:flex starting:open:opacity-0 motion-reduce:transition-none"
+    class="fixed inset-0 z-modal m-0 size-full max-h-none max-w-none overflow-auto overscroll-contain border-0 bg-[rgba(0,0,0,0.7)] p-3 text-left text-body text-text whitespace-normal transition-opacity duration-120 ease-out backdrop:bg-transparent open:flex starting:open:opacity-0 motion-reduce:transition-none"
     open=""
   >
     <div
@@ -56,7 +56,7 @@ exports[`Modal draws the title row, the body, and the actions in a panel over th
         class="flex min-h-0 flex-1 flex-col"
       >
         <div
-          class="min-h-0 flex-1 overflow-auto"
+          class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto wrap-break-word"
         >
           <p>
             delete dwarf-v3 and its 12 versions?

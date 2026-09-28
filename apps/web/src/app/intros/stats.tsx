@@ -5,6 +5,12 @@ export const STATS_ABOUT: PageAbout = {
   name: 'stats',
   title: 'Who plays. What they build. How it fights.',
   docs: 'machine/death',
+  figure: {
+    kind: 'diagram',
+    name: 'match',
+    caption:
+      'A match is rounds of the same bots; a round is cycles, until a bot dies or the cycles run out.',
+  },
   lead: (
     <>
       The site in numbers: who has signed up, the bots they build, and every match the server has

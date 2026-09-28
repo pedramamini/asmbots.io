@@ -5,6 +5,12 @@ export const LEADERBOARD_ABOUT: PageAbout = {
   name: 'leaderboard',
   title: 'Win matches. Earn badges. Top the board.',
   docs: 'tournaments/hills',
+  figure: {
+    kind: 'diagram',
+    name: 'badges',
+    caption:
+      'A title goes to the one builder at the top of a number; a milestone to everyone past its line.',
+  },
   lead: (
     <>
       Every builder ranked by the matches their bots win on the server, and the badges they have

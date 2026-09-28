@@ -5,6 +5,12 @@ export const HILLS_ABOUT: PageAbout = {
   name: 'hills',
   title: 'Submit a bot. Climb the hill. Be the king.',
   docs: 'tournaments/hills',
+  figure: {
+    kind: 'diagram',
+    name: 'hill',
+    caption:
+      'A challenge on a hill of five: your bot comes in, the field ranks by score, and the bot under the size line is pushed off.',
+  },
   lead: (
     <>
       A hill is a standing ladder that never ends: one for each weight class, plus open weight,
