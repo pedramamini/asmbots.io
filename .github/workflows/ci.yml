@@ -33,7 +33,8 @@ jobs:
   # The Playwright suite (apps/web/e2e) against the production build and the seeded e2e Worker
   # (`wrangler dev`, Miniflare, `DEV_FAKE_AUTH=1`; apps/web/playwright.config.ts starts both), in
   # the Playwright image, whose Linux screenshots the `-linux` baselines are. Four shards; the
-  # config retries a failure once under CI and keeps its trace, uploaded here.
+  # config retries a failure once under CI and keeps its trace, uploaded here. The axe suite
+  # (e2e/a11y.spec.ts) is not in the shards: it is the `a11y` job below, one theme a job.
   e2e:
     runs-on: ubuntu-latest
     container:
@@ -49,11 +50,38 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Playwright, shard ${{ matrix.shard }} of 4
         working-directory: apps/web
-        run: bunx playwright test --project=chromium --shard=${{ matrix.shard }}/4
+        run: bunx playwright test --project=chromium --grep-invert @a11y --shard=${{ matrix.shard }}/4
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: e2e-traces-${{ matrix.shard }}
+          path: apps/web/test-results/
+          retention-days: 7
+
+  # e2e/a11y.spec.ts, one job a theme: its 63 tests (7 a theme, each axe over many pages) were
+  # most of one shard, 20+ minutes against 3 to 6 for the others.
+  a11y:
+    name: a11y (${{ matrix.theme }})
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --ipc=host
+    strategy:
+      fail-fast: false
+      matrix:
+        theme:
+          [sentinel, amber, pedurple, ice, tokyo-night, dracula, nord, catppuccin-latte, paper]
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install -g bun@1.3.6
+      - run: bun install --frozen-lockfile
+      - name: axe, ${{ matrix.theme }}
+        working-directory: apps/web
+        run: bunx playwright test --project=chromium e2e/a11y.spec.ts --grep @theme-${{ matrix.theme }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: a11y-traces-${{ matrix.theme }}
           path: apps/web/test-results/
           retention-days: 7
 

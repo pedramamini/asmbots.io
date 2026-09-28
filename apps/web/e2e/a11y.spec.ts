@@ -84,8 +84,10 @@ async function seeded(page: Page): Promise<{ replay: string; tournament: string 
   return { replay, tournament }
 }
 
+// Tagged `@a11y` and `@theme-<name>`: CI runs each theme as its own job (`--grep @theme-amber`)
+// and leaves the whole file out of the e2e shards (`--grep-invert @a11y`).
 for (const theme of THEMES) {
-  test.describe(theme, () => {
+  test.describe(theme, { tag: ['@a11y', `@theme-${theme}`] }, () => {
     test.beforeEach(async ({ page }) => themed(page, theme))
 
     test('every route', async ({ page }) => {
