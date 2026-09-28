@@ -356,6 +356,13 @@ describe('the editor page', () => {
     const { router } = await renderEditor('/editor', arena)
     await editorView()
     fireEvent.click(toolbar().getByRole('button', { name: 'test vs ▾' }))
+    // The opponents run A to Z, and the filter field narrows them.
+    const names = screen.getAllByRole('menuitem').map((item) => item.textContent ?? '')
+    expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)))
+    fireEvent.change(screen.getByRole('textbox', { name: 'filter bots' }), {
+      target: { value: 'imp' },
+    })
+    expect(screen.getAllByRole('menuitem').length).toBeLessThan(names.length)
     fireEvent.click(await screen.findByRole('menuitem', { name: 'imp' }))
     const record = await screen.findByRole('status', { name: /vs Imp/ })
     expect(record.textContent).toBe('W 1 · T 1 · L 1 vs imp')

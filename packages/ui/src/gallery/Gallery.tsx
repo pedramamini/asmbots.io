@@ -76,7 +76,7 @@ export function Gallery() {
                 ASM BOTS <span className="text-muted">{'// gallery'}</span>
               </>
             }
-            stat="33 primitives · 3 layouts · 9 themes"
+            stat="34 primitives · 3 layouts · 9 themes"
             nav={SECTIONS.map(({ id, label, icon }) => (
               <NavButton key={id} href={`#${id}`} icon={icon}>
                 {label}
@@ -120,7 +120,7 @@ export function Gallery() {
           <Section
             id="controls"
             title="controls"
-            note="12 primitives · hover and focus forced in screenshots"
+            note="13 primitives · hover and focus forced in screenshots"
           >
             <PanelGrid>
               <ControlSpecimens />

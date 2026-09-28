@@ -5,6 +5,7 @@ import {
   Chip,
   type ChipVariant,
   cx,
+  FilterMenu,
   IconButton,
   Input,
   Kbd,
@@ -121,13 +122,13 @@ export function EditorToolbar(props: EditorToolbarProps) {
   useRouteAbout(EDITOR_ABOUT)
   const readOnly = saveState === 'read-only'
   const mod = modKey()
-  const opponents = rosterCatalog().filter((bot) => bot.roster?.tier !== 'test')
-  const showcase = opponents.filter((bot) => bot.roster?.tier === 'showcase')
-  const solid = opponents.filter((bot) => bot.roster?.tier !== 'showcase')
-  const opponentItem = (bot: CatalogBot) => ({
-    label: bot.roster?.slug ?? bot.name.toLowerCase(),
-    onSelect: () => props.onTest(bot),
-  })
+  const opponents = rosterCatalog()
+    .filter((bot) => bot.roster?.tier !== 'test')
+    .map((bot) => ({
+      label: bot.roster?.slug ?? bot.name.toLowerCase(),
+      onSelect: () => props.onTest(bot),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label))
   const botName = result?.assembled.name ?? ''
   return (
     <>
@@ -195,13 +196,14 @@ export function EditorToolbar(props: EditorToolbarProps) {
       />
       <ActionButton icon={Link} label="share" onClick={props.onShare} />
       <Divider />
-      <Menu
+      <FilterMenu
         trigger={
           <Button icon={Swords} loading={test.status === 'running'}>
             test vs ▾
           </Button>
         }
-        items={[...showcase.map(opponentItem), 'separator', ...solid.map(opponentItem)]}
+        items={opponents}
+        filter="filter bots"
       />
       <TestRecord {...props} />
       <div className="ml-auto flex items-center gap-2">

@@ -56,7 +56,7 @@ Tiled workspace, default the `writing` layout: library, the source over its prob
 
 **Editor**:
 - CodeMirror 6, x16c mode, theme-matched. Listing gutter (address, bytes) updated on every successful assemble. Diagnostics inline (squiggle + gutter mark + problems panel). Hover on a mnemonic: opcode doc card (encoding, flags, one example). Autocomplete for mnemonics, registers, labels, `%` directives.
-- Toolbar: file name, `%name` badge, size chip with the weight class (`142 B · light`), `assemble` (auto on idle 300 ms), `format`, `lint`, `save` (local always; cloud when signed in), `versions`, `share`, `test vs ▾` (pick a roster bot, runs 10 rounds headless in the Worker, shows W/T/L instantly).
+- Toolbar: file name, `%name` badge, size chip with the weight class (`142 B · light`), `assemble` (auto on idle 300 ms), `format`, `lint`, `save` (local always; cloud when signed in), `versions`, `share`, `test vs ▾` (pick a roster bot from an A to Z list with a fuzzy filter field, runs 10 rounds headless in the Worker, shows W/T/L instantly).
 - Templates menu: `blank`, `imp`, `dwarf`, `scanner skeleton`, `replicator skeleton`, `position-independent base` snippet.
 - Bot library sidebar (`b`): my bots, roster (read-only, `fork` copies), recent.
 

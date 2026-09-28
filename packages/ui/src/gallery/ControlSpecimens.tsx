@@ -27,6 +27,7 @@ import {
 import { Fragment } from 'react'
 import { Button, type ButtonVariant } from '../primitives/Button'
 import { Chip } from '../primitives/Chip'
+import { FilterMenu } from '../primitives/FilterMenu'
 import { IconButton } from '../primitives/IconButton'
 import { Input } from '../primitives/Input'
 import { Kbd } from '../primitives/Kbd'
@@ -55,8 +56,8 @@ const BUTTON_STATES = ['md', 'sm', 'icon', 'hover', 'focus', 'disabled', 'loadin
 const none = () => {}
 
 /**
- * NavButton, Button, IconButton, Segmented, Toggle, Input, Select, Slider, Chip, Kbd, Tooltip, and
- * Menu: each in each of its states.
+ * NavButton, Button, IconButton, Segmented, Toggle, Input, Select, Slider, Chip, Kbd, Tooltip, Menu,
+ * and FilterMenu: each in each of its states.
  */
 export function ControlSpecimens() {
   return (
@@ -421,6 +422,17 @@ export function ControlSpecimens() {
             'separator',
             { label: 'delete bot', icon: Trash2, danger: true, onSelect: none },
           ]}
+        />
+      </Specimen>
+
+      <Specimen name="FilterMenu" status="type to filter" className="col-span-3 min-h-66">
+        <FilterMenu
+          trigger={<Button>test vs ▾</Button>}
+          filter="filter bots"
+          items={['dwarf', 'imp', 'mice', 'paper', 'scanner', 'stone', 'vampire'].map((label) => ({
+            label,
+            onSelect: none,
+          }))}
         />
       </Specimen>
     </>

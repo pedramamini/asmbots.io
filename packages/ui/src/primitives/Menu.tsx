@@ -3,6 +3,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   type ComponentProps,
   cloneElement,
+  type FocusEvent,
   type KeyboardEvent,
   type ReactElement,
   useEffect,
@@ -41,6 +42,13 @@ export interface MenuProps extends Omit<ComponentProps<'div'>, 'children'> {
   items: readonly MenuEntry[]
   /** The side it opens on; it flips when that side has no room. */
   placement?: Placement | undefined
+  /**
+   * A search field over the items (an `Input`; `FilterMenu` passes one and filters `items` by it).
+   * Opening focuses it, and the items scroll under it past 320 px.
+   */
+  search?: ReactElement<ComponentProps<'input'>> | undefined
+  /** Called as the menu opens: `FilterMenu` clears its search. */
+  onOpen?: (() => void) | undefined
 }
 
 /** The enabled items of `menu`, in order. */
@@ -53,14 +61,18 @@ function itemsOf(menu: HTMLElement | null): HTMLElement[] {
  * floating-ui. Opening focuses the first item (Up Arrow on the trigger: the last). In the menu,
  * Down and Up move through the enabled items and wrap, Home and End go to the ends, a letter jumps
  * to the next item that starts with it, Enter and Space choose. Escape closes it and returns to the
- * trigger; Tab closes it and moves on from the trigger; a press outside closes it. `--panel` fill,
- * a strong hairline, radius 4; the focused item takes the 10% accent fill. `className` and the
- * other props go to the menu.
+ * trigger; Tab closes it and moves on from the trigger; a press outside closes it. With `search`,
+ * opening focuses a search field above the items instead: Down goes to the first match, Up from it
+ * back to the field, Enter in the field chooses the first match, and a letter typed on an item goes
+ * to the field. `--panel` fill, a strong hairline, radius 4; the focused item takes the 10% accent
+ * fill. `className` and the other props go to the menu (with `search`, to the panel around it).
  */
 export function Menu({
   trigger,
   items,
   placement = 'bottom-start',
+  search,
+  onOpen,
   className,
   style,
   onKeyDown,
@@ -74,6 +86,8 @@ export function Menu({
   const layer = useFloatingLayer(open, placement, 4)
   const triggerNode = useRef<HTMLElement>(null)
   const menuNode = useRef<HTMLDivElement>(null)
+  const searchNode = useRef<HTMLInputElement>(null)
+  const searchRef = useMemo(() => mergeRefs(search?.props.ref, searchNode), [search?.props.ref])
   /** Which end of the menu takes the focus as it opens. */
   const start = useRef<'first' | 'last'>('first')
   const triggerRef = useMemo(
@@ -83,13 +97,15 @@ export function Menu({
   const menuRef = useMemo(() => mergeRefs(layer.floating, menuNode), [layer.floating])
 
   const focusEnd = (end: 'first' | 'last') => {
+    if (end === 'first' && searchNode.current !== null) return searchNode.current.focus()
     const list = itemsOf(menuNode.current)
     list.at(end === 'first' ? 0 : -1)?.focus({ preventScroll: true })
   }
   const show = (end: 'first' | 'last') => {
     start.current = end
-    if (open) focusEnd(end)
-    else setOpen(true)
+    if (open) return focusEnd(end)
+    onOpen?.()
+    setOpen(true)
   }
   const close = (refocus: boolean) => {
     setOpen(false)
@@ -98,9 +114,7 @@ export function Menu({
 
   // Into the menu as it opens.
   useEffect(() => {
-    if (!open) return
-    const list = itemsOf(menuNode.current)
-    list.at(start.current === 'first' ? 0 : -1)?.focus({ preventScroll: true })
+    if (open) focusEnd(start.current)
   }, [open])
 
   // A press anywhere but the menu and its trigger closes it, and leaves the focus to the press.
@@ -115,11 +129,13 @@ export function Menu({
     return () => document.removeEventListener('pointerdown', onPointerDown)
   }, [open])
 
-  const onMenuKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    onKeyDown?.(event)
+  const onMenuKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    onKeyDown?.(event as KeyboardEvent<HTMLDivElement>)
     if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return
-    const list = itemsOf(event.currentTarget)
+    const list = itemsOf(menuNode.current)
     const at = list.indexOf(document.activeElement as HTMLElement)
+    const search = searchNode.current
+    const inSearch = search !== null && event.target === search
     const go = (index: number) => {
       event.preventDefault()
       list.at(index % list.length)?.focus({ preventScroll: true })
@@ -128,13 +144,23 @@ export function Menu({
       case 'ArrowDown':
         return go(at + 1)
       case 'ArrowUp':
+        if (search !== null && at === 0) {
+          event.preventDefault()
+          return search.focus()
+        }
         return go(at < 0 ? -1 : at - 1)
+      case 'Enter':
+        if (!inSearch) return
+        event.preventDefault()
+        return list[0]?.click()
       case 'Home':
-        return go(0)
       case 'End':
-        return go(-1)
+        // In the search field they move the caret.
+        if (inSearch) return
+        return go(event.key === 'Home' ? 0 : -1)
       case 'ArrowLeft':
       case 'ArrowRight':
+        if (inSearch) return
         // No submenus: the keys do nothing here, and a toolbar around the menu must not take them.
         event.preventDefault()
         return
@@ -146,6 +172,13 @@ export function Menu({
         // From the trigger, the Tab (or Shift+Tab) goes on to the trigger's neighbor.
         return close(true)
     }
+    if (inSearch) return
+    // On an item, typing goes on in the search field: the key lands where the focus now is.
+    if (
+      search !== null &&
+      (event.key === 'Backspace' || (event.key.length === 1 && event.key !== ' '))
+    )
+      return search.focus()
     if (event.key.length !== 1 || event.key === ' ') return
     const letter = event.key.toLowerCase()
     const next = [...list.slice(at + 1), ...list.slice(0, at + 1)].find((item) =>
@@ -155,6 +188,65 @@ export function Menu({
     event.preventDefault()
     next.focus({ preventScroll: true })
   }
+
+  const renderItem = (entry: MenuItem) => (
+    <button
+      key={entry.label}
+      type="button"
+      role="menuitem"
+      tabIndex={-1}
+      disabled={entry.disabled}
+      onClick={() => {
+        close(true)
+        entry.onSelect()
+      }}
+      onPointerMove={(event) => {
+        const item = event.currentTarget
+        if (document.activeElement !== item) item.focus({ preventScroll: true })
+      }}
+      className={cx(
+        'flex h-6 w-full items-center gap-2 rounded-sm px-2 text-left whitespace-nowrap outline-hidden disabled:cursor-not-allowed disabled:opacity-40',
+        entry.danger
+          ? 'text-danger focus:bg-danger/10'
+          : 'text-text focus:bg-accent-10 focus:text-accent-fg',
+      )}
+    >
+      {drawIcon(entry.icon, 12)}
+      <span className="flex-1">{entry.label}</span>
+      {entry.shortcut !== undefined && <Kbd aria-hidden="true">{entry.shortcut}</Kbd>}
+    </button>
+  )
+  /** The floating panel: the menu itself, or with `search` the field and the menu. */
+  const panel = {
+    ref: menuRef,
+    popover: 'manual',
+    // Focusable, so a click on a separator or a disabled item keeps the focus in the menu.
+    tabIndex: -1,
+    ...rest,
+    style: { ...style, ...layer.style },
+    onBlur: (event: FocusEvent<HTMLDivElement>) => {
+      onBlur?.(event)
+      const next = event.relatedTarget
+      if (next !== null && event.currentTarget.contains(next)) return
+      if (next !== null && triggerNode.current?.contains(next)) return
+      setOpen(false)
+    },
+    className: cx(
+      LAYER_CLASSES,
+      'z-modal flex min-w-40 flex-col rounded-md border border-border-strong bg-panel p-1 text-data text-text outline-hidden transition-opacity duration-120 ease-out',
+      // Transparent, not hidden, until placed: a hidden item cannot take the focus.
+      !layer.positioned && 'opacity-0',
+      className,
+    ),
+  } as const
+  const entries = items.map((entry, index) =>
+    entry === 'separator' ? (
+      // A separator is known only by its place.
+      <hr key={index} className="-mx-1 my-1 border-border" />
+    ) : (
+      renderItem(entry)
+    ),
+  )
 
   return (
     <>
@@ -179,67 +271,40 @@ export function Menu({
           show(event.key === 'ArrowDown' ? 'first' : 'last')
         },
       })}
-      {open && (
-        <div
-          ref={menuRef}
-          id={menuId}
-          role="menu"
-          aria-labelledby={triggerId}
-          popover="manual"
-          // Focusable, so a click on a separator or a disabled item keeps the focus in the menu.
-          tabIndex={-1}
-          {...rest}
-          style={{ ...style, ...layer.style }}
-          onKeyDown={onMenuKeyDown}
-          onBlur={(event) => {
-            onBlur?.(event)
-            const next = event.relatedTarget
-            if (next !== null && event.currentTarget.contains(next)) return
-            if (next !== null && triggerNode.current?.contains(next)) return
-            setOpen(false)
-          }}
-          className={cx(
-            LAYER_CLASSES,
-            'z-modal flex min-w-40 flex-col rounded-md border border-border-strong bg-panel p-1 text-data text-text outline-hidden transition-opacity duration-120 ease-out',
-            // Transparent, not hidden, until placed: a hidden item cannot take the focus.
-            !layer.positioned && 'opacity-0',
-            className,
-          )}
-        >
-          {items.map((entry, index) =>
-            entry === 'separator' ? (
-              // A separator is known only by its place.
-              <hr key={index} className="-mx-1 my-1 border-border" />
-            ) : (
-              <button
-                key={entry.label}
-                type="button"
-                role="menuitem"
-                tabIndex={-1}
-                disabled={entry.disabled}
-                onClick={() => {
-                  close(true)
-                  entry.onSelect()
-                }}
-                onPointerMove={(event) => {
-                  const item = event.currentTarget
-                  if (document.activeElement !== item) item.focus({ preventScroll: true })
-                }}
-                className={cx(
-                  'flex h-6 w-full items-center gap-2 rounded-sm px-2 text-left whitespace-nowrap outline-hidden disabled:cursor-not-allowed disabled:opacity-40',
-                  entry.danger
-                    ? 'text-danger focus:bg-danger/10'
-                    : 'text-text focus:bg-accent-10 focus:text-accent-fg',
-                )}
-              >
-                {drawIcon(entry.icon, 12)}
-                <span className="flex-1">{entry.label}</span>
-                {entry.shortcut !== undefined && <Kbd aria-hidden="true">{entry.shortcut}</Kbd>}
-              </button>
-            ),
-          )}
-        </div>
-      )}
+      {open &&
+        (search === undefined ? (
+          <div
+            {...panel}
+            id={menuId}
+            role="menu"
+            aria-labelledby={triggerId}
+            onKeyDown={onMenuKeyDown}
+          >
+            {entries}
+          </div>
+        ) : (
+          <div {...panel}>
+            {cloneElement(search, {
+              ref: searchRef,
+              'aria-controls': menuId,
+              onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => {
+                search.props.onKeyDown?.(event)
+                onMenuKeyDown(event)
+              },
+            })}
+            <div
+              id={menuId}
+              role="menu"
+              aria-labelledby={triggerId}
+              tabIndex={-1}
+              className="flex max-h-80 flex-col overflow-y-auto outline-hidden"
+              onKeyDown={onMenuKeyDown}
+            >
+              {entries}
+            </div>
+            {items.length === 0 && <p className="px-2 py-1 text-text-dim">no match</p>}
+          </div>
+        ))}
     </>
   )
 }

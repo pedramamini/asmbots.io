@@ -2,8 +2,8 @@ import { describe, expect, it } from 'bun:test'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { Grid2x2, Palette } from 'lucide-react'
 import { useState } from 'react'
+import { fuzzyScore } from '../../src/fuzzy'
 import { CommandPalette, filterCommands, type PaletteCommand } from '../../src/index'
-import { fuzzyScore } from '../../src/primitives/CommandPalette'
 import { useDom } from '../dom'
 
 useDom()

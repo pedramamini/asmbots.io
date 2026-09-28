@@ -2,7 +2,16 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { Copy, EllipsisVertical, Trash2 } from 'lucide-react'
 import { createRef } from 'react'
-import { Button, IconButton, Menu, type MenuEntry, type MenuProps, Toolbar } from '../../src/index'
+import {
+  Button,
+  FilterMenu,
+  IconButton,
+  Menu,
+  type MenuEntry,
+  type MenuItem,
+  type MenuProps,
+  Toolbar,
+} from '../../src/index'
 import { html, useDom, window } from '../dom'
 
 useDom()
@@ -393,5 +402,92 @@ describe('Menu', () => {
     const list = menu() as HTMLElement
     expect(list.className.endsWith(' min-w-56')).toBe(true)
     expect(list.dataset.kind).toBe('templates')
+  })
+
+  describe('FilterMenu', () => {
+    const renderFilterMenu = () =>
+      render(
+        <FilterMenu
+          trigger={<Button>templates</Button>}
+          items={entries().filter((entry): entry is MenuItem => entry !== 'separator')}
+          filter="filter"
+        />,
+      )
+    const search = () => screen.getByRole('textbox', { name: 'filter' })
+    const labels = () => screen.queryAllByRole('menuitem').map((node) => node.textContent)
+    const type = (text: string) => fireEvent.change(search(), { target: { value: text } })
+
+    it('opens on the search field, outside the menu, with every item listed', () => {
+      renderFilterMenu()
+      clickOpen()
+      expect(document.activeElement).toBe(search())
+      expect(menu()?.contains(search())).toBe(false)
+      expect(search().getAttribute('aria-controls')).toBe(menu()?.id ?? null)
+      expect(labels()).toEqual([
+        'blank',
+        'imp',
+        'dwarfd',
+        'scanner skeleton',
+        'replicator skeleton',
+        'delete',
+      ])
+    })
+
+    it('keeps the fuzzy matches, best first', () => {
+      renderFilterMenu()
+      clickOpen()
+      type('skel')
+      expect(labels()).toEqual(['scanner skeleton', 'replicator skeleton'])
+      type('rpsk')
+      expect(labels()).toEqual(['replicator skeleton'])
+    })
+
+    it('says no match when nothing matches', () => {
+      renderFilterMenu()
+      clickOpen()
+      type('zzz')
+      expect(labels()).toEqual([])
+      expect(screen.getByText('no match')).not.toBeNull()
+    })
+
+    it('chooses the first match with Enter in the field', () => {
+      renderFilterMenu()
+      clickOpen()
+      type('dw')
+      expect(press('Enter')).toBe(true)
+      expect(chosen).toEqual(['dwarf'])
+      expect(menu()).toBeNull()
+    })
+
+    it('goes down into the matches and back up to the field', () => {
+      renderFilterMenu()
+      clickOpen()
+      type('i')
+      expect(press('ArrowDown')).toBe(true)
+      expect(focused()).toBe(labels()[0])
+      expect(press('ArrowUp')).toBe(true)
+      expect(document.activeElement).toBe(search())
+    })
+
+    it('sends a letter typed on an item to the field, and leaves Home and End to the caret', () => {
+      renderFilterMenu()
+      clickOpen()
+      press('ArrowDown')
+      expect(press('d')).toBe(false)
+      expect(document.activeElement).toBe(search())
+      expect(press('Home')).toBe(false)
+      expect(press('ArrowLeft')).toBe(false)
+    })
+
+    it('closes on Escape from the field and clears the search for the next open', () => {
+      renderFilterMenu()
+      clickOpen()
+      type('imp')
+      expect(press('Escape')).toBe(true)
+      expect(menu()).toBeNull()
+      expect(document.activeElement).toBe(trigger())
+      clickOpen()
+      expect((search() as HTMLInputElement).value).toBe('')
+    })
   })
 })

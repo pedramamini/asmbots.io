@@ -86,6 +86,7 @@ Two utilities of the kit's own besides the type roles and the animations: `trunc
 | `Kbd` | `<Kbd>space</Kbd>` |
 | `Tooltip` | `<Tooltip content="the replay matches its hash"><Chip tabIndex={0}>verified</Chip></Tooltip>` |
 | `Menu` | `<Menu trigger={<Button>templates ▾</Button>} items={[{ label: 'dwarf', onSelect }, 'separator', …]} />` |
+| `FilterMenu` | `<FilterMenu trigger={…} items={bots} filter="filter bots" />`: a `Menu` with a fuzzy search field over its items (its own module, off the shell) |
 
 | Data display and feedback | Usage |
 |---|---|
