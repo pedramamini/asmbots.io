@@ -2,8 +2,8 @@
  * The editor in Chromium, against the production build (its assembler and arena Workers
  * included): the dwarf typed in assembles clean with its size in the toolbar; `mov [bx], 0` shows
  * the size error at its column (squiggle, gutter mark, problems panel); `format` is idempotent;
- * `test vs imp` runs ten rounds in the arena Worker and shows the record, and `watch` opens the
- * arena set up as tested. One bot goes the whole way: written, linted, formatted, tested, and saved
+ * `test vs imp` runs ten rounds in the arena Worker and shows the record, `watch` plays the match
+ * in a modal over the editor, and its `open in arena` opens the arena set up as tested. One bot goes the whole way: written, linted, formatted, tested, and saved
  * in this browser, where the library lists it after a reload. A first visit shows the templates
  * over the new bot and the coach mark under the debugger's run button.
  */
@@ -122,7 +122,9 @@ test('format lays the source out once, and again changes nothing', async ({ page
   expect(errors).toEqual([])
 })
 
-test('test vs imp shows the record, and watch opens the arena as tested', async ({ page }) => {
+test('test vs imp shows the record, watch plays it in a modal, and open in arena goes on', async ({
+  page,
+}) => {
   const errors = watch(page)
   await typeBot(page, DWARF)
   await expect(sizeChip(page)).toHaveText('23 B · light')
@@ -138,6 +140,14 @@ test('test vs imp shows the record, and watch opens the arena as tested', async 
     /^\/arena\?b=local:draft-[0-9a-f]{12},roster:imp&seed=\d+/,
   )
   await link.click()
+  const modal = page.getByRole('dialog', { name: 'Dwarf vs Imp' })
+  await expect(modal.getByRole('img', { name: /the arena$/ })).toBeVisible()
+  await expect(modal.getByText(/cycle [1-9]/)).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(modal).toBeHidden()
+  await expect(page).toHaveTitle(/EDITOR/)
+  await link.click()
+  await modal.getByRole('link', { name: 'open in arena' }).click()
   await expect(page).toHaveTitle('ASM BOTS // ARENA')
   const picked = page.getByRole('list', { name: 'bots picked' }).getByRole('listitem')
   await expect(picked).toHaveCount(2)

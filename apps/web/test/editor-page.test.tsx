@@ -30,7 +30,7 @@ import { Frame } from '../src/app/Frame'
 import { battleConfig } from '../src/features/arena/setup/config'
 import { validateArenaSearch } from '../src/features/arena/setup/search'
 import { setupFromSearch, sharedBots, sharedFragment } from '../src/features/arena/setup/url'
-import type { ArenaClient } from '../src/features/arena/worker/client'
+import { type ArenaClient, createArenaStore } from '../src/features/arena/worker/client'
 import { AsmClient } from '../src/features/editor/asm/client'
 import { lineBytes } from '../src/features/editor/cm/debug'
 import { DebugSession } from '../src/features/editor/debug/session'
@@ -84,6 +84,12 @@ function fakeArena(match?: (rounds: number) => MatchResult) {
       match === undefined ? runMatch(bots, config, rounds) : match(rounds),
     ),
     dispose: mock(() => {}),
+    // What `watch`'s player uses: it loads the fight and plays, and no frame comes.
+    store: createArenaStore(),
+    load: mock(() => {}),
+    play: mock(() => {}),
+    pause: mock(() => {}),
+    on: mock(() => () => {}),
   }
 }
 
@@ -332,7 +338,7 @@ describe('the editor page', () => {
     )
   })
 
-  it('tests the bot vs a roster bot: the record, and watch opens the arena as tested', async () => {
+  it('tests the bot vs a roster bot: the record, and watch plays it in a modal', async () => {
     const arena = fakeArena(() => ({
       key: 'k',
       names: ['untitled', 'Imp'],
@@ -387,6 +393,24 @@ describe('the editor page', () => {
         .next().value,
     ).toBe(BLANK)
     fireEvent.click(watch)
+    const dialog = within(await screen.findByRole('dialog', { name: 'untitled vs Imp' }))
+    expect(router.state.location.pathname).toBe('/editor')
+    // The same fight as the test: the two bots, at the test's seed, ten rounds.
+    const [fight, fightConfig, fightRounds] = arena.load.mock.calls[0] as unknown as [
+      { name: string }[],
+      { seed: number },
+      number,
+    ]
+    expect(fight.map((bot) => bot.name)).toEqual(['untitled', 'Imp'])
+    expect(href).toContain(`seed=${fightConfig.seed}`)
+    expect(fightRounds).toBe(10)
+    expect(arena.play).toHaveBeenCalled()
+    fireEvent.click(dialog.getByRole('button', { name: 'close' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+
+    fireEvent.click(watch)
+    const again = within(await screen.findByRole('dialog', { name: 'untitled vs Imp' }))
+    fireEvent.click(again.getByRole('link', { name: 'open in arena' }))
     await waitFor(() => expect(router.state.location.pathname).toBe('/arena'))
     expect(await screen.findByText('the arena')).toBeTruthy()
   })

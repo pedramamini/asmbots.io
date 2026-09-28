@@ -26,7 +26,7 @@ import { isolateHistory, undo } from '@codemirror/commands'
 import type { EditorView } from '@codemirror/view'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ApiRequestError } from '../../api/client'
 import { botVersionQuery, useMe, useMyBots } from '../../api/queries'
 import { EDITOR_KEYS } from '../../app/editor-keymaps'
@@ -85,6 +85,9 @@ import { useEditorPrefs } from './store'
 import { isBlankBot, TEMPLATES, type TemplateId, templateSource } from './templates'
 import { TEST_CONFIG, TEST_ROUNDS, tally, testBots, testedId, watchSetup } from './test-vs'
 import { type RestoredText, VersionsModal } from './VersionsModal'
+
+/** `watch`'s player: its own chunk, loaded on the first `watch`. */
+const WatchModal = lazy(() => import('./WatchModal').then((m) => ({ default: m.WatchModal })))
 
 export interface EditorPageProps {
   target: DocTarget
@@ -313,6 +316,7 @@ function Workbench({
   const [saving, setSaving] = useState(false)
   const [versionsOpen, setVersionsOpen] = useState(false)
   const [test, setTest] = useState<TestState>({ status: 'idle' })
+  const [watching, setWatching] = useState(false)
   const arena = useRef<ArenaClient | null>(null)
   const { result, pending, assembleNow } = useAssembler(source, assembler, assembleDelay)
   // The debugger starts as the user left it, unless the arena hands a setup over.
@@ -720,6 +724,15 @@ function Workbench({
     if (test.status !== 'done' || test.opponent.ref.kind !== 'roster') return null
     return watchSetup(test.tested, test.opponent.ref.slug, test.seed)
   }, [test])
+  const watchHref = watch === null ? undefined : shareUrl('', watch.spec, watch.shared)
+  const openArena = useCallback(() => {
+    if (watch === null) return
+    void navigate({
+      to: '/arena',
+      search: searchFromSetup(watch.spec),
+      hash: sharedFragment(watch.shared),
+    })
+  }, [watch, navigate])
 
   const restore = useCallback(
     (version: RestoredText) => {
@@ -832,15 +845,8 @@ function Workbench({
           test={test}
           testStale={test.status === 'done' && test.tested.source !== source}
           onTest={(opponent) => void runTest(opponent)}
-          watchHref={watch === null ? undefined : shareUrl('', watch.spec, watch.shared)}
-          onWatch={() => {
-            if (watch === null) return
-            void navigate({
-              to: '/arena',
-              search: searchFromSetup(watch.spec),
-              hash: sharedFragment(watch.shared),
-            })
-          }}
+          watchHref={watchHref}
+          onWatch={() => setWatching(watch !== null)}
           onTemplate={startFrom}
           onBaseIdiom={baseIdiom}
         />
@@ -942,6 +948,17 @@ function Workbench({
         onRestore={restore}
         onSave={() => void save()}
       />
+      {watching && watch !== null && watchHref !== undefined && (
+        <Suspense fallback={null}>
+          <WatchModal
+            setup={watch}
+            arenaHref={watchHref}
+            onArena={openArena}
+            onClose={() => setWatching(false)}
+            createClient={createArena}
+          />
+        </Suspense>
+      )}
     </>
   )
 }

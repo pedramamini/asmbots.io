@@ -130,9 +130,24 @@ export function EmbedReplay({ replayId, createClient }: EmbedProps & { replayId:
   )
 }
 
-/** The embed's whole page: black, as the arena is in every theme. */
-function EmbedFrame({ label, children }: { label: string; children: ReactNode }) {
-  return (
+/** The embed's whole page, or with `inline` a box that fills its parent: black, as the arena is. */
+function EmbedFrame({
+  label,
+  inline = false,
+  children,
+}: {
+  label: string
+  inline?: boolean | undefined
+  children: ReactNode
+}) {
+  return inline ? (
+    <section
+      aria-label={label}
+      className="flex size-full flex-col overflow-hidden rounded-md border border-border bg-arena-bg"
+    >
+      {children}
+    </section>
+  ) : (
     <main aria-label={label} className="fixed inset-0 flex flex-col bg-arena-bg">
       {children}
     </main>
@@ -171,8 +186,21 @@ function WatchLink() {
   )
 }
 
+export interface EmbedBattleProps extends EmbedProps {
+  fight: ArenaFight
+  /** In a box of the page (the editor's `watch`), not the whole page. */
+  inline?: boolean | undefined
+  /** At the right of the controls, for `watch on asmbots`: the editor's `open in arena`. */
+  link?: ReactNode
+}
+
 /** The battle, its bots, and the controls under it. */
-function EmbedBattle({ fight, createClient = newClient }: EmbedProps & { fight: ArenaFight }) {
+export function EmbedBattle({
+  fight,
+  createClient = newClient,
+  inline,
+  link = <WatchLink />,
+}: EmbedBattleProps) {
   const reduced = useMotionReduced()
   const make = useRef(createClient)
   const still = useRef(reduced)
@@ -198,7 +226,7 @@ function EmbedBattle({ fight, createClient = newClient }: EmbedProps & { fight: 
     [fight],
   )
   return (
-    <EmbedFrame label={embedTitle(names)}>
+    <EmbedFrame label={embedTitle(names)} inline={inline}>
       <div className="relative min-h-0 flex-1">
         {client !== null && (
           <>
@@ -214,7 +242,7 @@ function EmbedBattle({ fight, createClient = newClient }: EmbedProps & { fight: 
           </>
         )}
       </div>
-      {client !== null && <Controls client={client} fight={fight} />}
+      {client !== null && <Controls client={client} fight={fight} link={link} />}
     </EmbedFrame>
   )
 }
@@ -292,8 +320,16 @@ function Outcome({ client, names }: { client: ArenaClient; names: readonly strin
   )
 }
 
-/** Play or pause, restart, where the battle is, and `watch on asmbots`. Rounds follow on. */
-function Controls({ client, fight }: { client: ArenaClient; fight: ArenaFight }) {
+/** Play or pause, restart, where the battle is, and `link`. Rounds follow on. */
+function Controls({
+  client,
+  fight,
+  link,
+}: {
+  client: ArenaClient
+  fight: ArenaFight
+  link: ReactNode
+}) {
   const status = useStore(client.store, (state) => state.status)
   const cycle = useStore(client.store, (state) => state.cycle)
   const round = useStore(client.store, (state) => state.round)
@@ -331,7 +367,7 @@ function Controls({ client, fight }: { client: ArenaClient; fight: ArenaFight })
       <p className="min-w-0 flex-1 truncate text-data text-muted tabular-nums">
         {rounds > 1 && `round ${round + 1}/${rounds} · `}cycle {count(cycle)}
       </p>
-      <WatchLink />
+      {link}
     </div>
   )
 }
