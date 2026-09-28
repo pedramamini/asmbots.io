@@ -24,8 +24,8 @@ ASM Bots is Core War in a real 8086 subset (x16c v1): a Bun monorepo, a React we
 
 ## Rules that hold everywhere
 
-- `bun run check` passes before every commit: types, lint, contrast, docs links, tests, and the bundle budgets.
+- Commit each change on `main`, locally, after its fast checks: `bun run typecheck` and the tests next to what you touched. Do not push. Pedram's `/asmbots-deploy` command ships the batch: it commits what is loose, rebases, runs `bun run check` (types, lint, contrast, docs links, tests, and the bundle budgets), fixes what fails, pushes, and watches CI and the Deploy run to green.
 - `bun run lint` reads only the root's files (Biome's `files.includes`). To lint app code, run Biome with a copy of `biome.json` whose includes are `**/*.ts` and `**/*.tsx`. Never format CSS with Biome: it lowercases the token hex values the spec tests read.
-- A push to `main` deploys once CI is green. Watch CI and the Deploy run to the end.
+- A push to `main` deploys once CI is green, so only `/asmbots-deploy` pushes.
 - A change to what battles do updates the goldens (`bun run golden`). A change to a page's layout updates its theme baselines, `-darwin` and `-linux`.
 - The spec documents are the source: change the document with the code, in the same commit.

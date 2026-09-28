@@ -30,8 +30,7 @@ The standard path. On every push to `main` after CI passes (`ci.yml`), the `depl
 
 The version stamp is `YYYY.MM.DD[letter]` (e.g., `2026.09.24a`), auto-generated from git date.
 
-> [!WARNING]
-> Not active yet. GitHub reads `workflow_run` and `schedule` workflows only from the default branch, and the default branch of `pedramamini/asm-bots` is still v2's `main` (v3 is on `v3`). So `deploy.yml` and `backup.yml` have never run: deploy by hand (below) and back up by hand (**Backups**) until v3 is the default branch.
+Agents commit on `main` locally and do not push; Pedram's `/asmbots-deploy` Maestro command pushes the batch after `bun run check`, then watches CI and this workflow to green and fixes what fails.
 
 ### Manual deploy (emergency)
 
