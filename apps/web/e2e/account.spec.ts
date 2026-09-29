@@ -7,6 +7,7 @@
 import { expect, type Page, test } from '@playwright/test'
 import { WORKER } from '../playwright.config'
 import { seedBots } from './local-bots'
+import { startOnYourOwn } from './new-bot'
 
 test.use({ baseURL: WORKER })
 
@@ -78,10 +79,13 @@ test('saves a bot in the account: v1, the same bytes again, v2, and the bot page
     route.continue({ url: `${route.request().url()}&as=${login}` }),
   )
   await page.goto('/editor')
+  await startOnYourOwn(page)
   await page.getByRole('button', { name: 'sign in with github' }).first().click()
   const pick = page.getByRole('dialog', { name: 'pick a handle' })
   await pick.getByRole('button', { name: 'continue' }).click()
   await expect(pick).toBeHidden()
+  // Back from sign-in, a new visit: the templates again.
+  await startOnYourOwn(page)
 
   const toolbar = page.getByRole('toolbar', { name: 'editor' })
   await expect(toolbar.getByLabel(/^size /)).toHaveText('2 B · light')

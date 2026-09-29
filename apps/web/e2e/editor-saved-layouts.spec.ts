@@ -5,6 +5,7 @@
  */
 import { expect, type Page, test } from '@playwright/test'
 import { WORKER } from '../playwright.config'
+import { startOnYourOwn } from './new-bot'
 
 test.use({ baseURL: WORKER, viewport: { width: 1600, height: 1000 } })
 
@@ -23,6 +24,7 @@ test('keeps the layout on screen by name, and loads it back from the layout menu
     route.continue({ url: `${route.request().url()}&as=${login}` }),
   )
   await page.goto('/editor')
+  await startOnYourOwn(page)
   await expect(page.locator('.cm-editor')).toBeVisible()
   await page.getByRole('button', { name: 'layout ▾' }).click()
   await expect(page.getByRole('menuitem', { name: 'sign in to save layouts' })).toBeVisible()
@@ -32,6 +34,8 @@ test('keeps the layout on screen by name, and loads it back from the layout menu
   const pick = page.getByRole('dialog', { name: 'pick a handle' })
   await pick.getByRole('button', { name: 'continue' }).click()
   await expect(pick).toBeHidden()
+  // Back from sign-in, a new visit: the templates again.
+  await startOnYourOwn(page)
 
   // The debugging layout, the memory beside the source, kept as `wide debug`.
   await layoutMenu(page, 'debugging layout')
@@ -50,6 +54,7 @@ test('keeps the layout on screen by name, and loads it back from the layout menu
   await layoutMenu(page, 'writing layout')
   await expect(page.getByRole('region', { name: 'registers' })).toBeHidden()
   await page.reload()
+  await startOnYourOwn(page)
   await expect(page.locator('.cm-editor')).toBeVisible()
   await layoutMenu(page, 'wide debug')
   await expect(page.getByRole('region', { name: 'registers' })).toBeVisible()

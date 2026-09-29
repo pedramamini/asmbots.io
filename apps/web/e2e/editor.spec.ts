@@ -5,11 +5,12 @@
  * `test vs imp` runs ten rounds in the arena Worker and shows the record, `watch` plays the match
  * in a modal over the editor, and its `open in arena` opens the arena set up as tested. One bot goes the whole way: written, linted, formatted, tested, and saved
  * in this browser, where the library lists it after a reload. A first visit shows the templates
- * over the new bot and the coach mark under the debugger's run button.
+ * in a modal over the new bot and the coach mark under the debugger's run button.
  */
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { expect, type Locator, type Page, test } from '@playwright/test'
+import { startOnYourOwn } from './new-bot'
 
 const ROSTER = fileURLToPath(new URL('../../../packages/bots/roster/', import.meta.url))
 /** A roster bot's source file, read as text: the runner cannot import `.asm` (`e2e/roster.ts`). */
@@ -43,7 +44,7 @@ function editorText(page: Page): Promise<string> {
 async function typeBot(page: Page, text: string) {
   await page.goto('/editor')
   await expect(page).toHaveTitle('ASM BOTS // EDITOR')
-  // A line of the blank bot: the templates cover the middle of the editor.
+  await startOnYourOwn(page)
   await content(page).locator('.cm-line').first().click()
   await page.keyboard.press('ControlOrMeta+a')
   await page.keyboard.press('Delete')
@@ -220,28 +221,24 @@ test('a first visit: the templates over the new bot, the coach mark over the hel
   const errors = watch(page)
   await page.goto('/editor')
   await expect(page).toHaveTitle('ASM BOTS // EDITOR')
-  const panel = page.getByRole('region', { name: 'new bot' })
+  const panel = page.getByRole('dialog', { name: 'new bot' })
   await expect(panel).toBeVisible()
   const tip = page.getByRole('note', { name: 'tip' })
   await expect(tip).toContainText('assemble runs as you type; press F5 to debug.')
-  // The panel sits under the blank bot's five lines; the tip tops the help, the debugger hidden.
-  const last = await box(page.locator('.cm-line', { hasText: 'start:  jmp     start' }))
-  expect((await box(panel)).y).toBeGreaterThan(last.y + last.height)
+  // The templates take the middle of the screen, over the dimmed page; the tip tops the help.
+  const screen = page.viewportSize() ?? { width: 1280, height: 720 }
+  const card = await box(panel.locator(':scope > div'))
+  expect(Math.abs(card.x + card.width / 2 - screen.width / 2)).toBeLessThan(2)
+  expect(Math.abs(card.y + card.height / 2 - screen.height / 2)).toBeLessThan(2)
   await expect(
     page.getByRole('region', { name: 'help' }).getByRole('note', { name: 'tip' }),
-  ).toBeVisible()
+  ).toBeAttached()
   // Each template's line shows whole.
   const cut = await panel
     .getByRole('listitem')
     .locator('span')
     .evaluateAll((spans) => spans.filter((span) => span.scrollWidth > span.clientWidth).length)
   expect(cut).toBe(0)
-  // A press beside the panel reaches the editor (its box: the content runs on past it).
-  const editor = await box(page.locator('.cm-editor'))
-  const beside = await box(panel)
-  expect(editor.x + editor.width - (beside.x + beside.width)).toBeGreaterThanOrEqual(16)
-  await page.mouse.click(editor.x + editor.width - 8, beside.y + beside.height / 2)
-  await expect(page.locator('.cm-editor')).toHaveClass(/cm-focused/)
   // A template starts the bot, and the panel goes.
   await panel.getByRole('button', { name: 'dwarf' }).click()
   await expect(sizeChip(page)).toHaveText('23 B · light')
@@ -251,7 +248,12 @@ test('a first visit: the templates over the new bot, the coach mark over the hel
   await expect(tip).toBeHidden()
   await page.reload()
   await expect(page).toHaveTitle('ASM BOTS // EDITOR')
-  await expect(page.getByRole('region', { name: 'help' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'help' })).toBeAttached()
   await expect(tip).toBeHidden()
+  // A press on the dimmed page beside the templates puts them away, and the source takes the focus.
+  await expect(panel).toBeVisible()
+  await page.mouse.click(8, screen.height / 2)
+  await expect(panel).toBeHidden()
+  await expect(page.locator('.cm-editor')).toHaveClass(/cm-focused/)
   expect(errors).toEqual([])
 })

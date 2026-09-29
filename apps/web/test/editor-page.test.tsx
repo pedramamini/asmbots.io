@@ -154,7 +154,7 @@ async function editorView(): Promise<EditorView> {
 }
 
 const sizeChip = () => screen.getByLabelText(/^size /).textContent
-const newBot = () => screen.queryByRole('region', { name: 'new bot' })
+const newBot = () => screen.queryByRole('dialog', { name: 'new bot' })
 const toolbar = () => within(screen.getByRole('toolbar', { name: 'editor' }))
 const problemRows = () =>
   within(screen.getByRole('list', { name: 'problems' }))
@@ -361,6 +361,7 @@ describe('the editor page', () => {
     }))
     const { router } = await renderEditor('/editor', arena)
     await editorView()
+    fireEvent.click(within(newBot() as HTMLElement).getByRole('button', { name: 'start on your own' }))
     fireEvent.click(toolbar().getByRole('button', { name: 'test vs ▾' }))
     // The opponents run A to Z, and the filter field narrows them.
     const names = screen.getAllByRole('menuitem').map((item) => item.textContent ?? '')
@@ -513,6 +514,16 @@ describe('the editor page', () => {
     expect(newBot()).toBeNull()
     expect(again.state.doc.toString()).toBe(BLANK)
     expect(again.hasFocus).toBe(true)
+  })
+
+  it('start on your own puts the templates away and keeps the blank bot', async () => {
+    await renderEditor()
+    const view = await editorView()
+    const panel = within(newBot() as HTMLElement)
+    fireEvent.click(panel.getByRole('button', { name: 'start on your own' }))
+    expect(newBot()).toBeNull()
+    expect(view.state.doc.toString()).toBe(BLANK)
+    expect(view.hasFocus).toBe(true)
   })
 
   it('shows no templates over a saved bot, a roster bot, or a template on its way', async () => {

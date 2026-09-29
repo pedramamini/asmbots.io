@@ -11,6 +11,7 @@
  */
 import { expect, type Locator, type Page, test } from '@playwright/test'
 import { WORKER } from '../playwright.config'
+import { startOnYourOwn } from './new-bot'
 
 test.use({ baseURL: WORKER })
 
@@ -102,6 +103,7 @@ function uniqueBot(name: string, n: number): string {
  * stops a roster bot, so the walk gets room for the whole roster.
  */
 async function typeSource(page: Page, source: string): Promise<void> {
+  await startOnYourOwn(page, 'escape')
   await tabTo(page, page.getByRole('textbox', { name: 'bot source' }), 240)
   await page.keyboard.press('ControlOrMeta+a')
   await page.keyboard.press('Delete')

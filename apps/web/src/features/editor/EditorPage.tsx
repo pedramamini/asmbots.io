@@ -498,10 +498,14 @@ function Workbench({
   const [emptyClosed, setEmptyClosed] = useState(false)
   const emptyShown =
     doc.target.kind === 'scratch' && template === null && !emptyClosed && isBlankBot(source)
-  const closeEmpty = useCallback(() => {
-    setEmptyClosed(true)
-    view?.focus()
-  }, [view])
+  const closeEmpty = useCallback(() => setEmptyClosed(true), [])
+  // The modal gives the focus back to what had it before it opened, as it closes: the editor
+  // takes it after that, so the bot is the next thing to write.
+  const wasEmpty = useRef(emptyShown)
+  useEffect(() => {
+    if (wasEmpty.current && !emptyShown) view?.focus()
+    wasEmpty.current = emptyShown
+  }, [emptyShown, view])
   const emptyTemplate = useCallback(
     (id: TemplateId) => {
       closeEmpty()
@@ -888,13 +892,7 @@ function Workbench({
         panels={{
           source: (
             <TileFrame label="source" title="source">
-              {emptyShown && (
-                <EmptyEditor
-                  empty={source.trim() === ''}
-                  onTemplate={emptyTemplate}
-                  onClose={closeEmpty}
-                />
-              )}
+              {emptyShown && <EmptyEditor onTemplate={emptyTemplate} onClose={closeEmpty} />}
               <Editor
                 className="h-full"
                 initial={doc.initial}
