@@ -55,11 +55,7 @@ import {
   type SoundCue,
   useSettings,
 } from '../store/settings'
-
-/** Each theme's swatch colors from tokens.css; none under bun test, where Vite defines nothing. */
-const SWATCHES: Record<string, Record<string, string>> = typeof __THEME_SWATCHES__ === 'object'
-  ? __THEME_SWATCHES__
-  : {}
+import { SWATCHES } from './theme-swatches'
 
 const EFFECTS: readonly (keyof ArenaEffects)[] = ['bloom', 'scanlines', 'vignette']
 

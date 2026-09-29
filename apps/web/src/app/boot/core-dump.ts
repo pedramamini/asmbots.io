@@ -273,12 +273,17 @@ export class DumpPainter {
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
-    private readonly palette: DumpPalette,
+    private palette: DumpPalette,
     private readonly family: string,
   ) {
     const ctx = canvas.getContext('2d')
     if (ctx === null) throw new Error('no 2d context')
     this.ctx = ctx
+  }
+
+  /** New colors (a theme change); the next `paintAll` draws in them. */
+  setPalette(palette: DumpPalette): void {
+    this.palette = palette
   }
 
   /** Sizes the canvas to `width` × `height` CSS px; returns the grid that fills it. */

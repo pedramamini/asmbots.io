@@ -13,6 +13,7 @@ import {
   RUN_MS,
   ZERO_MS,
 } from './core-dump'
+import { ThemePicker } from './ThemePicker'
 
 /** How long the boot screen takes to fade out, ms. */
 const LEAVE_MS = 250
@@ -28,7 +29,8 @@ export const BOOT_LOG: readonly { label: string; value: string; at: number }[] =
 /**
  * The boot screen: the logo and the boot log on a panel in the middle of a core dump that boots
  * behind it (`core-dump.ts`). A modal dialog, so the page under it is inert until the user goes in.
- * Every load gets `take tour` beside `enter site` (with the focus, so Enter takes it; Escape too).
+ * Every load gets `enter site` across the panel (with the focus, so Enter takes it; Escape too),
+ * and under it `take tour` beside `change theme`, whose list shows each theme on the page at once.
  */
 export function BootScreen() {
   const dialog = useRef<HTMLDialogElement>(null)
@@ -112,11 +114,8 @@ export function BootScreen() {
             </li>
           ))}
         </ol>
-        {/* Two equal halves: the tour and straight in (which has the focus). */}
-        <div className="grid grid-cols-2 gap-2">
-          <Button icon={Compass} className="justify-center" onClick={() => leave(openTour)}>
-            take tour
-          </Button>
+        {/* Straight in across the width (it has the focus), and under it the tour and the themes. */}
+        <div className="flex flex-col gap-2">
           <Button
             ref={enterButton}
             variant="primary"
@@ -126,6 +125,16 @@ export function BootScreen() {
           >
             enter site
           </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              icon={Compass}
+              className="justify-center border-border-strong! text-text!"
+              onClick={() => leave(openTour)}
+            >
+              take tour
+            </Button>
+            <ThemePicker />
+          </div>
         </div>
       </div>
     </dialog>
@@ -195,9 +204,17 @@ function CoreDumpCanvas({ reduced }: { reduced: boolean }) {
     window.addEventListener('resize', layout)
     // The first paint may set the dump in a fallback face: again once the mono face is in.
     void document.fonts?.ready.then(layout)
+    // A theme chosen or previewed on the panel repaints the dump in its colors.
+    const recolor = new MutationObserver(() => {
+      if (stopped) return
+      painter.setPalette(readPalette())
+      painter.paintAll(dump)
+    })
+    recolor.observe(document.documentElement, { attributeFilter: ['data-theme'] })
     const stop = () => {
       stopped = true
       window.removeEventListener('resize', layout)
+      recolor.disconnect()
     }
     if (reduced) return stop
     let frame = 0

@@ -107,6 +107,31 @@ describe('the boot screen', () => {
     expect(within(boot).getByRole('button', { name: 'take tour' })).toBeTruthy()
   })
 
+  it('`change theme` lists the themes; the arrows and a click choose one, stored, and the boot stays', async () => {
+    useBoot.setState({ phase: 'boot' })
+    useSettings.getState().setTheme('sentinel')
+    await open()
+    const boot = screen.getByRole('dialog', { name: 'asm bots' })
+    const trigger = within(boot).getByRole('button', { name: 'change theme' })
+    fireEvent.click(trigger)
+    const list = within(boot).getByRole('radiogroup', { name: 'theme' })
+    const chosen = within(list).getByRole('radio', { name: 'sentinel' })
+    expect(chosen.getAttribute('aria-checked')).toBe('true')
+    expect(document.activeElement).toBe(chosen)
+    fireEvent.keyDown(list, { key: 'ArrowDown' })
+    expect(document.documentElement.dataset.theme).toBe('amber')
+    expect(window.localStorage.getItem('theme')).toBe('amber')
+    // The list's Escape closes the list, not the boot screen.
+    fireEvent.keyDown(list, { key: 'Escape' })
+    expect(within(boot).queryByRole('radiogroup')).toBeNull()
+    expect(document.activeElement).toBe(trigger)
+    fireEvent.click(trigger)
+    fireEvent.click(within(boot).getByRole('radio', { name: 'paper' }))
+    expect(useSettings.getState().theme).toBe('paper')
+    expect(screen.getByRole('dialog', { name: 'asm bots' })).toBeTruthy()
+    useSettings.getState().setTheme('sentinel')
+  })
+
   it('first visit: `take tour` opens the tour, which walks the site and ends on the first battle', async () => {
     useBoot.setState({ phase: 'boot' })
     const router = await open()
