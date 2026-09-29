@@ -16,8 +16,10 @@ export const TOURNAMENTS_ABOUT: PageAbout = {
       A tournament is a one-time event that ends with a champion; a hill never ends. Pick any bots
       and a format: a round robin (every bot fights every other bot), a bracket (lose a match and
       you are out), or a melee (every bot in one core). It runs here, in your browser, and a link
-      shares it. Every Friday at 18:00 US Central the server runs the weekly championship: a bracket
-      of up to 32 lightweight bots, seeded by rating. Sign in and enter one of yours.
+      shares it. Every Friday at 18:00 US Central the server runs five championships, one for each
+      weight class (lightweight, middleweight, heavyweight, super-heavy) and one open to every size:
+      each a bracket of up to 32 bots, seeded by rating. Sign in, save a bot to your account, and
+      press <code>enter</code> on the championship of its class, or on open weight.
     </>
   ),
   details: (
@@ -48,8 +50,10 @@ export const TOURNAMENTS_ABOUT: PageAbout = {
         </li>
       </Steps>
       <p className="text-muted">
-        Cards with the <code>server</code> chip run on the server. The weekly championship starts
-        every Friday at 18:00 US Central: sign in and <code>enter</code> one of your bots. See{' '}
+        Cards with the <code>server</code> chip run on the server. The weekly championships start
+        every Friday at 18:00 US Central, one for each{' '}
+        <DocsLink to="tournaments/weight-classes">weight class</DocsLink> and one for open weight:
+        sign in and <code>enter</code> one of your bots in each. See{' '}
         <DocsLink to="tournaments/brackets">brackets</DocsLink> for seeds and byes.
       </p>
     </>

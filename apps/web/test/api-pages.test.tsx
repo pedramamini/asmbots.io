@@ -8,7 +8,12 @@ import { HttpResponse, http } from 'msw'
 import { useDom, window } from '../../../packages/ui/test/dom'
 import { ApiRequestError, apiGet, shouldRetry } from '../src/api/client'
 import { useHills, useReplay } from '../src/api/queries'
-import { HomePage, lastChampionship, nextChampionship } from '../src/app/HomePage'
+import {
+  HomePage,
+  lastChampionship,
+  nextChampionship,
+  nextChampionships,
+} from '../src/app/HomePage'
 import { BotPage } from '../src/features/bots/BotPage'
 import { HillPage } from '../src/features/hills/HillPage'
 import { HillsPage } from '../src/features/hills/HillsPage'
@@ -185,6 +190,31 @@ describe('the words for records', () => {
     expect(
       nextChampionship([{ ...t, id: 'mine', ownerId: 'u1', status: 'running' }, later])?.id,
     ).toBe('later')
+  })
+
+  it('takes the week’s championships together, one a class, lightest first', () => {
+    const t = WEEKLY_9
+    const band = (id: string, minBotBytes: number, maxBotBytes: number) => ({
+      ...t,
+      id,
+      config: { ...t.config, battle: { ...t.config.battle, minBotBytes, maxBotBytes } },
+    })
+    const week = [
+      band('open', 1, 4096),
+      band('heavy', 1025, 2048),
+      band('light', 1, 512),
+      band('super', 2049, 4096),
+      band('middle', 513, 1024),
+    ]
+    const later = { ...band('light-next', 1, 512), startsAt: '2026-10-03T18:00:00.000Z' }
+    expect(nextChampionships([later, ...week]).map((c) => c.id)).toEqual([
+      'light',
+      'middle',
+      'heavy',
+      'super',
+      'open',
+    ])
+    expect(nextChampionship([later, ...week])?.id).toBe('light')
   })
 })
 
@@ -576,6 +606,40 @@ describe('/ panels', () => {
     // Its entries are open, and nobody is signed in.
     expect(await within(cup).findByRole('button', { name: 'sign in to enter' })).toBeTruthy()
     expect(cup.textContent).not.toContain('last:')
+  })
+
+  it('picks a class of the week’s championships, and shows the one picked', async () => {
+    const heavy = {
+      ...WEEKLY_9,
+      id: 't9-heavy',
+      name: 'weekly 9 · heavyweight',
+      config: {
+        ...WEEKLY_9.config,
+        battle: { ...WEEKLY_9.config.battle, minBotBytes: 1025, maxBotBytes: 2048 },
+      },
+    }
+    const light = { ...WEEKLY_9, name: 'weekly 9 · lightweight' }
+    const summary = (t: typeof light) => ({
+      tournament: t,
+      entrants: 0,
+      done: 0,
+      of: 0,
+      champion: null,
+    })
+    server.use(answer('/tournaments', { tournaments: [summary(heavy), summary(light)] }))
+    await renderAt('/', () => <HomePage />)
+    const cup = screen.getByRole('region', { name: 'championship' })
+    const picker = (await within(cup).findByRole('combobox', {
+      name: 'class',
+    })) as HTMLSelectElement
+    expect([...picker.options].map((o) => o.textContent)).toEqual(['lightweight', 'heavyweight'])
+    // The next event names its class; its title, the whole name.
+    const next = within(cup).getByRole('link', { name: 'lightweight' })
+    expect(next.getAttribute('title')).toBe('weekly 9 · lightweight')
+    fireEvent.change(picker, { target: { value: 't9-heavy' } })
+    expect(within(cup).getByRole('link', { name: 'heavyweight' }).getAttribute('href')).toBe(
+      '/tournaments/t9-heavy',
+    )
   })
 
   it('names the champion of the championship that finished last', async () => {

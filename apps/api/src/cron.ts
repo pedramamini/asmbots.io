@@ -1,14 +1,15 @@
 /**
  * The cron (`triggers.crons` in `wrangler.jsonc`: Fridays 23:00 UTC and Saturdays 00:00 UTC, one
  * of them 18:00 US Central): starts the weekly championship due and makes next week's
- * (`championship.ts`). The other run finds none due and makes none new.
+ * (`championship.ts`), one a weight class and one for open weight. The other run finds none due
+ * and makes none new.
  */
 import type { TournamentJob } from '@asmbots/protocol'
 import {
   type Championship,
   championshipInsert,
   nextChampionshipStart,
-  weeklyChampionship,
+  weeklyChampionships,
 } from './championship'
 import { runnerOf } from './do/runner'
 import type { Env } from './env'
@@ -18,14 +19,18 @@ import { messageOf } from './runner/job'
 /** Tries at starting a championship's `Runner` before the cron gives up on it until next week. */
 const START_TRIES = 3
 
-/** Makes the next weekly championship after `now`, unless it is there already. Returns it. */
-export async function scheduleChampionship(db: D1Database, now: Date): Promise<Championship> {
-  const next = weeklyChampionship(nextChampionshipStart(now))
-  const { sql, params } = championshipInsert(next)
-  await db
-    .prepare(sql)
-    .bind(...params)
-    .run()
+/**
+ * Makes the next week's championships after `now`, one a class, each unless it is there already.
+ * Returns them.
+ */
+export async function scheduleChampionships(db: D1Database, now: Date): Promise<Championship[]> {
+  const next = weeklyChampionships(nextChampionshipStart(now))
+  await db.batch(
+    next.map((c) => {
+      const { sql, params } = championshipInsert(c)
+      return db.prepare(sql).bind(...params)
+    }),
+  )
   return next
 }
 
@@ -83,13 +88,13 @@ async function start(env: Env, id: string, entrants: number): Promise<Started['s
   }
 }
 
-/** The cron's work at `now`: the championship due starts, and next week's is made. */
+/** The cron's work at `now`: the championships due start, and next week's are made. */
 export async function runCron(
   env: Env,
   now: Date,
-): Promise<{ started: Started[]; next: Championship }> {
+): Promise<{ started: Started[]; next: Championship[] }> {
   const started = await startChampionships(env, now)
-  const next = await scheduleChampionship(env.DB, now)
+  const next = await scheduleChampionships(env.DB, now)
   return { started, next }
 }
 
@@ -99,6 +104,6 @@ export async function scheduled(controller: ScheduledController, env: Env): Prom
     cron: controller.cron,
     scheduledTime: controller.scheduledTime,
     started,
-    next: next.id,
+    next: next.map((c) => c.id),
   })
 }

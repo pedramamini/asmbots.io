@@ -1002,6 +1002,13 @@ interface TickerChampionshipRow {
 }
 
 /**
+ * Tournaments that start together in their weight classes' order: lightest first, open weight
+ * (the whole range) after super-heavy. A week's championships list this way.
+ */
+const BY_CLASS = `json_extract(t.config_json, '$.battle.maxBotBytes'),
+  json_extract(t.config_json, '$.battle.minBotBytes') DESC`
+
+/**
  * The championships the ticker names: the last to finish, and the next, the one running, else the
  * first scheduled (a championship due that the cron has not started yet included). Null for none.
  */
@@ -1018,7 +1025,7 @@ export async function tickerChampionships(
     db.prepare(
       `SELECT ${columns} FROM tournaments t
        WHERE t.owner_id IS NULL AND t.status IN ('running', 'scheduled')
-       ORDER BY t.status = 'running' DESC, t.starts_at IS NULL, t.starts_at LIMIT 1`,
+       ORDER BY t.status = 'running' DESC, t.starts_at IS NULL, t.starts_at, ${BY_CLASS} LIMIT 1`,
     ),
   ])
   const rows = [last?.results[0] ?? null, next?.results[0] ?? null]
@@ -1083,7 +1090,8 @@ async function tournamentSummaries(
 }
 
 /**
- * Tournaments: running ones first, then by start time, latest first; unscheduled ones last. A
+ * Tournaments: running ones first, then by start time, latest first (a week's championships by
+ * class, `BY_CLASS`); unscheduled ones last. A
  * draft shows to its owner only; one cancelled with no entries (a championship nobody entered)
  * does not show.
  */
@@ -1097,7 +1105,7 @@ export async function listTournaments(
        WHERE (t.status != 'draft' OR t.owner_id = ?)
          AND NOT (t.status = 'cancelled'
            AND NOT EXISTS (SELECT 1 FROM tournament_entries e WHERE e.tournament_id = t.id))
-       ORDER BY (t.status = 'running') DESC, t.starts_at IS NULL, t.starts_at DESC,
+       ORDER BY (t.status = 'running') DESC, t.starts_at IS NULL, t.starts_at DESC, ${BY_CLASS},
          t.created_at DESC
        LIMIT ?`,
     )

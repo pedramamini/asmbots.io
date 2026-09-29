@@ -1,5 +1,5 @@
 import type { Tournament, TournamentSummary } from '@asmbots/protocol'
-import { Button, cx, EmptyState, Panel, PanelGrid, Stat } from '@asmbots/ui'
+import { Button, cx, EmptyState, Panel, PanelGrid, Select, Stat } from '@asmbots/ui'
 import { Link } from '@tanstack/react-router'
 import {
   BookOpen,
@@ -11,7 +11,7 @@ import {
   Mountain,
   Trophy,
 } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { type ReactNode, useState } from 'react'
 import { useHill, useHillMatches, useTournament, useTournaments } from '../api/queries'
 import { HexBand, Plate } from '../art/lazy'
 import { HillStandingsTable } from '../features/hills/HillStandingsTable'
@@ -99,7 +99,7 @@ const PARTS: readonly Part[] = [
         tournaments
       </Link>
     ),
-    text: 'Brackets, round robins, melees, and the weekly championship.',
+    text: 'Brackets, round robins, melees, and a weekly championship for every weight class.',
   },
   {
     key: 'docs',
@@ -262,17 +262,42 @@ function RecentMatches() {
 }
 
 /**
- * The championship to show (a tournament with no owner): the one running, else the next
- * scheduled; null when neither.
+ * Tournaments in their weight classes' order: lightest first, open weight (the whole range) after
+ * super-heavy. The API lists a week's championships so.
  */
-export function nextChampionship(tournaments: readonly Tournament[]): Tournament | null {
+function byClass(a: Tournament, b: Tournament): number {
+  const { battle: x } = a.config
+  const { battle: y } = b.config
+  return x.maxBotBytes - y.maxBotBytes || (y.minBotBytes ?? 1) - (x.minBotBytes ?? 1)
+}
+
+/**
+ * The championships to show (tournaments with no owner), one a class: the ones running, else the
+ * ones scheduled to start soonest; lightest first. Empty when there are none.
+ */
+export function nextChampionships(tournaments: readonly Tournament[]): Tournament[] {
   const championships = tournaments.filter((t) => t.ownerId === null)
-  const running = championships.find((t) => t.status === 'running')
-  if (running !== undefined) return running
-  const scheduled = championships
-    .filter((t) => t.status === 'scheduled')
-    .sort((a, b) => (a.startsAt ?? '\uffff').localeCompare(b.startsAt ?? '\uffff'))
-  return scheduled[0] ?? null
+  const running = championships.filter((t) => t.status === 'running')
+  if (running.length > 0) return running.sort(byClass)
+  const scheduled = championships.filter((t) => t.status === 'scheduled')
+  const soonest = scheduled
+    .map((t) => t.startsAt ?? '\uffff')
+    .reduce((a, b) => (b < a ? b : a), '\uffff')
+  return scheduled.filter((t) => (t.startsAt ?? '\uffff') === soonest).sort(byClass)
+}
+
+/** The first of `nextChampionships`: the lightest class's; null when there is none. */
+export function nextChampionship(tournaments: readonly Tournament[]): Tournament | null {
+  return nextChampionships(tournaments)[0] ?? null
+}
+
+/**
+ * A championship's class, as the picker and the next event name it: the tail of
+ * `weekly 2026-10-02 · heavyweight`; the whole name when it has no class.
+ */
+function className(t: Tournament): string {
+  const dot = t.name.lastIndexOf(' · ')
+  return dot < 0 ? t.name : t.name.slice(dot + 3)
 }
 
 /** The championship that finished last, with its champion; null when none has. */
@@ -289,15 +314,19 @@ export function lastChampionship(
 }
 
 /**
- * The next championship (its name opens it), its entrants so far, the last one's champion, and
- * `enter` while it takes entries.
+ * The next championships, one a weight class and one for open weight: a picker of the class, then
+ * the picked one (its name opens it), its entrants so far, the last champion, and `enter` while it
+ * takes entries.
  */
 function Championship() {
   const list = useTournaments()
-  const next =
+  const week =
     list.data === undefined
       ? undefined
-      : nextChampionship(list.data.tournaments.map((s) => s.tournament))
+      : nextChampionships(list.data.tournaments.map((s) => s.tournament))
+  const [picked, setPicked] = useState<string | null>(null)
+  const next =
+    week === undefined ? undefined : (week.find((t) => t.id === picked) ?? week[0] ?? null)
   const detail = useTournament(next?.id ?? null)
   const last = list.data === undefined ? null : lastChampionship(list.data.tournaments)
   const loading = list.data === undefined && list.error === null
@@ -306,6 +335,22 @@ function Championship() {
       className="col-span-12 md:col-span-6 xl:col-span-3"
       title="championship"
       status={readStatus(list.data, list.error, () => next?.status ?? 'none')}
+      actions={
+        week !== undefined && week.length > 1 && next != null ? (
+          <Select
+            aria-label="class"
+            className="w-32"
+            value={next.id}
+            onChange={(event) => setPicked(event.currentTarget.value)}
+          >
+            {week.map((t) => (
+              <option key={t.id} value={t.id}>
+                {className(t)}
+              </option>
+            ))}
+          </Select>
+        ) : undefined
+      }
     >
       {list.error !== null && list.data === undefined ? (
         <LoadFailure read={list} />
@@ -322,8 +367,13 @@ function Championship() {
               next === undefined ? undefined : next === null ? (
                 'none scheduled'
               ) : (
-                <Link to="/tournaments/$id" params={{ id: next.id }} className={CELL_LINK}>
-                  {next.name}
+                <Link
+                  to="/tournaments/$id"
+                  params={{ id: next.id }}
+                  className={CELL_LINK}
+                  title={next.name}
+                >
+                  {className(next)}
                 </Link>
               )
             }

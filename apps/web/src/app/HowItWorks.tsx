@@ -153,8 +153,8 @@ const CONCEPTS: readonly Concept[] = [
   {
     title: 'climb',
     headline: 'the hill never closes',
-    text: 'Submit a bot to a hill and it fights every bot there; its rank is its score. Push the king off the top. Or enter the weekly championship: a bracket, one champion, and the champion’s name on the page.',
-    facts: ['3 hills', 'weekly championship', 'ratings'],
+    text: 'Submit a bot to a hill and it fights every bot there; its rank is its score. Push the king off the top. Or enter the weekly championships, one a weight class: a bracket, one champion, and the champion’s name on the page.',
+    facts: ['3 hills', 'weekly championships', 'ratings'],
     links: (
       <div className="flex flex-wrap gap-2">
         <NavLink to="/hills" icon={Mountain}>

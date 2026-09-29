@@ -21,7 +21,7 @@ Every screen, every interaction, every state. The playbooks implement this; the 
 - Ticker: latest hill event, latest tournament result, next scheduled championship countdown.
 - Overview: `ASM BOTS`, one line ("Write 8086 assembly. Fight for 64 KB."), then a card for each part of the site (arena, editor, hills, tournaments, docs, for agents): its nav icon, its name as a link, and one or two sentences on what it is. The arena's card also links the intro fight (`/arena?intro=true`). Nothing on the page moves.
 - How it works: the core, write, fight, climb, each with its art (DESIGN_SYSTEM §10) and a screenshot, then `take the tour`.
-- Three panels: **Main hill** top 10 (rank, bot, author, score, rating, age); **Recent matches** (10 rows, click → replay); **Championship** (next event, entrants so far, `enter` button).
+- Three panels: **Main hill** top 10 (rank, bot, author, score, rating, age); **Recent matches** (10 rows, click → replay); **Championship** (the week's five, one for each weight class and one for open weight: a class picker, then the picked one's next event, entrants so far, and `enter` button).
 - The site footer (every page that scrolls): the hills as a dither range, and the site's links.
 - Footer status: version stamp (its release's name in a tooltip, from `CHANGELOG.md`; a link to the changelog), ISA version, `made with maestro` attribution chip center.
 
@@ -68,7 +68,8 @@ Tiled workspace, default the `writing` layout: library, the source over its prob
 
 ## 4. Tournaments `/tournaments`, `/tournaments/:id`
 
-- List: tiles of one height for scheduled, running, finished: a glyph of the kind, the status's color down the left edge, the champion (identicon and name), the live match count, or the entry window (`no entries yet` for an open one nobody entered), and a bar of the matches played. A championship cancelled with no entries is left out. Kinds: `round robin`, `bracket`, `melee`. Filter and search.
+- List: tiles of one height for scheduled, running, finished: a glyph of the kind, the status's color down the left edge, the champion (identicon and name), the live match count, or the entry window (`no entries yet` for an open one nobody entered), and a bar of the matches played. A championship cancelled with no entries is left out; a week's championships list lightest first. Kinds: `round robin`, `bracket`, `melee`. Filter and search.
+- Weekly championships (decision 2026-09-28, Pedram: "one for every weight class and the open class"): every Friday 18:00 US Central the server runs five open brackets, `weekly <day> · lightweight`, `middleweight`, `heavyweight`, `super-heavy`, and `open weight`, each under its class hill's rules. A bot enters its own class's and open weight; one entry a player in each.
 - Create (signed in): name, kind, entrant source (my bots / roster / open entry with deadline), rounds per match, config preset, start now or schedule.
 - **Bracket view**: SVG bracket, 4..32 entrants, byes, third-place match, live-updating; click a node → match panel (rounds, seeds, per-round survivors, `watch` → arena replay).
 - **Round robin view**: results matrix (entrants × entrants, cell = points, hue-tinted), standings table with W/T/L and points, sortable.

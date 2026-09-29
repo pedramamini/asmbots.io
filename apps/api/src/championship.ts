@@ -1,29 +1,46 @@
 /**
- * The weekly championship (PRODUCT_SPEC §1, §4): an open bracket of up to 32 bots, seeded by
- * rating, with a third-place match, under the main hill's rules. It starts Fridays at 18:00 US
- * Central (`CHAMPIONSHIP_ZONE`): 23:00 UTC in daylight time, 00:00 UTC Saturday in standard time.
- * The cron (`cron.ts`, at both) starts the championship due and makes next week's, which takes
- * entries for six days: from then until the day before it, at the same hour. A championship has no
- * owner; its results go to the championships feed (`listChampionships`) when its `Runner` finishes
- * it.
+ * The weekly championships (PRODUCT_SPEC §1, §4): one for each weight class and one for open
+ * weight (`CHAMPIONSHIP_CLASSES`), each an open bracket of up to 32 bots, seeded by rating, with a
+ * third-place match, under its class hill's rules. They start Fridays at 18:00 US Central
+ * (`CHAMPIONSHIP_ZONE`): 23:00 UTC in daylight time, 00:00 UTC Saturday in standard time. The cron
+ * (`cron.ts`, at both) starts the championships due and makes next week's, which take entries for
+ * six days: from then until the day before, at the same hour. A championship has no owner; its
+ * results go to the championships feed (`listChampionships`) when its `Runner` finishes it.
  *
- * Pure: the seed script (Bun) schedules the first championship with it too.
+ * Pure: the seed script (Bun) schedules the first championships with it too.
  */
 import { DEFAULT_CONFIG } from '@asmbots/engine'
-import type { ReplayConfig, TournamentConfig } from '@asmbots/protocol'
+import {
+  OPEN_WEIGHT,
+  type ReplayConfig,
+  type TournamentConfig,
+  WEIGHT_CLASSES,
+  type WeightClass,
+} from '@asmbots/protocol'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
 /** The engine's defaults as a config: all but the seed. */
 const { seed: _, ...DEFAULTS } = DEFAULT_CONFIG
 
-/**
- * The lightweight rules of the launch seed's `main` hill: 80,000 cycles a round, bots of 1 to 512
- * bytes. The championship stays lightweight; the heavier classes have hills of their own.
- */
-export const CHAMPIONSHIP_RULES: ReplayConfig = { ...DEFAULTS, maxCycles: 80_000, maxBotBytes: 512 }
+/** The classes that have a championship each week, lightest first, open weight last. */
+export const CHAMPIONSHIP_CLASSES: readonly WeightClass[] = [...WEIGHT_CLASSES, OPEN_WEIGHT]
 
-/** Rounds a championship match, as the main hill's. */
+/**
+ * The rules of class `c`'s championship, as its hill's (`main` for lightweight): 80,000 cycles a
+ * round, bots of `c.min` to `c.max` bytes, spaced `c.minSpacing` apart.
+ */
+export function championshipRules(c: WeightClass): ReplayConfig {
+  return {
+    ...DEFAULTS,
+    maxCycles: 80_000,
+    minBotBytes: c.min,
+    maxBotBytes: c.max,
+    minSpacing: c.minSpacing,
+  }
+}
+
+/** Rounds a championship match, as the class hills'. */
 export const CHAMPIONSHIP_ROUNDS = 10
 
 /** How long before its start a championship stops taking entries: the six-day window's end. */
@@ -86,7 +103,7 @@ export function nextChampionshipStart(now: Date): Date {
 
 /** A championship's row, before it is one. */
 export interface Championship {
-  /** `weekly-<day>`: its id and slug. */
+  /** `weekly-<day>-<class>`: its id and slug. */
   readonly id: string
   readonly name: string
   readonly startsAt: string
@@ -95,24 +112,30 @@ export interface Championship {
 }
 
 /**
- * The weekly championship that starts at `startsAt`, named for its day in US Central. Its matches
+ * Class `c`'s weekly championship that starts at `startsAt`, named for its day in US Central: its
+ * id `weekly-2026-10-02-middleweight`, its name `weekly 2026-10-02 · middleweight`. Its matches
  * place from a seed of that day (`20261002`), so each week draws new placements.
  */
-export function weeklyChampionship(startsAt: Date): Championship {
+export function weeklyChampionship(startsAt: Date, c: WeightClass): Championship {
   const day = zoneWall(startsAt.getTime()).toISOString().slice(0, 10)
   return {
-    id: `weekly-${day}`,
-    name: `weekly ${day}`,
+    id: `weekly-${day}-${c.slug}`,
+    name: `weekly ${day} · ${c.name}`,
     startsAt: startsAt.toISOString(),
     entryClosesAt: new Date(startsAt.getTime() - ENTRY_CLOSES_BEFORE_MS).toISOString(),
     config: {
       rounds: CHAMPIONSHIP_ROUNDS,
       seed: Number(day.replaceAll('-', '')),
-      battle: CHAMPIONSHIP_RULES,
+      battle: championshipRules(c),
       seeding: 'rating',
       thirdPlace: true,
     },
   }
+}
+
+/** The week's championships that start at `startsAt`: one a class, in `CHAMPIONSHIP_CLASSES`'s order. */
+export function weeklyChampionships(startsAt: Date): Championship[] {
+  return CHAMPIONSHIP_CLASSES.map((c) => weeklyChampionship(startsAt, c))
 }
 
 /**

@@ -14,6 +14,7 @@ import {
   ChampionshipList,
   CreatedTournament,
   type CreateTournament,
+  OPEN_WEIGHT,
   parse,
   SavedBot,
   type Tournament,
@@ -22,15 +23,18 @@ import {
   TournamentList,
   TournamentStarted,
   UserDetail,
+  WEIGHT_CLASSES,
 } from '@asmbots/protocol'
 import { type Bracket, bracket, champion } from '@asmbots/tourney'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
+  CHAMPIONSHIP_CLASSES,
   CHAMPIONSHIP_ROUNDS,
-  CHAMPIONSHIP_RULES,
   championshipInsert,
+  championshipRules,
   nextChampionshipStart,
   weeklyChampionship,
+  weeklyChampionships,
 } from '../src/championship'
 import { applySeed, buildSeed, SEED_HILLS, type SeedHill, sqlScript } from '../src/db/seed'
 import { runnerOf } from '../src/do/runner'
@@ -521,6 +525,8 @@ describe('a deleted account', () => {
   })
 })
 
+const [LIGHTWEIGHT] = WEIGHT_CLASSES
+
 describe('the cron', () => {
   // Friday 18:00 US Central, in daylight time.
   const friday = Date.parse('2026-09-25T23:00:00.000Z')
@@ -531,12 +537,12 @@ describe('the cron', () => {
   }
   const championships = async () => {
     const { results } = await env.DB.prepare(
-      'SELECT id, status, starts_at, entry_closes_at FROM tournaments WHERE owner_id IS NULL ORDER BY starts_at',
+      'SELECT id, status, starts_at, entry_closes_at FROM tournaments WHERE owner_id IS NULL ORDER BY starts_at, id',
     ).all<{ id: string; status: string; starts_at: string; entry_closes_at: string }>()
     return results
   }
 
-  it('makes next week’s championship, open six days, and only once', async () => {
+  it('makes next week’s championships, one a class, open six days, and only once', async () => {
     expect(nextChampionshipStart(new Date(friday)).toISOString()).toBe('2026-10-02T23:00:00.000Z')
     expect(nextChampionshipStart(new Date(friday - 1)).toISOString()).toBe(
       '2026-09-25T23:00:00.000Z',
@@ -545,41 +551,57 @@ describe('the cron', () => {
     await cron(friday)
     // The other cron, an hour on: none due, none new.
     await cron(friday + HOUR)
-    expect(await championships()).toEqual([
-      {
-        id: 'weekly-2026-10-02',
+    const classes = ['heavyweight', 'lightweight', 'middleweight', 'open', 'super-heavy']
+    expect(await championships()).toEqual(
+      classes.map((c) => ({
+        id: `weekly-2026-10-02-${c}`,
         status: 'scheduled',
         starts_at: '2026-10-02T23:00:00.000Z',
         entry_closes_at: '2026-10-01T23:00:00.000Z',
-      },
-    ])
-    const t = (await detail('weekly-2026-10-02')).tournament
-    expect(t).toMatchObject({
-      name: 'weekly 2026-10-02',
-      kind: 'bracket',
-      entry: 'open',
-      ownerId: null,
-      config: {
-        rounds: CHAMPIONSHIP_ROUNDS,
-        seed: 20261002,
-        battle: CHAMPIONSHIP_RULES,
-        seeding: 'rating',
-        thirdPlace: true,
-      },
-    })
-    // Six days of entries: from the cron that made it to the day before it starts.
-    expect(Date.parse(t.entryClosesAt as string) - friday).toBe(6 * 24 * HOUR)
-    // The main hill's rules.
-    expect(CHAMPIONSHIP_RULES).toEqual(SEED_HILLS.find((h) => h.slug === 'main')?.config)
-    expect(weeklyChampionship(new Date(friday)).id).toBe('weekly-2026-09-25')
+      })),
+    )
+    // Each under its class hill's rules: `main` for lightweight.
+    const hills = ['main', 'middleweight', 'heavyweight', 'super-heavy', 'open-weight']
+    for (const [i, c] of CHAMPIONSHIP_CLASSES.entries()) {
+      const t = (await detail(`weekly-2026-10-02-${c.slug}`)).tournament
+      expect(t).toMatchObject({
+        name: `weekly 2026-10-02 · ${c.name}`,
+        kind: 'bracket',
+        entry: 'open',
+        ownerId: null,
+        config: {
+          rounds: CHAMPIONSHIP_ROUNDS,
+          seed: 20261002,
+          battle: championshipRules(c),
+          seeding: 'rating',
+          thirdPlace: true,
+        },
+      })
+      expect(championshipRules(c)).toEqual(SEED_HILLS.find((h) => h.slug === hills[i])?.config)
+      // Six days of entries: from the cron that made it to the day before it starts.
+      expect(Date.parse(t.entryClosesAt as string) - friday).toBe(6 * 24 * HOUR)
+    }
+    // The list shows a week's championships lightest first, open weight last.
+    const list = parse(
+      TournamentList,
+      await (await send(new Jar(), '/api/tournaments')).json(),
+      'it',
+    )
+    const weekly = list.tournaments.filter((s) => s.tournament.name.startsWith('weekly '))
+    expect(weekly.map((s) => s.tournament.name)).toEqual(
+      CHAMPIONSHIP_CLASSES.map((c) => `weekly 2026-10-02 · ${c.name}`),
+    )
+    expect(weeklyChampionships(new Date(friday)).map((c) => c.id)).toEqual(
+      CHAMPIONSHIP_CLASSES.map((c) => `weekly-2026-09-25-${c.slug}`),
+    )
   })
 
   it('keeps 18:00 US Central in standard time, and names the week by its Central day', () => {
     // Daylight time ends Sunday 2026-11-01: the start moves to 00:00 UTC, the Saturday.
     const start = nextChampionshipStart(new Date('2026-10-31T00:00:00.000Z'))
     expect(start.toISOString()).toBe('2026-11-07T00:00:00.000Z')
-    expect(weeklyChampionship(start)).toMatchObject({
-      id: 'weekly-2026-11-06',
+    expect(weeklyChampionship(start, LIGHTWEIGHT)).toMatchObject({
+      id: 'weekly-2026-11-06-lightweight',
       entryClosesAt: '2026-11-06T00:00:00.000Z',
       config: { seed: 20261106 },
     })
@@ -590,7 +612,7 @@ describe('the cron', () => {
     )
   })
 
-  it('starts the championship due, seeded by rating, and its champion lands in the feed', async () => {
+  it('starts a championship due, seeded by rating, and its champion lands in the feed', async () => {
     // Five entrants, two rated above the rest: they get seeds 1 and 2.
     const entrants = ['roster-halt-v1', 'roster-spin-v1', 'roster-dwarf-v1']
     const dave = await user('dave')
@@ -602,7 +624,7 @@ describe('the cron', () => {
       ...entrants.map((v, i) =>
         env.DB.prepare(
           `INSERT INTO tournament_entries (tournament_id, bot_version_id, entered_at)
-           VALUES ('weekly-2026-10-02', ?, ?)`,
+           VALUES ('weekly-2026-10-02-lightweight', ?, ?)`,
         ).bind(v, new Date(friday + i * HOUR).toISOString()),
       ),
       env.DB.prepare(
@@ -622,14 +644,19 @@ describe('the cron', () => {
     expect(bySeed.slice(0, 2)).toEqual([imp, loop])
 
     await cron(friday + week)
-    const [due, next] = await championships()
-    expect(due).toMatchObject({ id: 'weekly-2026-10-02', status: 'running' })
-    expect(next).toMatchObject({ id: 'weekly-2026-10-09', status: 'scheduled' })
-    expect(await seeds('weekly-2026-10-02')).toEqual(bySeed)
+    const status = new Map((await championships()).map((c) => [c.id, c.status]))
+    expect(status.get('weekly-2026-10-02-lightweight')).toBe('running')
+    // The classes nobody entered are cancelled; next week's are made, all five.
+    expect(status.get('weekly-2026-10-02-open')).toBe('cancelled')
+    for (const c of CHAMPIONSHIP_CLASSES) {
+      expect(status.get(`weekly-2026-10-09-${c.slug}`)).toBe('scheduled')
+    }
+    expect(await seeds('weekly-2026-10-02-lightweight')).toEqual(bySeed)
 
-    await drain('weekly-2026-10-02')
-    const expected = oracle(bySeed, 20261002, CHAMPIONSHIP_ROUNDS, CHAMPIONSHIP_RULES)
-    expect((await row('weekly-2026-10-02'))?.champion_id).toBe(expected)
+    await drain('weekly-2026-10-02-lightweight')
+    const rules = championshipRules(LIGHTWEIGHT)
+    const expected = oracle(bySeed, 20261002, CHAMPIONSHIP_ROUNDS, rules)
+    expect((await row('weekly-2026-10-02-lightweight'))?.champion_id).toBe(expected)
     const feed = parse(
       ChampionshipList,
       await (await send(new Jar(), '/api/championships')).json(),
@@ -637,7 +664,7 @@ describe('the cron', () => {
     )
     expect(feed.championships).toHaveLength(1)
     expect(feed.championships[0]).toMatchObject({
-      tournament: { id: 'weekly-2026-10-02', status: 'finished' },
+      tournament: { id: 'weekly-2026-10-02-lightweight', status: 'finished' },
       entrants: 5,
       done: 5,
       of: 5,
@@ -652,7 +679,7 @@ describe('the cron', () => {
     )
     expect(
       profile.championships.find(
-        (r) => r.bot.versionId === expected && r.tournament.id === 'weekly-2026-10-02',
+        (r) => r.bot.versionId === expected && r.tournament.id === 'weekly-2026-10-02-lightweight',
       ),
     ).toMatchObject({ champion: true })
   })
@@ -660,8 +687,8 @@ describe('the cron', () => {
   it('cancels a championship due with fewer than 2 bots, and makes the next', async () => {
     await cron(friday + 2 * week)
     const byId = new Map((await championships()).map((c) => [c.id, c.status]))
-    expect(byId.get('weekly-2026-10-09')).toBe('cancelled')
-    expect(byId.get('weekly-2026-10-16')).toBe('scheduled')
+    expect(byId.get('weekly-2026-10-09-middleweight')).toBe('cancelled')
+    expect(byId.get('weekly-2026-10-16-middleweight')).toBe('scheduled')
     // The list leaves out a championship nobody entered, once it is cancelled.
     const list = parse(
       TournamentList,
@@ -669,25 +696,41 @@ describe('the cron', () => {
       'it',
     )
     const listed = list.tournaments.map((s) => s.tournament.id)
-    expect(listed).toContain('weekly-2026-10-16')
-    expect(listed).not.toContain('weekly-2026-10-09')
+    expect(listed).toContain('weekly-2026-10-16-middleweight')
+    expect(listed).not.toContain('weekly-2026-10-09-middleweight')
     // A user may not start a championship: the cron does.
     const jar = await user('eager')
     expect(
-      await errorOf(await post(jar, '/api/tournaments/weekly-2026-10-16/start')),
+      await errorOf(await post(jar, '/api/tournaments/weekly-2026-10-16-middleweight/start')),
     ).toMatchObject({
       status: 403,
-      message: 'weekly 2026-10-16 is a championship: the cron starts it',
+      message: 'weekly 2026-10-16 · middleweight is a championship: the cron starts it',
     })
+    // A class takes its own bots only: a lightweight bot is refused by middleweight, taken by
+    // open weight.
+    const loop = await botOf(jar, 'Loop', LOOP)
+    const middle = await post(jar, '/api/tournaments/weekly-2026-10-16-middleweight/enter', {
+      botVersionId: loop,
+    })
+    expect(await errorOf(middle)).toMatchObject({
+      status: 422,
+      message: expect.stringMatching(/^Loop v1 is \d+ bytes, under 513$/),
+    })
+    const open = await post(jar, '/api/tournaments/weekly-2026-10-16-open/enter', {
+      botVersionId: loop,
+    })
+    expect(open.status).toBe(201)
   })
 
   it('makes the same championship from the seed script’s inlined statement', async () => {
-    const first = weeklyChampionship(nextChampionshipStart(new Date('2027-01-01T00:00:00.000Z')))
+    const start = nextChampionshipStart(new Date('2027-01-01T00:00:00.000Z'))
+    const first = weeklyChampionship(start, OPEN_WEIGHT)
     await env.DB.prepare(sqlScript([championshipInsert(first)])).run()
     const t = (await detail(first.id)).tournament
     expect(t).toMatchObject({
-      id: 'weekly-2027-01-01',
-      slug: 'weekly-2027-01-01',
+      id: 'weekly-2027-01-01-open',
+      slug: 'weekly-2027-01-01-open',
+      name: 'weekly 2027-01-01 · open weight',
       status: 'scheduled',
       entry: 'open',
       startsAt: '2027-01-02T00:00:00.000Z',

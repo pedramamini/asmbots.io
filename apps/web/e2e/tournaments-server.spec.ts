@@ -4,7 +4,7 @@
  * bracket of five roster bots and starts it, and its page follows it live to its champion, whose
  * rounds replay from the server's replays; a player enters an open tournament from its page; two
  * players enter an open melee, and the second's browser follows it live to its end; the home page
- * and the list name the weekly championship the seed made.
+ * and the list name the weekly championships the seed made, one a class.
  */
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -240,15 +240,27 @@ test('two players enter an open melee, and the second watches it live from anoth
   expect(errors).toEqual([])
 })
 
-test('the home page and the list name the next weekly championship', async ({ page }) => {
+test('the home page and the list name the next weekly championships', async ({ page }) => {
   const errors = watch(page)
   await page.goto('/')
   const cup = page.getByRole('region', { name: 'championship' })
-  const next = cup.getByRole('link', { name: /^weekly \d{4}-\d{2}-\d{2}$/ })
+  const next = cup.getByRole('link', { name: 'lightweight', exact: true })
   await expect(next).toBeVisible()
   const href = (await next.getAttribute('href')) ?? ''
-  expect(href).toMatch(/^\/tournaments\/weekly-\d{4}-\d{2}-\d{2}$/)
-  const title = (await next.textContent()) ?? ''
+  expect(href).toMatch(/^\/tournaments\/weekly-\d{4}-\d{2}-\d{2}-lightweight$/)
+  const title = (await next.getAttribute('title')) ?? ''
+  expect(title).toMatch(/^weekly \d{4}-\d{2}-\d{2} · lightweight$/)
+  // The class picker holds the week's five, and picking one shows it.
+  const picker = cup.getByRole('combobox', { name: 'class' })
+  await expect(picker.locator('option')).toHaveText([
+    'lightweight',
+    'middleweight',
+    'heavyweight',
+    'super-heavy',
+    'open weight',
+  ])
+  await picker.selectOption({ label: 'open weight' })
+  await expect(cup.getByRole('link', { name: 'open weight', exact: true })).toBeVisible()
   await page.goto('/tournaments')
   const card = page.getByRole('listitem', { name: title })
   await expect(card).toContainText('championship')

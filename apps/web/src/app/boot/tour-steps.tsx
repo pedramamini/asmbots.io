@@ -5,8 +5,8 @@
  */
 import { Kbd } from '@asmbots/ui'
 import type { ReactNode } from 'react'
-import { NAV } from '../Frame'
 import type { ArenaSearch } from '../../features/arena/setup/search'
+import { NAV } from '../Frame'
 
 export interface TourStep {
   /** Its name in the tests and the DOM (`data-tour-step`). */
@@ -77,8 +77,8 @@ export const TOUR_STEPS: readonly TourStep[] = [
     title: 'the pages',
     body: (
       <p>
-        Every page is up here. <Kbd>g</Kbd> then a letter goes to one: <Kbd>g</Kbd> <Kbd>a</Kbd>{' '}
-        the arena, <Kbd>g</Kbd> <Kbd>e</Kbd> the editor.
+        Every page is up here. <Kbd>g</Kbd> then a letter goes to one: <Kbd>g</Kbd> <Kbd>a</Kbd> the
+        arena, <Kbd>g</Kbd> <Kbd>e</Kbd> the editor.
       </p>
     ),
   },
@@ -120,7 +120,7 @@ export const TOUR_STEPS: readonly TourStep[] = [
     body: (
       <p>
         The main hill&rsquo;s top 10, live. Beside it: its latest matches, and the next weekly
-        championship.
+        championships.
       </p>
     ),
   },
@@ -148,8 +148,8 @@ export const TOUR_STEPS: readonly TourStep[] = [
     title: 'the fight',
     body: (
       <p>
-        Up to 16 bots in one core. The config sets the rounds, the cycle cap, and the seed; a
-        preset fills them in for a duel or a melee.
+        Up to 16 bots in one core. The config sets the rounds, the cycle cap, and the seed; a preset
+        fills them in for a duel or a melee.
       </p>
     ),
   },
@@ -237,9 +237,9 @@ export const TOUR_STEPS: readonly TourStep[] = [
     title: 'the toolbar and the debugger',
     body: (
       <p>
-        Save, test against a roster bot, share a link, and pick a layout. <Kbd>F5</Kbd> debugs:
-        one instruction at a time, with the registers and the core. A saved bot is in the
-        arena&rsquo;s <b className="text-bright">my bots</b>.
+        Save, test against a roster bot, share a link, and pick a layout. <Kbd>F5</Kbd> debugs: one
+        instruction at a time, with the registers and the core. A saved bot is in the arena&rsquo;s{' '}
+        <b className="text-bright">my bots</b>.
       </p>
     ),
   },
@@ -251,7 +251,7 @@ export const TOUR_STEPS: readonly TourStep[] = [
     body: (
       <p>
         Round robins, brackets, and melees. Run one in your browser with any bots, or enter the
-        weekly championship.
+        weekly championships, one for each weight class.
       </p>
     ),
   },
