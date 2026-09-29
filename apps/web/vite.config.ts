@@ -13,6 +13,7 @@ import { readReleases, releaseOf } from '../../scripts/changelog'
 import { textImport } from '../../scripts/text-import'
 import { getVersion } from '../../scripts/version'
 import { defaultHeadTags, pageManifest, robotsTxt, SITE_URL, sitemap } from './src/app/pages'
+import { staleChunkBootScript } from './src/app/stale-chunk'
 import { themeBootScript } from './src/app/theme-boot'
 import { REMARK_PLUGINS } from './src/docs/remark'
 
@@ -137,6 +138,8 @@ function themeBoot(): Plugin {
     name: 'asmbots:theme-boot',
     transformIndexHtml: () => [
       { tag: 'script', children: themeBootScript(background), injectTo: 'head' },
+      // A tab from before the last deploy asks for chunks that no longer exist: reload it once.
+      { tag: 'script', children: staleChunkBootScript(), injectTo: 'head' },
     ],
   }
 }

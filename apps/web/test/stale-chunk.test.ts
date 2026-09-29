@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 import { useDom } from '../../../packages/ui/test/dom'
-import { armStaleChunkReload, STALE_CHUNK_KEY, STALE_CHUNK_WINDOW_MS } from '../src/app/stale-chunk'
+import {
+  armStaleChunkReload,
+  STALE_CHUNK_KEY,
+  STALE_CHUNK_WINDOW_MS,
+  staleChunkBootScript,
+} from '../src/app/stale-chunk'
 
 useDom()
 
@@ -57,5 +62,16 @@ describe('armStaleChunkReload', () => {
     h.off()
     h.fail()
     expect(h.reloads()).toBe(0)
+  })
+})
+
+describe('staleChunkBootScript', () => {
+  it('arms on its own, with the constants it carries', () => {
+    const script = staleChunkBootScript()
+    expect(script).not.toContain('STALE_CHUNK_')
+    // Run as index.html runs it; its unsubscribe comes back, so the listener goes with the test.
+    const off = new Function(`return ${script}`)() as () => void
+    expect(typeof off).toBe('function')
+    off()
   })
 })
