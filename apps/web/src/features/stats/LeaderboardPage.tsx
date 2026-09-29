@@ -150,8 +150,7 @@ export function LeaderboardPage() {
   const rows = data === undefined ? [] : [...data.users, ...(data.house ? [data.house] : [])]
   return (
     <PanelGrid className="p-3">
-      <PageIntro about={LEADERBOARD_ABOUT} art={<IntroArt name="chart" />} />
-      <StatsTabs />
+      <PageIntro about={LEADERBOARD_ABOUT} art={<IntroArt name="chart" />} more={<StatsTabs />} />
       <Panel
         className="col-span-12"
         title="leaderboard"

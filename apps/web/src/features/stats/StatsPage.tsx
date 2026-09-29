@@ -49,8 +49,7 @@ export function StatsPage() {
   const { data, error } = read
   return (
     <PanelGrid className="p-3">
-      <PageIntro about={STATS_ABOUT} art={<IntroArt name="chart" />} />
-      <StatsTabs />
+      <PageIntro about={STATS_ABOUT} art={<IntroArt name="chart" />} more={<StatsTabs />} />
       {error !== null && data === undefined ? (
         <Panel className="col-span-12" title="stats" status="error">
           <LoadFailure read={read} what="the stats" />
