@@ -27,10 +27,6 @@ export {
   CreateTournament,
   Diagnostic,
   EarnedBadge,
-  EditorLayout,
-  EditorLayoutList,
-  EditorLayoutSaved,
-  EditorLayoutTree,
   EnterTournament,
   HillBest,
   HillDetail,
@@ -48,8 +44,6 @@ export {
   LeaderRow,
   MAX_API_TOKENS,
   MAX_BOTS_PER_USER,
-  MAX_EDITOR_LAYOUT_BYTES,
-  MAX_EDITOR_LAYOUTS,
   MAX_IMPORT,
   MAX_SOURCE_TEXT,
   MAX_TOURNAMENT_ENTRANTS,
@@ -68,7 +62,6 @@ export {
   RunnerReport,
   SavedBot,
   SavedBotVersion,
-  SaveEditorLayout,
   SiteStats,
   STATS_TTL_SECONDS,
   StatsDay,
@@ -89,7 +82,6 @@ export {
   TournamentSummary,
   UpdateBot,
   UpdatedBot,
-  UpdateEditorLayout,
   UpdateMe,
   UserDay,
   UserDetail,
@@ -111,6 +103,16 @@ export {
 } from './badges'
 export { fromBase64, fromBase64Url, sha256Hex, toBase64, toBase64Url } from './bytes'
 export { canonicalJson } from './canonical'
+export {
+  EditorLayout,
+  EditorLayoutList,
+  EditorLayoutSaved,
+  EditorLayoutTree,
+  MAX_EDITOR_LAYOUT_BYTES,
+  MAX_EDITOR_LAYOUTS,
+  SaveEditorLayout,
+  UpdateEditorLayout,
+} from './editor-layouts'
 export { ApiError, apiError, ERROR_STATUS, type ErrorCode } from './errors'
 export { HillOverview, HillPulse, OVERVIEW_EVENTS } from './hill-overview'
 export {

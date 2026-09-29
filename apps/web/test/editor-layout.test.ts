@@ -29,9 +29,9 @@ import {
   shows,
   swapPanels,
   TILE_MIN,
-  tileBoxes,
   zoneBox,
 } from '../src/features/editor/layout/tree'
+import { tileBoxes } from '../src/features/editor/layout/boxes'
 
 const leaf = (id: PanelId): LayoutNode => ({ kind: 'panel', id })
 const sorted = (ids: readonly PanelId[]) => [...ids].sort()

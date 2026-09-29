@@ -1,5 +1,6 @@
 import { cx } from '@asmbots/ui'
-import { type Layout, PANEL_LABELS, tileBoxes } from './tree'
+import { tileBoxes } from './boxes'
+import { type Layout, PANEL_LABELS } from './tree'
 
 /** The thumbnail's size, in its own units: the editor page's shape, about. */
 const WIDTH = 80

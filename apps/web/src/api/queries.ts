@@ -7,8 +7,6 @@ import {
   ApiTokenList,
   BotDetail,
   BotVersionDetail,
-  EditorLayoutList,
-  type EditorLayoutTree,
   HillDetail,
   HillHistory,
   HillList,
@@ -23,7 +21,6 @@ import {
   Ticker,
   TournamentDetail,
   TournamentList,
-  type UpdateEditorLayout,
 } from '@asmbots/protocol'
 import {
   type QueryClient,
@@ -34,13 +31,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { ApiRequestError, apiGet } from './client'
-import {
-  createApiToken,
-  deleteEditorLayout,
-  revokeApiToken,
-  saveEditorLayout,
-  updateEditorLayout,
-} from './writes'
+import { createApiToken, revokeApiToken } from './writes'
 
 const segment = encodeURIComponent
 
@@ -259,14 +250,6 @@ export const apiTokensQuery = () =>
       apiGet('/me/tokens', (v) => parse(ApiTokenList, v, 'your api tokens'), signal),
   })
 
-/** The signed-in user's editor layouts, under `me` so signing out drops them with the account. */
-export const editorLayoutsQuery = () =>
-  queryOptions({
-    queryKey: ['me', 'layouts'],
-    queryFn: ({ signal }) =>
-      apiGet('/me/layouts', (v) => parse(EditorLayoutList, v, 'your layouts'), signal),
-  })
-
 export const useHills = () => useQuery(hillsQuery())
 export const useHill = (slug: string) => useQuery(hillQuery(slug))
 export const useHillMatches = (slug: string, filter?: HillMatchesFilter) =>
@@ -316,29 +299,4 @@ export function useRevokeApiToken() {
     mutationFn: revokeApiToken,
     onSuccess: () => client.invalidateQueries({ queryKey: apiTokensQuery().queryKey }),
   })
-}
-
-/** The signed-in user's editor layouts; asks nothing while nobody is signed in. */
-export function useEditorLayouts() {
-  const signedIn = Boolean(useMe().data)
-  return useQuery({ ...editorLayoutsQuery(), enabled: signedIn })
-}
-
-/** Keeps, renames, or deletes an editor layout, then reads the list again. */
-export function useEditorLayoutActions() {
-  const client = useQueryClient()
-  const onSuccess = () => client.invalidateQueries({ queryKey: editorLayoutsQuery().queryKey })
-  return {
-    save: useMutation({
-      mutationFn: ({ name, layout }: { name: string; layout: EditorLayoutTree }) =>
-        saveEditorLayout(name, layout),
-      onSuccess,
-    }),
-    update: useMutation({
-      mutationFn: ({ id, update }: { id: string; update: UpdateEditorLayout }) =>
-        updateEditorLayout(id, update),
-      onSuccess,
-    }),
-    remove: useMutation({ mutationFn: deleteEditorLayout, onSuccess }),
-  }
 }

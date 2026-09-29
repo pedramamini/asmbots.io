@@ -1,9 +1,10 @@
 import { type EditorLayout, type EditorLayoutTree, MAX_EDITOR_LAYOUTS } from '@asmbots/protocol'
 import { Button, cx, EmptyState, IconButton, Input, Modal, useToast } from '@asmbots/ui'
-import { Check, Pencil, Save, Trash2, Upload, X } from 'lucide-react'
+import { Check, Save, TextCursorInput, Trash2, Upload, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { ApiRequestError } from '../../api/client'
-import { useEditorLayoutActions, useEditorLayouts } from '../../api/queries'
+import { useEditorLayoutActions } from '../../api/layout-writes'
+import { useEditorLayouts } from '../../api/layouts'
 import { ago } from '../hills/links'
 import { LayoutThumb } from './layout/LayoutThumb'
 import { type Layout, sanitizeLayout } from './layout/tree'
@@ -256,7 +257,7 @@ export function LayoutsModal({ open, onClose, current, onApply }: LayoutsModalPr
                         onClick={() => void overwrite(kept)}
                       />
                       <IconButton
-                        icon={Pencil}
+                        icon={TextCursorInput}
                         label={`rename ${kept.name}`}
                         onClick={() => setRenaming(kept.id)}
                       />

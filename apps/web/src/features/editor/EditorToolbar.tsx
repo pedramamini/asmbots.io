@@ -16,8 +16,6 @@ import {
 import {
   AlignLeft,
   Binary,
-  Bookmark,
-  BookmarkPlus,
   Eye,
   EyeOff,
   GitFork,
@@ -274,10 +272,10 @@ function LayoutMenu({
       : [
           ...savedLayouts.map((layout) => ({
             label: layout.name,
-            icon: Bookmark,
+            icon: LayoutDashboard,
             onSelect: () => onSavedLayout(layout),
           })),
-          { label: 'save layout…', icon: BookmarkPlus, onSelect: onLayouts },
+          { label: 'save layout…', icon: Save, onSelect: onLayouts },
         ]
   return (
     <Menu
