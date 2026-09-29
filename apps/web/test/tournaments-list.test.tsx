@@ -58,12 +58,12 @@ async function seed(
 /** An executor that never runs a match: the list's runner has nothing running. */
 const idle: MatchExecutor = { runMatch: () => new Promise(() => {}) }
 
-async function renderList(runner = new TournamentRunner(() => idle)) {
+async function renderList(runner = new TournamentRunner(() => idle), onNew?: () => void) {
   const root = createRootRoute({ component: Outlet })
   const list = createRoute({
     getParentRoute: () => root,
     path: '/tournaments',
-    component: () => <TournamentsPage runner={runner} />,
+    component: () => <TournamentsPage runner={runner} onNew={onNew} />,
   })
   const detail = createRoute({
     getParentRoute: () => root,
@@ -123,6 +123,21 @@ describe('the tournament list', () => {
   it('says there are none yet', async () => {
     await renderList()
     expect(await screen.findByText(/no tournaments yet/)).toBeTruthy()
+  })
+
+  it('ends the grid with a new tournament tile, and counts what the filters let through', async () => {
+    await seed('spring cup', 'bracket')
+    const opened: string[] = []
+    await renderList(undefined, () => opened.push('new'))
+    await screen.findByRole('listitem', { name: 'spring cup' })
+    const items = within(screen.getByRole('list', { name: 'tournament list' })).getAllByRole(
+      'listitem',
+    )
+    const tile = within(items.at(-1) as HTMLElement).getByRole('button')
+    expect(tile.textContent).toContain('new tournament')
+    fireEvent.click(tile)
+    expect(opened).toEqual(['new'])
+    expect(await screen.findByText('1 of 1')).toBeTruthy()
   })
 
   it('shows a card per tournament with its kind, status, entrants, and champion', async () => {

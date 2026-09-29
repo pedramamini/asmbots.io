@@ -209,7 +209,7 @@ export function TournamentsPage({ onNew, runner = tournamentRunner() }: Tourname
   // The server's list may be slow or down: this browser's still show.
   const reading = tournaments === undefined || (server.isPending && server.error === null)
   const newButton = (
-    <Button variant="primary" size="sm" icon={Plus} disabled={onNew === undefined} onClick={onNew}>
+    <Button variant="primary" icon={Plus} disabled={onNew === undefined} onClick={onNew}>
       new tournament
     </Button>
   )
@@ -220,7 +220,6 @@ export function TournamentsPage({ onNew, runner = tournamentRunner() }: Tourname
         className="col-span-12"
         title="tournaments"
         data-tour="tournaments-list"
-        status={reading ? 'reading' : `${cards.length} of ${total}`}
         actions={newButton}
       >
         <div className="flex flex-col gap-3">
@@ -251,6 +250,9 @@ export function TournamentsPage({ onNew, runner = tournamentRunner() }: Tourname
               value={status}
               onValueChange={setStatus}
             />
+            <span className="ml-auto text-panel-status text-muted">
+              {reading ? 'reading' : `${cards.length} of ${total}`}
+            </span>
           </div>
           {server.error !== null && (
             <LoadFailure read={server} what="the server's tournaments" dense />
@@ -280,11 +282,33 @@ export function TournamentsPage({ onNew, runner = tournamentRunner() }: Tourname
               className="grid auto-rows-fr grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"
             >
               {cards.map((card) => card.node)}
+              {onNew !== undefined && (
+                <li className="h-full">
+                  <NewTournamentTile onNew={onNew} />
+                </li>
+              )}
             </ul>
           )}
         </div>
       </Panel>
     </PanelGrid>
+  )
+}
+
+/** The tile after the tournaments: where a new one starts. */
+function NewTournamentTile({ onNew }: { onNew: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onNew}
+      className="flex size-full min-h-44 cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-border-strong border-dashed p-3 text-center transition-colors duration-120 ease-out hover:border-accent focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-accent"
+    >
+      <Plus aria-hidden="true" size={28} className="text-accent" />
+      <span className="text-bright text-panel-title">new tournament</span>
+      <span className="text-data text-muted">
+        pick the bots and the format, and run it here, in this browser.
+      </span>
+    </button>
   )
 }
 
