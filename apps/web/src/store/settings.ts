@@ -36,11 +36,31 @@ export function motionReduced(motion: MotionPreference, systemReduced: boolean):
 export const SOUND_CUES = ['tick', 'write', 'death', 'botDeath', 'victory', 'click'] as const
 export type SoundCue = (typeof SOUND_CUES)[number]
 
+/** The sound packs (`features/sound/packs.ts`): the same cues in another voice. */
+export const SOUND_PACKS = [
+  'chip',
+  'synthwave',
+  'vector',
+  'teletype',
+  'modem',
+  'sonar',
+  'geiger',
+  'glitch',
+  'classic',
+] as const
+export type SoundPack = (typeof SOUND_PACKS)[number]
+
+export function isSoundPack(value: unknown): value is SoundPack {
+  return SOUND_PACKS.includes(value as SoundPack)
+}
+
 /** The sound (DESIGN_SYSTEM §7): off by default. */
 export interface SoundSettings {
   on: boolean
   /** Master volume, 0..1. */
   volume: number
+  /** The voice the cues sound in. */
+  pack: SoundPack
   /** Each cue on or off. `on` rules over them all. */
   cues: Record<SoundCue, boolean>
 }
@@ -94,7 +114,7 @@ export interface SettingsState extends Settings {
 export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   effects: { bloom: true, scanlines: true, vignette: true },
   motion: 'system',
-  sound: { on: false, volume: 0.5, cues: allCues(true) },
+  sound: { on: false, volume: 0.5, pack: 'chip' as SoundPack, cues: allCues(true) },
   coachMarksSeen: [],
   lastArenaConfig: null,
   arenaSpeed: 100,
@@ -224,7 +244,10 @@ export function sanitizeSettings(stored: unknown): Partial<Settings> {
   return out
 }
 
-/** `sound` when its switch and volume are well formed, with its cues' switches; a missing one is on. */
+/**
+ * `sound` when its switch and volume are well formed, with its pack (a missing or unknown one is
+ * the default) and its cues' switches (a missing one is on).
+ */
 function sanitizeSound(sound: unknown): SoundSettings | null {
   if (!isRecord(sound) || typeof sound.on !== 'boolean') return null
   if (typeof sound.volume !== 'number' || Number.isNaN(sound.volume)) return null
@@ -235,7 +258,8 @@ function sanitizeSound(sound: unknown): SoundSettings | null {
       if (typeof on === 'boolean') cues[cue] = on
     }
   }
-  return { on: sound.on, volume: Math.min(1, Math.max(0, sound.volume)), cues }
+  const pack = isSoundPack(sound.pack) ? sound.pack : DEFAULT_SETTINGS.sound.pack
+  return { on: sound.on, volume: Math.min(1, Math.max(0, sound.volume)), pack, cues }
 }
 
 function isArenaConfig(value: unknown): value is ArenaConfig {

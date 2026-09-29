@@ -23,13 +23,19 @@ import {
   WRITE_WINDOW_MS,
   weightLevel,
 } from '../src/features/sound/engine'
-import { DEFAULT_SETTINGS, SOUND_CUES, type SoundSettings } from '../src/store/settings'
+import { PACKS } from '../src/features/sound/packs'
+import {
+  DEFAULT_SETTINGS,
+  SOUND_CUES,
+  SOUND_PACKS,
+  type SoundSettings,
+} from '../src/store/settings'
 import { emptyFrame } from './arena-frame'
 import { type FakeAudioContext, FakeBufferSource, fakeContexts } from './fake-audio'
 
-/** The default settings with sound on, and `parts` over them. */
+/** The default settings with sound on in the classic pack, and `parts` over them. */
 function soundOn(parts: Partial<SoundSettings> = {}): SoundSettings {
-  return { ...structuredClone(DEFAULT_SETTINGS.sound), on: true, ...parts }
+  return { ...structuredClone(DEFAULT_SETTINGS.sound), on: true, pack: 'classic', ...parts }
 }
 
 /** A key press, as the page's gestures come. */
@@ -233,6 +239,42 @@ describe('SoundEngine', () => {
     expect(botPitch(0)).toBeCloseTo(329.63)
     expect(botPitch(5)).toBeCloseTo(659.26)
     expect(botPitch(12)).toBe(botPitch(0))
+  })
+})
+
+describe('sound packs', () => {
+  it('names every pack, and each sounds every cue', () => {
+    expect(Object.keys(PACKS).sort()).toEqual([...SOUND_PACKS].sort())
+    for (const pack of SOUND_PACKS) {
+      const { engine, clock, context } = engineOf({ settings: soundOn({ pack }) })
+      for (const cue of SOUND_CUES) {
+        clock.now += 1000
+        const before = context().started.length
+        expect([pack, cue, engine.play(cue, { weight: 4, bot: 3 })]).toEqual([pack, cue, true])
+        expect([pack, cue, context().started.length > before]).toEqual([pack, cue, true])
+      }
+    }
+  })
+
+  it('switches the voice with the settings', () => {
+    const { engine, clock, context } = engineOf()
+    engine.play('victory')
+    const classic = context().started.length
+    clock.now += 1000
+    engine.configure(soundOn({ pack: 'chip' }))
+    engine.play('victory')
+    // Chip's arpeggio runs six notes, then holds two.
+    expect(context().started.length - classic).toBe(8)
+  })
+
+  it('keeps each bus once a context: every synthwave cue shares one echo', () => {
+    const { engine, clock, context } = engineOf({ settings: soundOn({ pack: 'synthwave' }) })
+    for (const cue of ['tick', 'click', 'botDeath'] as const) {
+      clock.now += 1000
+      engine.play(cue)
+    }
+    // The master, the echo's input, loop, and send; then an envelope a tone (1 + 1 + 2).
+    expect(context().gains).toHaveLength(1 + 3 + 4)
   })
 })
 

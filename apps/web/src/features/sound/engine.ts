@@ -1,7 +1,8 @@
 /**
  * The arena's sound (DESIGN_SYSTEM §7): tiny cues synthesized with WebAudio, no samples. A tick, a
- * soft click for a burst of writes, a low thud for a process's death, a falling tone for a bot's,
- * three rising notes for a victory, and a click for the transport. Sound is opt-in (`m`, the
+ * click for a burst of writes, a thud for a process's death, a falling tone for a bot's, a phrase
+ * for a victory, and a click for the transport, each in the voice of the pack the settings name
+ * (`packs.ts`). Sound is opt-in (`m`, the
  * arena's sound button, the settings page), and even when it is on, nothing sounds and no
  * AudioContext exists until the page's first user gesture, so the browser never blocks one.
  *
@@ -13,9 +14,13 @@
 import {
   DEFAULT_SETTINGS,
   type SoundCue,
+  type SoundPack,
   type SoundSettings,
   useSettings,
 } from '../../store/settings'
+import { PACKS, Voices } from './packs'
+
+export { botPitch } from './packs'
 
 /** The most cues in any second (DESIGN_SYSTEM §7). */
 export const MAX_CUES_PER_SECOND = 12
@@ -103,7 +108,7 @@ export class SoundEngine {
   private settings: SoundSettings = DEFAULT_SETTINGS.sound
   private context: AudioContext | null = null
   private master: GainNode | null = null
-  private noise: AudioBuffer | null = null
+  private voices: Voices | null = null
   /** No WebAudio here: none, or making a context failed. */
   private unavailable = false
   private active: boolean
@@ -173,7 +178,7 @@ export class SoundEngine {
     void this.context?.close().catch(() => {})
     this.context = null
     this.master = null
-    this.noise = null
+    this.voices = null
   }
 
   private readonly onGesture = (event: Event): void => {
@@ -202,11 +207,11 @@ export class SoundEngine {
       this.writes = 0
       this.lastWrite = now
     }
-    const out = this.master as GainNode
-    if (running) this.synth(context, out, cue, level, bot)
+    const voices = this.voices as Voices
+    if (running) this.synth(voices, cue, level, bot)
     else
       void context.resume().then(
-        () => this.synth(context, out, cue, level, bot),
+        () => this.synth(voices, cue, level, bot),
         () => {},
       )
     return true
@@ -246,6 +251,7 @@ export class SoundEngine {
     master.connect(limiter).connect(context.destination)
     this.context = context
     this.master = master
+    this.voices = new Voices(context, master)
     return context
   }
 
@@ -259,125 +265,10 @@ export class SoundEngine {
     if (context.state !== 'closed') void context.resume().catch(() => {})
   }
 
-  private synth(context: AudioContext, out: AudioNode, cue: SoundCue, level: number, bot: number) {
-    const at = context.currentTime + 0.005
-    switch (cue) {
-      case 'tick':
-        tone(context, out, at, { type: 'triangle', from: 1800, to: 1400, length: 0.025, peak: 0.2 })
-        return
-      case 'write':
-        this.writeClick(context, out, at, 0.1 + 0.25 * level)
-        return
-      case 'death':
-        tone(context, out, at, {
-          type: 'triangle',
-          from: 160,
-          to: 52,
-          length: 0.22,
-          peak: 0.45 + 0.25 * level,
-          attack: 0.003,
-        })
-        return
-      case 'botDeath': {
-        const from = botPitch(bot)
-        tone(context, out, at, { type: 'triangle', from, to: from / 4, length: 0.7, peak: 0.35 })
-        return
-      }
-      case 'victory':
-        VICTORY.forEach((note, i) => {
-          tone(context, out, at + i * 0.12, {
-            type: 'triangle',
-            from: note,
-            to: note,
-            length: i === VICTORY.length - 1 ? 0.45 : 0.14,
-            peak: 0.3,
-          })
-        })
-        return
-      case 'click':
-        tone(context, out, at, {
-          type: 'triangle',
-          from: 1320,
-          to: 990,
-          length: 0.035,
-          peak: 0.2,
-          attack: 0.001,
-        })
-        return
-    }
+  /** The pack's voice of `cue`, from a moment on. */
+  private synth(voices: Voices, cue: SoundCue, level: number, bot: number): void {
+    PACKS[this.settings.pack].cues[cue](voices, voices.context.currentTime + 0.005, level, bot)
   }
-
-  /** A soft click: 18 ms of band-passed noise. */
-  private writeClick(context: AudioContext, out: AudioNode, at: number, peak: number): void {
-    if (this.noise === null) {
-      const buffer = context.createBuffer(
-        1,
-        Math.ceil(context.sampleRate * 0.05),
-        context.sampleRate,
-      )
-      const data = buffer.getChannelData(0)
-      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
-      this.noise = buffer
-    }
-    const source = context.createBufferSource()
-    source.buffer = this.noise
-    const band = context.createBiquadFilter()
-    band.type = 'bandpass'
-    band.frequency.value = 3200
-    band.Q.value = 1.2
-    const envelope = context.createGain()
-    shape(envelope.gain, at, peak, 0.001, 0.018)
-    source.connect(band).connect(envelope).connect(out)
-    source.start(at)
-    source.stop(at + 0.04)
-  }
-}
-
-/** The victory's notes, Hz: root, fifth, octave. */
-const VICTORY = [440, 659.26, 880] as const
-
-/** Each hue's pitch step, semitones over E4: a pentatonic climb, so any two deaths agree. */
-const BOT_STEPS = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26] as const
-
-/** Where bot `bot`'s death tone starts, Hz. Bot 13 on starts where bot 1 does, as its hue wraps. */
-export function botPitch(bot: number): number {
-  return 329.63 * 2 ** ((BOT_STEPS[bot % BOT_STEPS.length] ?? 0) / 12)
-}
-
-/** Where a gain starts and ends: exponential ramps cannot reach 0. */
-const SILENT = 0.0001
-
-interface Tone {
-  readonly type: OscillatorType
-  /** Hz at the start, and at the end: an exponential glide between. */
-  readonly from: number
-  readonly to: number
-  /** Seconds. */
-  readonly length: number
-  /** The envelope's peak, 0..1, before the master gain. */
-  readonly peak: number
-  /** Seconds to the peak. */
-  readonly attack?: number | undefined
-}
-
-/** One oscillator through its own envelope into `out`, from `at` (context seconds). */
-function tone(context: AudioContext, out: AudioNode, at: number, t: Tone): void {
-  const oscillator = context.createOscillator()
-  oscillator.type = t.type
-  oscillator.frequency.setValueAtTime(t.from, at)
-  if (t.to !== t.from) oscillator.frequency.exponentialRampToValueAtTime(t.to, at + t.length)
-  const envelope = context.createGain()
-  shape(envelope.gain, at, t.peak, t.attack ?? 0.004, t.length)
-  oscillator.connect(envelope).connect(out)
-  oscillator.start(at)
-  oscillator.stop(at + t.length + 0.02)
-}
-
-/** A percussive envelope on `gain`: up to `peak` in `attack` s, down again by `length` s. */
-function shape(gain: AudioParam, at: number, peak: number, attack: number, length: number): void {
-  gain.setValueAtTime(SILENT, at)
-  gain.exponentialRampToValueAtTime(Math.max(SILENT, peak), at + attack)
-  gain.exponentialRampToValueAtTime(SILENT, at + length)
 }
 
 let app: SoundEngine | null = null
@@ -400,4 +291,10 @@ export function toggleSound(): void {
   const { sound, setSound } = useSettings.getState()
   setSound({ on: !sound.on })
   if (!sound.on) appSound().preview('click')
+}
+
+/** Sound in `pack`'s voice from now on: the settings' picker, the command menu. It plays its victory. */
+export function chooseSoundPack(pack: SoundPack): void {
+  useSettings.getState().setSound({ pack })
+  appSound().preview('victory')
 }

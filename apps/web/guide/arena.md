@@ -88,10 +88,13 @@ Lighthouse. The demo makes no sound.
 ## Sound
 
 `src/features/sound/engine.ts` synthesizes DESIGN_SYSTEM §7's cues with WebAudio, no samples: a
-tick, a write click (band-passed noise), a process death's thud, a bot death's falling tone (from a
-pentatonic step per hue), the victory (root, fifth, octave), and the transport's click. Sound is
-off until `m` in a battle, the HUD's sound button, or `/settings` (master volume, one switch per
-cue) turns it on. No AudioContext exists before the page's first gesture (`keydown` but `esc`,
+tick, a write burst, a process death, a bot death (from a pentatonic step per hue), the victory,
+and the transport's click. Each cue has a voice in each of nine packs (`sound/packs.ts`: chip,
+synthwave, vector, teletype, modem, sonar, geiger, glitch, classic), built from `Voices`: a tone, a
+burst of filtered noise, and two buses kept once a context, an echo and a bit crusher. Chip is the
+default; `classic` is the first voice, kept for the engine's tests. Sound is off until `m` in a
+battle, the HUD's sound button, or `/settings` (master volume, the pack, one switch per cue) turns
+it on; picking a pack there or in the command menu plays its victory. No AudioContext exists before the page's first gesture (`keydown` but `esc`,
 `mousedown`, a touch's `pointerup`), so a replay that plays at load stays silent until one. The
 budget: 12 cues in any second; tick, write, and death at most every 125 ms and 8 a second; clicks
 10; bot deaths and the victory the rest. Writes coalesce into one click per 250 ms, as loud as the

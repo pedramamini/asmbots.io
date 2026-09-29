@@ -53,7 +53,12 @@ describe('useSettings', () => {
     expect(stored()).toEqual({
       effects: { bloom: true, scanlines: false, vignette: true },
       motion: 'reduce',
-      sound: { on: true, volume: 0.8, cues: { ...DEFAULT_SETTINGS.sound.cues, tick: false } },
+      sound: {
+        on: true,
+        volume: 0.8,
+        pack: DEFAULT_SETTINGS.sound.pack,
+        cues: { ...DEFAULT_SETTINGS.sound.cues, tick: false },
+      },
       coachMarksSeen: ['arena'],
       lastArenaConfig: null,
       arenaSpeed: 0.05,
@@ -77,7 +82,12 @@ describe('useSettings', () => {
         state: {
           effects: { bloom: false, scanlines: 'yes' },
           motion: 'sideways',
-          sound: { on: true, volume: 7, cues: { tick: false, write: 'no', nope: false } },
+          sound: {
+            on: true,
+            volume: 7,
+            pack: 'kazoo',
+            cues: { tick: false, write: 'no', nope: false },
+          },
           coachMarksSeen: ['editor', 3, 'editor'],
           lastArenaConfig: config,
         },
@@ -91,6 +101,7 @@ describe('useSettings', () => {
     expect(state.sound).toEqual({
       on: true,
       volume: 1,
+      pack: DEFAULT_SETTINGS.sound.pack,
       cues: { ...DEFAULT_SETTINGS.sound.cues, tick: false },
     })
     expect(state.coachMarksSeen).toEqual(['editor'])
@@ -105,12 +116,16 @@ describe('useSettings', () => {
     expect(sanitizeSettings({ arenaSpeed: 0.2 })).toEqual({ arenaSpeed: 0.2 })
   })
 
-  it('reads sound stored before the cues as every cue on', () => {
+  it('reads sound stored before the cues and the packs as every cue on, in the default pack', () => {
     expect(sanitizeSettings({ sound: { on: true, volume: 0.25 } }).sound).toEqual({
       on: true,
       volume: 0.25,
+      pack: DEFAULT_SETTINGS.sound.pack,
       cues: Object.fromEntries(SOUND_CUES.map((cue) => [cue, true])),
     })
+    expect(sanitizeSettings({ sound: { on: false, volume: 0, pack: 'geiger' } }).sound?.pack).toBe(
+      'geiger',
+    )
   })
 
   it('reduces motion when asked, or when the system asks under `system`', () => {
@@ -248,15 +263,21 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'sound' }))
     expect(volume.disabled).toBe(false)
     fireEvent.change(volume, { target: { value: '30' } })
-    expect(cue('writes').getAttribute('title')).toBe('a soft click for a burst of writes')
+    expect(cue('writes').getAttribute('title')).toBe('a burst of writes')
     fireEvent.click(cue('writes'))
     expect(cue('writes').getAttribute('aria-pressed')).toBe('false')
+    // A pack a radio, the chosen one checked.
+    const pack = (name: string) => screen.getByRole('radio', { name }) as HTMLButtonElement
+    expect(pack(DEFAULT_SETTINGS.sound.pack).getAttribute('aria-checked')).toBe('true')
+    fireEvent.click(pack('sonar'))
+    expect(pack('sonar').getAttribute('aria-checked')).toBe('true')
     const state = useSettings.getState()
     expect(state.effects.bloom).toBe(false)
     expect(state.motion).toBe('reduce')
     expect(state.sound).toEqual({
       on: true,
       volume: 0.3,
+      pack: 'sonar',
       cues: { ...DEFAULT_SETTINGS.sound.cues, write: false },
     })
   })

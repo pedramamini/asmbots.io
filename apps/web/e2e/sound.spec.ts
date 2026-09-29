@@ -142,7 +142,7 @@ test('m turns sound on in a battle, and off again', async ({ page }) => {
   expect(errors).toEqual([])
 })
 
-test('the settings page plays the click it turns on, and each cue it turns on', async ({
+test('the settings page plays the click it turns on, each cue it turns on, and each pack it picks', async ({
   page,
 }) => {
   await countAudio(page)
@@ -154,8 +154,11 @@ test('the settings page plays the click it turns on, and each cue it turns on', 
   await victoryCue.click()
   await expect(victoryCue).toHaveAttribute('aria-pressed', 'false')
   await victoryCue.click()
-  // Its three notes.
-  await expect.poll(async () => (await audio(page)).sources).toBe(4)
+  // The chip pack's victory: six notes up, two held.
+  await expect.poll(async () => (await audio(page)).sources).toBe(9)
+  // A pack plays its victory when picked: sonar's three pings.
+  await panel.getByRole('radio', { name: 'sonar' }).click()
+  await expect.poll(async () => (await audio(page)).sources).toBe(12)
   expect((await audio(page)).contexts).toBe(1)
 })
 

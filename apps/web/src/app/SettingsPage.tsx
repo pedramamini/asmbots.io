@@ -36,7 +36,8 @@ import { deleteAccount, updateMe } from '../api/writes'
 import { forgetAccount, SignInButton, useSignOut } from '../features/account/AccountSlot'
 import { HandleField } from '../features/account/HandleField'
 import { ago, day, plural, UserLink } from '../features/hills/links'
-import { appSound, toggleSound } from '../features/sound/engine'
+import { appSound, chooseSoundPack, toggleSound } from '../features/sound/engine'
+import { PACKS } from '../features/sound/packs'
 import {
   LOCAL_BOTS_KEY,
   type LocalBot,
@@ -50,6 +51,7 @@ import {
   MOTION_PREFERENCES,
   type MotionPreference,
   SOUND_CUES,
+  SOUND_PACKS,
   type SoundCue,
   useSettings,
 } from '../store/settings'
@@ -196,23 +198,30 @@ function EffectsPanel() {
   )
 }
 
-/** Each cue's toggle, and what it sounds for: its tooltip. */
+/** Each cue's toggle, and what it sounds for, in any pack: its tooltip. */
 const CUE_WORDS: Readonly<Record<SoundCue, { label: string; hint: string }>> = {
-  tick: { label: 'tick', hint: 'a tick for a step, and at the slowest speeds' },
-  write: { label: 'writes', hint: 'a soft click for a burst of writes' },
-  death: { label: 'proc death', hint: 'a low thud when a process dies' },
-  botDeath: { label: 'bot death', hint: 'a falling tone when a bot dies, at its own pitch' },
-  victory: { label: 'victory', hint: 'three rising notes when a match ends with one winner' },
-  click: { label: 'clicks', hint: 'a click when the battle plays, pauses, or changes speed' },
+  tick: { label: 'tick', hint: 'a step, and each frame at the slowest speeds' },
+  write: { label: 'writes', hint: 'a burst of writes' },
+  death: { label: 'proc death', hint: 'a process dies' },
+  botDeath: { label: 'bot death', hint: 'a bot dies, at its own pitch' },
+  victory: { label: 'victory', hint: 'a match ends with one winner' },
+  click: { label: 'clicks', hint: 'the battle plays, pauses, or changes speed' },
 }
 
-/** Sound on or off, the volume, and each cue: a change plays what it changed, once sound is on. */
+/**
+ * Sound on or off, the volume, the pack, and each cue: a change plays what it changed, once sound
+ * is on (a pack, its victory).
+ */
 function SoundPanel() {
   const sound = useSettings((state) => state.sound)
   const setSound = useSettings((state) => state.setSound)
   const setCue = useSettings((state) => state.setCue)
   return (
-    <Panel className="col-span-12 lg:col-span-6" title="sound" status={sound.on ? 'on' : 'off'}>
+    <Panel
+      className="col-span-12 lg:col-span-6"
+      title="sound"
+      status={sound.on ? `on · ${sound.pack}` : 'off'}
+    >
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
           <Toggle pressed={sound.on} onPressedChange={() => toggleSound()}>
@@ -233,6 +242,34 @@ function SoundPanel() {
             disabled={!sound.on}
           />
         </div>
+        <div
+          role="radiogroup"
+          aria-label="sound pack"
+          className="grid grid-cols-2 gap-2 sm:grid-cols-3"
+        >
+          {SOUND_PACKS.map((pack) => {
+            const chosen = pack === sound.pack
+            return (
+              // biome-ignore lint/a11y/useSemanticElements: a tile with its hint, as the theme swatches.
+              <button
+                key={pack}
+                type="button"
+                role="radio"
+                aria-checked={chosen}
+                aria-label={pack}
+                onClick={() => chooseSoundPack(pack)}
+                className={`flex flex-col gap-1 rounded-md border p-2 text-left transition-colors duration-120 ease-out focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+                  chosen ? 'border-accent bg-accent-10' : 'border-border hover:border-border-strong'
+                }`}
+              >
+                <span className={`text-nav ${chosen ? 'text-accent-fg' : 'text-text'}`}>
+                  {pack}
+                </span>
+                <span className="text-data text-muted">{PACKS[pack].hint}</span>
+              </button>
+            )
+          })}
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-panel-status text-muted">cues</span>
           {SOUND_CUES.map((cue) => (
@@ -251,8 +288,8 @@ function SoundPanel() {
           ))}
         </div>
         <p className="text-muted">
-          the cues play in the arena and its replays. <Kbd>m</Kbd> in a battle turns sound on or
-          off.
+          the cues play in the arena and its replays; a pack plays its victory when you pick it.
+          <Kbd>m</Kbd> in a battle turns sound on or off.
         </p>
       </div>
     </Panel>

@@ -122,7 +122,7 @@ Lucide icons, 12 px in nav/chips, 16 px in toolbars, stroke 1.75. Semantic set: 
 
 ## 7. Sound (opt-in, default off, persisted)
 
-Tiny synthesized cues via WebAudio, no samples: tick per cycle at low speeds, soft click on write bursts, a low thud on process death, a short falling tone on bot death, a rising three-note on victory. Master volume in settings; `m` mutes.
+Tiny synthesized cues via WebAudio, no samples: tick per cycle at low speeds, a click on write bursts, a thud on process death, a short falling tone on bot death (at the bot's own pitch), a phrase on victory. Nine packs voice the same cues, each a theme: chip (square waves, the default), synthwave (detuned saws, echo), vector (arcade lasers), teletype (relays, the bell), modem (FSK, the handshake), sonar (pings, depth charges), geiger (crackle, klaxons), glitch (bitcrushed stutters), and classic (soft triangle blips). Master volume and the pack in settings; `m` mutes.
 
 ## 8. Accessibility
 

@@ -111,7 +111,7 @@ Every code block has `copy` and `open in editor`.
 
 ## 8. Settings `/settings`
 
-Theme (nine swatches, live preview), arena effects (bloom, scanlines, vignette, reduced motion), sound, account (GitHub link/unlink, handle), profile (what the public sees; the name shown or anonymous), api tokens, data (export my bots as a zip, delete account).
+Theme (nine swatches, live preview), arena effects (bloom, scanlines, vignette, reduced motion), sound (volume, one of nine packs, each cue), account (GitHub link/unlink, handle), profile (what the public sees; the name shown or anonymous), api tokens, data (export my bots as a zip, delete account).
 
 ## 9. Auth and onboarding
 

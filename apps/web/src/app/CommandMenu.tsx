@@ -9,6 +9,7 @@ import {
   Keyboard,
   LogIn,
   LogOut,
+  Music,
   Palette,
   Settings,
   UserRound,
@@ -19,8 +20,8 @@ import { useMe } from '../api/queries'
 import { docEntries } from '../docs'
 import { signIn, useSignOut } from '../features/account/AccountSlot'
 import { copyLink } from '../features/share/share'
-import { toggleSound } from '../features/sound/engine'
-import { MOTION_PREFERENCES, useSettings } from '../store/settings'
+import { chooseSoundPack, toggleSound } from '../features/sound/engine'
+import { MOTION_PREFERENCES, SOUND_PACKS, useSettings } from '../store/settings'
 import { useBoot } from './boot/boot'
 import { NAV } from './Frame'
 import { GitHubIcon } from './github-icon'
@@ -89,6 +90,15 @@ export function CommandMenu({ query, onClose }: CommandMenuProps) {
         keywords: 'audio mute',
         run: toggleSound,
       },
+      ...SOUND_PACKS.map((pack) => ({
+        id: `sound-pack:${pack}`,
+        group: 'settings',
+        label: `sound pack: ${pack}`,
+        icon: Music,
+        keywords: 'audio voice',
+        current: pack === sound.pack,
+        run: () => chooseSoundPack(pack),
+      })),
       ...(Object.keys(effects) as (keyof typeof effects)[]).map((effect) => ({
         id: `effect:${effect}`,
         group: 'settings',

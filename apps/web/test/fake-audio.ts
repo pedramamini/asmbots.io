@@ -110,6 +110,14 @@ export class FakeAudioContext {
     })
   }
 
+  createDelay(_max = 1) {
+    return Object.assign(new FakeNode(), { delayTime: new FakeParam(0) })
+  }
+
+  createWaveShaper() {
+    return Object.assign(new FakeNode(), { curve: null as Float32Array | null })
+  }
+
   createDynamicsCompressor() {
     return Object.assign(new FakeNode(), {
       threshold: new FakeParam(-24),
