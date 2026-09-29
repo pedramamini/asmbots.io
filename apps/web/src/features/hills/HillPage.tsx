@@ -101,6 +101,8 @@ export function HillPage({ slug, submission = null, live, createArenaClient }: H
       to: '/hills/$slug',
       params: { slug },
       search: id === null ? {} : { submission: id },
+      // The page stays where it is: the submit form and the result it follows sit mid-page.
+      resetScroll: false,
     })
   return (
     <PanelGrid className="p-3">

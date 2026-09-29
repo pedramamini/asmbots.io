@@ -160,3 +160,16 @@ test('the fight starts at the top of the page, wherever the setup was scrolled',
   expect(top).toBe(0)
   expect(errors).toEqual([])
 })
+
+test('the arena opens at its top, wherever the last page was scrolled', async ({ page }) => {
+  const errors = watch(page)
+  await page.goto('/')
+  await expect(page.getByRole('navigation', { name: 'site' })).toBeAttached()
+  const content = page.locator('#content')
+  await content.evaluate((main) => main.scrollTo({ top: main.scrollHeight }))
+  await expect.poll(() => content.evaluate((main) => main.scrollTop)).toBeGreaterThan(0)
+  await page.getByRole('navigation', { name: 'site' }).getByRole('link', { name: 'arena' }).click()
+  await expect(fightButton(page)).toBeAttached()
+  expect(await content.evaluate((main) => main.scrollTop)).toBe(0)
+  expect(errors).toEqual([])
+})

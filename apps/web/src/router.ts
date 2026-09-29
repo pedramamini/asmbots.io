@@ -1,6 +1,7 @@
 import { QueryClient } from '@tanstack/react-query'
 import { createRouter, defaultStringifySearch } from '@tanstack/react-router'
 import { shouldRetry } from './api/client'
+import { CONTENT_ID } from './app/Frame'
 import { NotFound } from './app/NotFound'
 import { routeTree } from './routeTree.gen'
 
@@ -21,6 +22,10 @@ export function createAppRouter(queryClient: QueryClient) {
     // The query cache holds loader data; the router need not hold it twice.
     defaultPreloadStaleTime: 0,
     scrollRestoration: true,
+    // The page scrolls in the frame's `<main>`, not the window. Without this the router carries the
+    // last page's offset over to the next one: from the foot of the home page, the arena opens at
+    // its footer. Back and forward still restore the offset each entry had.
+    scrollToTopSelectors: [`#${CONTENT_ID}`],
     // A child that finds nothing (an unknown docs page) says so inside its parent's chrome.
     defaultNotFoundComponent: NotFound,
   })

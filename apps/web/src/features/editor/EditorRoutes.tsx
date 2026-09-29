@@ -45,7 +45,13 @@ export function EditorIndexRoute(services: EditorServices) {
     }
   }, [search])
   const dropTemplate = useCallback(() => {
-    void navigate({ to: '/editor', search: ({ t: _t, ...rest }) => rest, hash, replace: true })
+    void navigate({
+      to: '/editor',
+      search: ({ t: _t, ...rest }) => rest,
+      hash,
+      replace: true,
+      resetScroll: false,
+    })
   }, [navigate, hash])
   return (
     <EditorPage
