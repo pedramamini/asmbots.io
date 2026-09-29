@@ -2,6 +2,7 @@
  * The home page's placeholder panels and the docs frame (EXEC 2.2 task 4), against the build.
  */
 import { expect, test } from '@playwright/test'
+import { startOnYourOwn } from './new-bot'
 
 test('home: the name, each part of the site, the art, the panels, the footer', async ({ page }) => {
   await page.goto('/')
@@ -24,6 +25,8 @@ test('home: the name, each part of the site, the art, the panels, the footer', a
   await expect(page.getByRole('marquee')).toContainText('NEXT CHAMPIONSHIP')
   await parts.getByRole('link', { name: 'editor', exact: true }).click()
   await expect(page).toHaveTitle('ASM BOTS // EDITOR')
+  // A new bot opens on its templates, a modal: put it away to reach the nav.
+  await startOnYourOwn(page)
   // Home again from the nav's first button.
   await page.getByRole('banner').getByRole('link', { name: 'home', exact: true }).click()
   await expect(page).toHaveURL(/\/$/)

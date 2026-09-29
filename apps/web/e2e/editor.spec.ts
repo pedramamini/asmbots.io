@@ -239,21 +239,22 @@ test('a first visit: the templates over the new bot, the coach mark over the hel
     .locator('span')
     .evaluateAll((spans) => spans.filter((span) => span.scrollWidth > span.clientWidth).length)
   expect(cut).toBe(0)
-  // A template starts the bot, and the panel goes.
-  await panel.getByRole('button', { name: 'dwarf' }).click()
-  await expect(sizeChip(page)).toHaveText('23 B · light')
+  // A press on the dimmed page beside the templates puts them away, and the source takes the focus.
+  await page.mouse.click(8, screen.height / 2)
   await expect(panel).toBeHidden()
+  await expect(page.locator('.cm-editor')).toHaveClass(/cm-focused/)
   // got it: the tip never shows again.
   await tip.getByRole('button', { name: 'got it' }).click()
   await expect(tip).toBeHidden()
+  // The text is still the blank bot, so no draft: a reload opens on the templates again.
   await page.reload()
   await expect(page).toHaveTitle('ASM BOTS // EDITOR')
   await expect(page.getByRole('region', { name: 'help' })).toBeAttached()
   await expect(tip).toBeHidden()
-  // A press on the dimmed page beside the templates puts them away, and the source takes the focus.
   await expect(panel).toBeVisible()
-  await page.mouse.click(8, screen.height / 2)
+  // A template starts the bot, and the panel goes.
+  await panel.getByRole('button', { name: 'dwarf' }).click()
+  await expect(sizeChip(page)).toHaveText('23 B · light')
   await expect(panel).toBeHidden()
-  await expect(page.locator('.cm-editor')).toHaveClass(/cm-focused/)
   expect(errors).toEqual([])
 })

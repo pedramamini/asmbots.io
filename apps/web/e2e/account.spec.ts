@@ -105,7 +105,8 @@ test('saves a bot in the account: v1, the same bytes again, v2, and the bot page
   await expect(page.getByText(/^saved .+: v2 in your account\.$/)).toBeVisible()
 
   const cloud = page.getByRole('region', { name: 'mine (cloud)' })
-  await expect(cloud.getByRole('button')).toHaveText([/ · v2$/])
+  // A new cloud bot is public: the library says so after its version.
+  await expect(cloud.getByRole('button')).toHaveText([/ · v2 · public$/])
 
   await page.goto(`/u/${login}`)
   await page.getByRole('list', { name: 'bots' }).getByRole('link').first().click()
