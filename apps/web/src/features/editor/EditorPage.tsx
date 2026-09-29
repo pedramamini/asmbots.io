@@ -30,6 +30,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { ApiRequestError } from '../../api/client'
 import { useEditorLayouts } from '../../api/layouts'
 import { botVersionQuery, useMe, useMyBots } from '../../api/queries'
+import { useBoot } from '../../app/boot/boot'
 import { EDITOR_KEYS } from '../../app/editor-keymaps'
 import { FrameToolbar } from '../../app/Frame'
 import { type KeyCommand, useKeys } from '../../app/keys'
@@ -498,9 +499,15 @@ function Workbench({
   )
 
   // The new bot's empty state: the templates, until the text is its own or the panel is closed.
+  // Like the coach marks, it stays shut while the welcome tour walks the page.
   const [emptyClosed, setEmptyClosed] = useState(false)
+  const touring = useBoot((state) => state.phase === 'tour')
   const emptyShown =
-    doc.target.kind === 'scratch' && template === null && !emptyClosed && isBlankBot(source)
+    doc.target.kind === 'scratch' &&
+    template === null &&
+    !emptyClosed &&
+    !touring &&
+    isBlankBot(source)
   const closeEmpty = useCallback(() => setEmptyClosed(true), [])
   // The modal gives the focus back to what had it before it opened, as it closes: the editor
   // takes it after that, so the bot is the next thing to write.
