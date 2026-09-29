@@ -93,7 +93,15 @@ test('the keyboard map draws every group of keys', async ({ page }) => {
   const errors = watch(page)
   await page.goto('/docs/tools/keys')
   const article = page.getByRole('region', { name: 'keyboard map' })
-  for (const group of ['global', 'go', 'arena', 'editor', 'source', 'debugger']) {
+  for (const group of [
+    'everywhere',
+    'go to a page',
+    'arena · in a battle',
+    'arena · the core focused',
+    'editor',
+    'editor · in the source',
+    'editor · debugger open',
+  ]) {
     await expect(article.locator('caption', { hasText: new RegExp(`^${group}$`) })).toHaveCount(1)
   }
   await expect(article.getByRole('row', { name: /isolate bot n/ })).toHaveCount(1)
