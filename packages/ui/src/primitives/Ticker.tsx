@@ -25,7 +25,10 @@ export interface TickerLink extends Omit<AnchorHTMLAttributes<HTMLAnchorElement>
 export interface TickerProps extends Omit<ComponentProps<'div'>, 'children'> {
   /** The line, item by item, with a `·` between two items. `<b>` sets a lead item in bold. */
   items: readonly ReactNode[]
-  /** The `→` after the line. It stays in view while the line scrolls. */
+  /**
+   * The `→` after the line. It stays in view while the line scrolls, and the whole bar is its hit
+   * area: a click anywhere but on a link in the line follows it.
+   */
   link?: TickerLink | undefined
 }
 
@@ -75,7 +78,15 @@ export function Ticker({ items, link, className, style, ...rest }: TickerProps) 
           : style
       }
     >
-      <div ref={viewport} className={cx('min-w-0 overflow-hidden', marquee && 'flex-1')}>
+      {/* Over the `→`'s overlay, but clicks pass through the line to it, except on its links. */}
+      <div
+        ref={viewport}
+        className={cx(
+          'min-w-0 overflow-hidden',
+          marquee && 'flex-1',
+          link && 'pointer-events-none relative z-1 [&_a]:pointer-events-auto',
+        )}
+      >
         {/* Marquee: two copies of the line, each with its gap, so -50% is one seamless pass. */}
         <div
           className={cx(
@@ -101,6 +112,7 @@ export function Ticker({ items, link, className, style, ...rest }: TickerProps) 
   )
 }
 
+/** The `→`. Its `::after` covers the bar, so the bar is one big link to where it goes. */
 function Arrow({ href, label, className, ...rest }: TickerLink) {
   return (
     <a
@@ -108,7 +120,7 @@ function Arrow({ href, label, className, ...rest }: TickerLink) {
       aria-label={label}
       {...rest}
       className={cx(
-        'shrink-0 text-text transition-colors duration-120 ease-out hover:text-accent-fg focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-accent',
+        'shrink-0 text-text transition-colors duration-120 ease-out after:absolute after:inset-0 hover:text-accent-fg focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-accent',
         className,
       )}
     >

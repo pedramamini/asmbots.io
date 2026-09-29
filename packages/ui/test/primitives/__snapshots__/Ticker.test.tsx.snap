@@ -8,7 +8,7 @@ exports[`Ticker draws the line with a · between items and the → link after it
     role="marquee"
   >
     <div
-      class="min-w-0 overflow-hidden"
+      class="min-w-0 overflow-hidden pointer-events-none relative z-1 [&_a]:pointer-events-auto"
     >
       <div
         class="flex"
@@ -52,7 +52,7 @@ exports[`Ticker draws the line with a · between items and the → link after it
     </div>
     <a
       aria-label="open the main hill"
-      class="shrink-0 text-text transition-colors duration-120 ease-out hover:text-accent-fg focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      class="shrink-0 text-text transition-colors duration-120 ease-out after:absolute after:inset-0 hover:text-accent-fg focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-accent"
       href="/hills/main"
     >
       →
@@ -70,7 +70,7 @@ exports[`Ticker scrolls a line wider than the bar as a marquee, at 50 px/s with 
     style="--marquee-duration: 18.96s;"
   >
     <div
-      class="min-w-0 overflow-hidden flex-1"
+      class="min-w-0 overflow-hidden flex-1 pointer-events-none relative z-1 [&_a]:pointer-events-auto"
     >
       <div
         class="flex w-max animate-marquee group-focus-within/ticker:[animation-play-state:paused] group-hover/ticker:[animation-play-state:paused]"
@@ -151,7 +151,7 @@ exports[`Ticker scrolls a line wider than the bar as a marquee, at 50 px/s with 
     </div>
     <a
       aria-label="open the main hill"
-      class="shrink-0 text-text transition-colors duration-120 ease-out hover:text-accent-fg focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      class="shrink-0 text-text transition-colors duration-120 ease-out after:absolute after:inset-0 hover:text-accent-fg focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-accent"
       href="/hills/main"
     >
       →

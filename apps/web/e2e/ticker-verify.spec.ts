@@ -28,6 +28,24 @@ test('the ticker reads the live feed: the next championship, counting down', asy
   expect(errors).toEqual([])
 })
 
+test('the whole ticker opens the → link, and its championship items open theirs', async ({
+  page,
+}) => {
+  const errors = watch(page)
+  await page.goto('/docs')
+  const ticker = page.getByRole('marquee')
+  await expect(ticker).toContainText('▍LIVE')
+  const arrow = ticker.getByRole('link', { name: /^(open the .* hill|watch .*)$/ })
+  const target = await arrow.getAttribute('href')
+  // Plain text in the line, not a link: the `→`'s overlay is under the pointer there, and takes it.
+  await ticker.getByText('▍LIVE').click({ force: true })
+  await expect(page).toHaveURL(`${WORKER}${target}`)
+  await page.goto('/docs')
+  await ticker.getByRole('link', { name: /^NEXT CHAMPIONSHIP/ }).click()
+  await expect(page).toHaveURL(`${WORKER}/tournaments/championships`)
+  expect(errors).toEqual([])
+})
+
 test("verify runs a main hill match here and checks it against the server's result", async ({
   page,
 }) => {
