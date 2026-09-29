@@ -15,7 +15,7 @@ import { ExternalLink, Pause, Play, RotateCcw } from 'lucide-react'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from 'zustand'
 import { isNotFound } from '../../api/client'
-import { useReplay } from '../../api/queries'
+import { usePublicBots, useReplay } from '../../api/queries'
 import { type Author, ByAuthor, sourceAuthor } from '../../app/author'
 import { useMotionReduced } from '../../store/settings'
 import { ArenaCanvas } from '../arena/ArenaCanvas'
@@ -27,6 +27,8 @@ import {
   type ArenaFight,
   type Assemble,
   arenaFight,
+  type BotSources,
+  cloudMap,
   fightSeed,
   resolveSelection,
   sizesOf,
@@ -54,8 +56,8 @@ type EmbedRead =
   | { readonly pending: true }
 
 /**
- * The battle of an arena link's query and fragment: its bots (the roster's, and the ones the
- * fragment carries; this browser's own bots are not read), its config, and its seed, or a random
+ * The battle of an arena link's query and fragment: its bots (the roster's, the players' public
+ * ones in `cloud`, and the ones the fragment carries; this browser's own bots are not read), its config, and its seed, or a random
  * seed that places them when it names none. `assemble` (null while it loads) is for the
  * fragment's bots: the roster comes prebuilt.
  */
@@ -63,12 +65,14 @@ export function embedFight(
   search: ArenaSearch,
   fragment: string,
   assemble: Assemble | null,
+  cloud: BotSources['cloud'] = new Map(),
 ): EmbedRead {
   const spec = setupFromSearch(search)
   const selection = resolveSelection(spec.bots, {
     local: new Map(),
     shared: sharedBots(fragment),
     assemble,
+    cloud,
   })
   if (selection.length < MIN_ARENA_BOTS) return { problem: 'this embed names no battle.' }
   if (selection.some((s) => s.state === 'loading')) return { pending: true }
@@ -89,8 +93,17 @@ export function EmbedSetup({ createClient }: EmbedProps) {
   const raw = useSearch({ strict: false })
   const hash = useLocation({ select: (location) => location.hash })
   const search = useMemo(() => validateArenaSearch(raw), [raw])
-  const assemble = useAssemble(setupFromSearch(search).bots.some((ref) => ref.kind === 'local'))
-  const read = useMemo(() => embedFight(search, hash, assemble), [search, hash, assemble])
+  const refs = setupFromSearch(search).bots
+  const assemble = useAssemble(refs.some((ref) => ref.kind === 'local'))
+  const publicBots = usePublicBots(refs.some((ref) => ref.kind === 'cloud'))
+  const cloud = useMemo(
+    () => cloudMap(publicBots.data, publicBots.isError),
+    [publicBots.data, publicBots.isError],
+  )
+  const read = useMemo(
+    () => embedFight(search, hash, assemble, cloud),
+    [search, hash, assemble, cloud],
+  )
   if ('pending' in read) {
     return (
       <EmbedNote>

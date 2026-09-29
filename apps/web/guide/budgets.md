@@ -21,7 +21,7 @@ about 5% over its page, so what grows one is a choice, made here and in `BUDGETS
 | --- | ---: | ---: | --- |
 | shell, every page | 166.2 KB | 175 KB | the entry and `vendor`; 185.2 KB before this pass |
 | `/` | 184.0 KB | 185 KB | the overview's cards and `how it works` copy; the art and the footer load after paint |
-| `/arena` | 242.4 KB | 250 KB | engine + renderer + shell; 263.2 KB before |
+| `/arena` | 209.4 KB | 250 KB | the setup, the engine, and the shell; the battle view loads as the page mounts (250.8 KB with it, as the players' bots came); 263.2 KB before the first pass |
 | `/arena/$replayId` | 234.1 KB | 250 KB | |
 | `/editor` | 418.8 KB | 440 KB | CodeMirror 127 KB of it |
 | `/editor/$botId` | 418.8 KB | 440 KB | |
@@ -36,10 +36,10 @@ about 5% over its page, so what grows one is a choice, made here and in `BUDGETS
 | `/stats` | 181.3 KB | 190 KB | the charts are HTML boxes, no chart library |
 | `/stats/leaderboard` | 177.0 KB | 185 KB | the badge catalog and its 8 × 8 glyphs |
 | `/settings` | 183.5 KB | 195 KB | |
-| `/embed/arena` | 214.2 KB | 225 KB | |
+| `/embed/arena` | 221.0 KB | 225 KB | |
 | / art, after paint | 12.2 KB | 14 KB | `src/art`: the dither plates, the 24 dither bots, the schematic, the scope trace, the hex band (DESIGN_SYSTEM §10) |
 | site footer, after paint | 7.9 KB | 10 KB | every page that scrolls; the dither scenes and the 24 bots it shares with the art |
-| 404 live imp, after the shell | 34.0 KB | 36 KB | the 404 page's imp: the arena's renderer and client |
+| 404 live imp, after the shell | 35.7 KB | 37 KB | the 404 page's imp: the arena's renderer and client; 36 until the arena's battle view went lazy and split two small shared modules into chunks of their own (+0.6 KB of chunk overhead) |
 | arena Worker, at the first fight | 14.2 KB | 20 KB | |
 | assembler Worker, with the editor | 15.8 KB | 20 KB | |
 | fonts | 104.3 KB | 120 KB | 5 woff2 subsets, as shipped |
@@ -74,6 +74,10 @@ What took `/arena` under 250 KB:
    painter and the video recorder (`battle/screenshot.ts`, `battle/record.ts`, loaded on use and as
    the battle mounts), and the end panels (`battle/Victory.tsx`, as the battle mounts). −6 KB on
    `/arena`, −13 KB on `/editor`, −4 KB on the 404 imp.
+5. The battle view lazy (`ArenaPage.tsx`, 2026-09-28): the setup draws without the renderer, the
+   HUD, and the battle's panels, and the page asks for their chunk as it mounts, so it has come by
+   the first fight. It came with the players' public bots in the roster, which put `/arena` at
+   250.8 KB. −41 KB on `/arena`.
 
 ## Runtime
 

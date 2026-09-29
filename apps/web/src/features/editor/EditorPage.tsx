@@ -196,6 +196,9 @@ export function openDoc(
         name: draft?.name ?? '',
       }
     }
+    // A player's public bot opens on its bot page, where `fork` brings it here.
+    case 'cloud':
+      return 'missing'
   }
 }
 

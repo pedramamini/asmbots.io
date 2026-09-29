@@ -5,7 +5,7 @@
  *
  * - each page's cold JS: what a browser fetches before the page draws, the entry's static imports
  *   and the page's route chunk's, from the build's manifest (`dist/.vite/manifest.json`),
- *   gzipped at level 9 (the CDN's brotli is smaller). `/arena`, engine + renderer + shell: 250 KB;
+ *   gzipped at level 9 (the CDN's brotli is smaller). `/arena`, engine + setup + shell: 250 KB;
  * - what a page loads after its first paint (the home page's art, the footer), and the Workers (the arena's loads at
  *   the first fight);
  * - that CodeMirror and the editor load with the editor's pages only, and the docs' pages with the
@@ -107,7 +107,7 @@ export const BUDGETS: Budgets = {
       label: '404 live imp, after the shell',
       page: '404',
       src: 'src/features/arena/demo/LiveImp.tsx',
-      kb: 36,
+      kb: 37,
     },
   ],
   workers: [

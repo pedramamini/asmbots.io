@@ -9,10 +9,11 @@ import type { Assembled } from '@asmbots/asm'
 import type { EditorView } from '@codemirror/view'
 import { EditorView as View } from '@codemirror/view'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { usePublicBots } from '../../../api/queries'
 import type { LocalBot } from '../../../store/local-bots'
 import type { ArenaConfig } from '../../../store/settings'
 import { assembleCached } from '../../arena/setup/assembly'
-import { resolveSelection, type SetupBot } from '../../arena/setup/bots'
+import { cloudMap, resolveSelection, type SetupBot } from '../../arena/setup/bots'
 import { battleConfig, DEFAULT_ARENA_CONFIG } from '../../arena/setup/config'
 import { type BotRef, formatRef } from '../../arena/setup/url'
 import type { Speed } from '../../arena/worker/protocol'
@@ -135,9 +136,20 @@ export function useDebugger({
     () => (local === undefined ? null : new Map(local.map((bot) => [bot.id, bot]))),
     [local],
   )
+  const publicBots = usePublicBots(opponentRefs.some((ref) => ref.kind === 'cloud'))
+  const cloud = useMemo(
+    () => cloudMap(publicBots.data, publicBots.isError),
+    [publicBots.data, publicBots.isError],
+  )
   const opponents = useMemo(
-    () => resolveSelection(opponentRefs, { local: localMap, shared, assemble: assembleCached }),
-    [opponentRefs, localMap, shared],
+    () =>
+      resolveSelection(opponentRefs, {
+        local: localMap,
+        shared,
+        assemble: assembleCached,
+        cloud,
+      }),
+    [opponentRefs, localMap, shared, cloud],
   )
   const setupKey = setupKeyOf(opponentRefs, seed, config)
 

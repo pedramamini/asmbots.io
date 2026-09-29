@@ -1,7 +1,7 @@
 /**
- * The bots the arena setup offers and fights (PRODUCT_SPEC §2): the roster, the local bots, the
- * bots a share link carries, and dropped `.asm` files. The roster comes prebuilt
- * (`rosterImage`); the others are assembled on the main thread by `assembleCached`, whose chunk
+ * The bots the arena setup offers and fights (PRODUCT_SPEC §2): the roster, the players' public
+ * bots, the local bots, the bots a share link carries, and dropped `.asm` files. The roster comes
+ * prebuilt (`rosterImage`), and the public bots with their bytes (`GET /api/bots`); the others are assembled on the main thread by `assembleCached`, whose chunk
  * (`assembly.ts`, with the assembler) a setup of roster bots never loads. The selection is a list
  * of refs; `resolveSelection` turns it into bots, and `arenaBots` into what the Worker loads.
  */
@@ -14,7 +14,13 @@ import {
   rosterImage,
 } from '@asmbots/bots'
 import { type BattleConfigInput, CORE_SIZE, Pcg32, PlacementError, place } from '@asmbots/engine'
-import { weightClassOf } from '@asmbots/protocol'
+import {
+  fromBase64,
+  HOUSE_HANDLE,
+  type PublicBot,
+  type PublicBotList,
+  weightClassOf,
+} from '@asmbots/protocol'
 import { roundOrder, roundSeed } from '@asmbots/tourney'
 import { type BotRecord, rankScore } from '../../../store/bot-records'
 import type { LocalBot } from '../../../store/local-bots'
@@ -23,8 +29,8 @@ import type { ArenaBot } from '../worker/protocol'
 import { battleConfig, MIN_ARENA_BOTS, randomSeed, SPACING } from './config'
 import { type ArenaSetupSpec, type BotRef, formatRef, type SharedBot } from './url'
 
-/** Where a bot comes from: the roster, this browser's store, or a share link. */
-export type BotOrigin = 'roster' | 'local' | 'shared'
+/** Where a bot comes from: the roster, a player's public bots, this browser's store, or a link. */
+export type BotOrigin = 'roster' | 'cloud' | 'local' | 'shared'
 
 /**
  * What the setup reads of a bot's assembly: its image, its metadata, and its errors. A local or
@@ -46,11 +52,16 @@ export interface CatalogBot {
   /** The `%name`, or the stored name of a local bot whose source does not assemble. */
   readonly name: string
   readonly author: string
-  /** Its source; null for a roster bot, whose text `rosterSource` reads when a replay needs it. */
+  /**
+   * Its source; null for a roster bot, whose text `rosterSource` reads when a replay needs it,
+   * and for a public bot, whose text the server has (`replaySources`).
+   */
   readonly source: string | null
   readonly assembled: AssembledBot
   /** A roster bot's entry: its tier, family, and blurb. */
   readonly roster?: RosterEntry | undefined
+  /** A public bot's listing: its owner, its version, and its best hill place. */
+  readonly cloud?: PublicBot | undefined
 }
 
 /** The errors of a bot's assembly: a bot with any makes no bytes (ISA §6.5). */
@@ -90,6 +101,39 @@ export function rosterCatalog(): readonly CatalogBot[] {
 
 const TIER_ORDER = ['showcase', 'solid', 'test'] as const
 
+/** A player's public bot: prebuilt, as the server lists it with its bytes. */
+export function cloudCatalog(bot: PublicBot): CatalogBot {
+  const { botId, name, owner, author } = bot.bot
+  return {
+    ref: { kind: 'cloud', id: botId },
+    origin: 'cloud',
+    name,
+    author: author ?? owner,
+    source: null,
+    assembled: {
+      name,
+      author: author ?? '',
+      strategy: bot.strategy ?? '',
+      version: '',
+      bytes: fromBase64(bot.bytes),
+      diagnostics: [],
+    },
+    cloud: bot,
+  }
+}
+
+/**
+ * The public bots by id, as `BotSources` takes them: null while the list loads, and none when it
+ * cannot be read, so their refs are missing rather than loading for good.
+ */
+export function cloudMap(
+  list: PublicBotList | undefined,
+  failed: boolean,
+): ReadonlyMap<string, CatalogBot> | null {
+  if (failed) return new Map()
+  return list === undefined ? null : new Map(list.bots.map((b) => [b.bot.botId, cloudCatalog(b)]))
+}
+
 /** A local bot, assembled. */
 export function localCatalog(bot: LocalBot, assemble: Assemble): CatalogBot {
   return sourceBot({ kind: 'local', id: bot.id }, 'local', bot.source, bot.name, assemble)
@@ -118,12 +162,25 @@ function sourceBot(
   }
 }
 
-/** Whether `bot` matches a search: every word is in its name, author, or roster entry. */
+/**
+ * Whether `bot` matches a search: every word is in its name, author, roster entry, or a public
+ * bot's owner, strategy, or hill.
+ */
 export function matchesQuery(bot: CatalogBot, query: string): boolean {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean)
   if (words.length === 0) return true
   const entry = bot.roster
-  const text = [bot.name, bot.author, entry?.slug, entry?.family, entry?.tier, entry?.blurb]
+  const text = [
+    bot.name,
+    bot.author,
+    entry?.slug,
+    entry?.family,
+    entry?.tier,
+    entry?.blurb,
+    bot.cloud?.bot.owner,
+    bot.cloud?.strategy,
+    bot.cloud?.best?.hill.name,
+  ]
     .join(' ')
     .toLowerCase()
   return words.every((word) => text.includes(word))
@@ -165,6 +222,69 @@ export function byRank(
 ): CatalogBot[] {
   const score = (bot: CatalogBot) => rankScore(records[formatRef(bot.ref)])
   return [...bots].sort((a, b) => score(b) - score(a))
+}
+
+/** How the picker orders its bots. */
+export type BotSort = 'rank' | 'hill' | 'new' | 'name' | 'size'
+
+export const BOT_SORTS = [
+  { value: 'rank', label: 'rank' },
+  { value: 'hill', label: 'hill' },
+  { value: 'new', label: 'new' },
+  { value: 'name', label: 'a-z' },
+  { value: 'size', label: 'size' },
+] as const satisfies readonly { value: BotSort; label: string }[]
+
+/** A public bot's best hill place before another's: the better rank, then the higher rating. */
+function byHill(a: CatalogBot, b: CatalogBot): number {
+  const x = a.cloud?.best ?? null
+  const y = b.cloud?.best ?? null
+  if (x === null || y === null) return x === y ? 0 : x === null ? 1 : -1
+  return x.rank - y.rank || y.rating - x.rating
+}
+
+/**
+ * `bots` in `sort`'s order, a stable sort. `rank`: by this browser's records (`rankScore`), then by
+ * hill place; `hill`: the bots with a hill place first; `new`: the latest changed public bot
+ * first, the others after; `name`: a to z; `size`: the smallest image first.
+ */
+export function sortBots(
+  bots: readonly CatalogBot[],
+  sort: BotSort,
+  records: Readonly<Record<string, BotRecord>>,
+): CatalogBot[] {
+  const score = (bot: CatalogBot) => rankScore(records[formatRef(bot.ref)])
+  const changed = (bot: CatalogBot) => bot.cloud?.updatedAt ?? ''
+  const compare: Record<BotSort, (a: CatalogBot, b: CatalogBot) => number> = {
+    rank: (a, b) => score(b) - score(a) || byHill(a, b),
+    hill: byHill,
+    new: (a, b) => changed(b).localeCompare(changed(a)),
+    name: (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
+    size: (a, b) => a.assembled.bytes.length - b.assembled.bytes.length,
+  }
+  return [...bots].sort(compare[sort])
+}
+
+/** Whose a bot is, for the picker's player filter: the house, a public bot's owner, or no one. */
+export function ownerOf(bot: CatalogBot): string | null {
+  return bot.origin === 'roster' ? HOUSE_HANDLE : (bot.cloud?.bot.owner ?? null)
+}
+
+/** The owners of `bots` and how many each has, the most first, the house first among equals. */
+export function ownersOf(bots: readonly CatalogBot[]): { owner: string; count: number }[] {
+  const counts = new Map<string, number>()
+  for (const bot of bots) {
+    const owner = ownerOf(bot)
+    if (owner !== null) counts.set(owner, (counts.get(owner) ?? 0) + 1)
+  }
+  return [...counts]
+    .map(([owner, count]) => ({ owner, count }))
+    .sort(
+      (a, b) =>
+        b.count - a.count ||
+        Number(b.owner === HOUSE_HANDLE) - Number(a.owner === HOUSE_HANDLE) ||
+        a.owner.localeCompare(b.owner),
+    )
 }
 
 /**
@@ -218,6 +338,11 @@ export interface BotSources {
   readonly local: ReadonlyMap<string, LocalBot> | null
   /** The sources a share link carries, by id. */
   readonly shared: ReadonlyMap<string, string>
+  /**
+   * The players' public bots by id: null while they load; none where the page does not list them,
+   * so a `cloud:` ref is missing there.
+   */
+  readonly cloud?: ReadonlyMap<string, CatalogBot> | null | undefined
   /** Assembles a local or shared bot; null while the assembler loads. The roster needs none. */
   readonly assemble: Assemble | null
 }
@@ -249,13 +374,17 @@ export function resolveSelection(refs: readonly BotRef[], sources: BotSources): 
   })
 }
 
-/** A ref's bot; `loading` for a local or shared one while the assembler loads. */
+/**
+ * A ref's bot; `loading` for a local or shared one while the assembler loads, and for a public one
+ * while the list loads.
+ */
 function lookUp(
   ref: BotRef,
   sources: BotSources,
   rosterBots: ReadonlyMap<string, CatalogBot>,
 ): CatalogBot | 'loading' | undefined {
   if (ref.kind === 'roster') return rosterBots.get(formatRef(ref))
+  if (ref.kind === 'cloud') return sources.cloud === null ? 'loading' : sources.cloud?.get(ref.id)
   const local = sources.local?.get(ref.id)
   const shared = sources.shared.get(ref.id)
   if (local === undefined && shared === undefined) return undefined
@@ -409,10 +538,12 @@ export interface ArenaFight {
   /** The setup it came from. */
   readonly spec: ArenaSetupSpec
   /**
-   * Each bot's source, in order: what a replay file carries. Null for a roster bot:
-   * `replaySources` reads the roster's text.
+   * Each bot's source, in order: what a replay file carries. Null for a roster bot and a public
+   * one: `replaySources` reads the roster's text, and the server's.
    */
   readonly sources: readonly (string | null)[]
+  /** Each public bot's version as it fought, by bot id: the source `replaySources` asks for. */
+  readonly versions: ReadonlyMap<string, number>
   /** The local bots among them, once each: what a share link carries. */
   readonly shared: readonly SharedBot[]
 }
@@ -438,6 +569,11 @@ export function arenaFight(
     rounds: spec.config.rounds,
     spec,
     sources: selection.map((s) => (s.bot === null ? '' : s.bot.source)),
+    versions: new Map(
+      selection.flatMap(({ bot }) =>
+        bot?.cloud === undefined ? [] : [[bot.cloud.bot.botId, bot.cloud.bot.version] as const],
+      ),
+    ),
     shared: sharedSources(selection),
   }
 }
@@ -445,18 +581,29 @@ export function arenaFight(
 /**
  * Each bot's source for a replay file, in order. A roster bot's is read from the roster's
  * sources, a chunk of their own (`roster-source.ts`) that loads here, not with the arena, and the
- * sources of the bots past lightweight, another (`loadLargeSources`).
+ * sources of the bots past lightweight, another (`loadLargeSources`). A public bot's is the
+ * server's, of the version that fought; empty when the server does not give it.
  */
 export async function replaySources(fight: ArenaFight): Promise<string[]> {
-  const { sources } = fight
+  const { sources, spec, versions } = fight
   if (sources.every((source): source is string => source !== null)) return [...sources]
-  const { loadLargeSources, rosterSource } = await import('./roster-source')
-  await loadLargeSources()
-  return sources.map((source, i) => {
-    if (source !== null) return source
-    const ref = fight.spec.bots[i]
-    return ref?.kind === 'roster' ? rosterSource(ref.slug) : ''
-  })
+  const roster = spec.bots.some((ref) => ref.kind === 'roster')
+    ? await import('./roster-source').then(async (m) => {
+        await m.loadLargeSources()
+        return m.rosterSource
+      })
+    : null
+  return Promise.all(
+    sources.map(async (source, i) => {
+      if (source !== null) return source
+      const ref = spec.bots[i]
+      if (ref?.kind === 'roster') return roster?.(ref.slug) ?? ''
+      const version = ref?.kind === 'cloud' ? versions.get(ref.id) : undefined
+      if (ref === undefined || version === undefined) return ''
+      const { cloudSource } = await import('./cloud-source')
+      return cloudSource(ref.id, version)
+    }),
+  )
 }
 
 /** Whether a drag carries files: what a drop zone takes. */

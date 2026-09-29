@@ -5,7 +5,7 @@
  *     /arena?b=roster:dwarf,local:3f2a…&seed=42&cycles=100000&rounds=3&procs=64&spacing=1024
  *
  * A roster bot is `roster:<slug>`; a bot of this browser is `local:<id>`, its id in the local bot
- * store. No `seed` means a random seed each battle; `w=middleweight` holds the arena to one weight
+ * store; a player's public bot is `cloud:<id>`, its id on the server, at its latest version. No `seed` means a random seed each battle; `w=middleweight` holds the arena to one weight
  * class, and no `w` takes any size; any other field left out takes its `duel` value. A share link
  * also carries the sources of its local bots in the fragment, `#src=` and the base64url of their
  * deflated JSON, so they load in a browser that does not have them (PRODUCT_SPEC §10). `@asmbots/protocol`'s `ShareLink` is the encoding.
@@ -15,27 +15,28 @@ import type { ArenaConfig } from '../../../store/settings'
 import { DEFAULT_ARENA_CONFIG, MAX_ARENA_BOTS, sanitizeConfig } from './config'
 import type { ArenaSearch } from './search'
 
-/** A bot of the setup: a roster bot by slug, or a local bot by id. */
+/** A bot of the setup: a roster bot by slug, a local bot by id, or a player's public bot by id. */
 export type BotRef =
   | { readonly kind: 'roster'; readonly slug: string }
   | { readonly kind: 'local'; readonly id: string }
+  | { readonly kind: 'cloud'; readonly id: string }
 
 /** A slug or an id as the URL may carry it. */
 const TOKEN = /^[A-Za-z0-9_-]{1,64}$/
 
-/** `roster:dwarf` or `local:<id>` as a ref; null for anything else. */
+/** `roster:dwarf`, `local:<id>`, or `cloud:<id>` as a ref; null for anything else. */
 export function parseRef(text: string): BotRef | null {
   const colon = text.indexOf(':')
   const kind = text.slice(0, colon)
   const key = text.slice(colon + 1)
   if (colon < 0 || !TOKEN.test(key)) return null
   if (kind === 'roster') return { kind, slug: key }
-  if (kind === 'local') return { kind, id: key }
+  if (kind === 'local' || kind === 'cloud') return { kind, id: key }
   return null
 }
 
 export function formatRef(ref: BotRef): string {
-  return ref.kind === 'roster' ? `roster:${ref.slug}` : `local:${ref.id}`
+  return ref.kind === 'roster' ? `roster:${ref.slug}` : `${ref.kind}:${ref.id}`
 }
 
 /** The refs of a `b` list, in order: the first `MAX_ARENA_BOTS` that parse. */

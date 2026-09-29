@@ -7,7 +7,13 @@ import { describe, expect, it } from 'bun:test'
 import { assemble } from '@asmbots/asm'
 import { HILL_RULES, loadRoster, ROSTER } from '@asmbots/bots'
 import { DEFAULT_CONFIG, simulate } from '@asmbots/engine'
-import { fromBase64Url, SOURCES_KEY, toBase64Url } from '@asmbots/protocol'
+import {
+  fromBase64Url,
+  type PublicBot,
+  SOURCES_KEY,
+  toBase64,
+  toBase64Url,
+} from '@asmbots/protocol'
 import { MAX_MELEE_ENTRANTS } from '@asmbots/tourney'
 import { defaultParseSearch } from '@tanstack/react-router'
 import { deflateSync, strToU8 } from 'fflate'
@@ -18,12 +24,16 @@ import {
   arenaFight,
   bestFill,
   byRank,
+  cloudCatalog,
+  cloudMap,
   fightSeed,
   fightStatus,
   fits,
   matchesQuery,
   maxSpacing,
   outsideWeight,
+  ownerOf,
+  ownersOf,
   randomFill,
   ranksOf,
   replaySources,
@@ -32,6 +42,7 @@ import {
   type SetupBot,
   sharedCatalog,
   sharedSources,
+  sortBots,
 } from '../src/features/arena/setup/bots'
 import {
   battleConfig,
@@ -211,10 +222,11 @@ describe('search', () => {
 })
 
 describe('refs', () => {
-  it('reads roster and local refs and writes them back', () => {
+  it('reads roster, local, and cloud refs and writes them back', () => {
     expect(parseRef('roster:dwarf')).toEqual(roster('dwarf'))
     expect(parseRef('local:3f2a-9c')).toEqual(local('3f2a-9c'))
-    for (const text of ['roster:dwarf', 'local:3f2a-9c']) {
+    expect(parseRef('cloud:5b1e-77')).toEqual({ kind: 'cloud', id: '5b1e-77' })
+    for (const text of ['roster:dwarf', 'local:3f2a-9c', 'cloud:5b1e-77']) {
       expect(formatRef(parseRef(text) as BotRef)).toBe(text)
     }
   })
@@ -229,6 +241,132 @@ describe('refs', () => {
     expect(parseRefs(' roster:imp ,nope,local:a')).toEqual([roster('imp'), local('a')])
     const many = Array.from({ length: 20 }, (_, i) => `local:b${i}`).join(',')
     expect(parseRefs(many)).toHaveLength(MAX_ARENA_BOTS)
+  })
+})
+
+/** A player's public bot of `slug`'s roster image, as `GET /api/bots` lists it. */
+function publicBot(
+  id: string,
+  owner: string,
+  slug: string,
+  extra: { updatedAt?: string; best?: PublicBot['best'] } = {},
+): PublicBot {
+  const image = rosterCatalog().find((b) => formatRef(b.ref) === `roster:${slug}`)
+  return {
+    bot: { botId: id, versionId: `${id}-v2`, slug: id, name: id, version: 2, owner, author: null },
+    strategy: `${slug}, again`,
+    bytes: toBase64(image?.assembled.bytes ?? new Uint8Array([0])),
+    updatedAt: extra.updatedAt ?? '2026-09-20T00:00:00.000Z',
+    best: extra.best ?? null,
+  }
+}
+
+const best = (rank: number, rating: number): PublicBot['best'] => ({
+  hill: { slug: 'main', name: 'main' },
+  rank,
+  rating,
+  wins: 3,
+  ties: 0,
+  losses: 1,
+})
+
+describe('public bots', () => {
+  const alpha = publicBot('alpha', 'alice', 'dwarf', { best: best(2, 1600) })
+  const beta = publicBot('beta', 'alice', 'imp', { updatedAt: '2026-09-25T00:00:00.000Z' })
+  const gamma = publicBot('gamma', 'bob', 'paper', { best: best(1, 1550) })
+  const bots = [alpha, beta, gamma].map(cloudCatalog)
+
+  it('lists a public bot prebuilt: its bytes, its owner, and a cloud ref', () => {
+    const [bot] = bots
+    expect(bot?.ref).toEqual({ kind: 'cloud', id: 'alpha' })
+    expect([bot?.origin, bot?.name, bot?.author, bot?.source]).toEqual([
+      'cloud',
+      'alpha',
+      'alice',
+      null,
+    ])
+    expect(bot?.assembled.bytes).toEqual(
+      rosterCatalog().find((b) => formatRef(b.ref) === 'roster:dwarf')?.assembled.bytes,
+    )
+    expect(matchesQuery(bot as (typeof bots)[number], 'alice dwarf')).toBe(true)
+  })
+
+  it('counts the owners, the most first, the house first among equals', () => {
+    const house = rosterCatalog().slice(0, 2)
+    expect(ownersOf([...bots, ...house])).toEqual([
+      { owner: 'system', count: 2 },
+      { owner: 'alice', count: 2 },
+      { owner: 'bob', count: 1 },
+    ])
+    expect(house.map(ownerOf)).toEqual(['system', 'system'])
+  })
+
+  it('sorts by hill place, by the newest, by name, by size, and by rank', () => {
+    const names = (sort: Parameters<typeof sortBots>[1], records = {}) =>
+      sortBots(bots, sort, records).map((b) => b.name)
+    expect(names('hill')).toEqual(['gamma', 'alpha', 'beta'])
+    expect(names('new')).toEqual(['beta', 'alpha', 'gamma'])
+    expect(names('name')).toEqual(['alpha', 'beta', 'gamma'])
+    expect(names('size')[0]).toBe('beta')
+    // With no records, rank falls back on the hill.
+    expect(names('rank')).toEqual(['gamma', 'alpha', 'beta'])
+    const won = { rating: 1700, rd: 50, wins: 5, losses: 0, draws: 0, updatedAt: 0 }
+    expect(names('rank', { 'cloud:beta': won })[0]).toBe('beta')
+  })
+
+  it('resolves a cloud ref once the list has loaded, and misses one it does not list', () => {
+    const refs: BotRef[] = [
+      { kind: 'cloud', id: 'alpha' },
+      { kind: 'cloud', id: 'gone' },
+    ]
+    const loading = resolveSelection(refs, { ...NO_SOURCES, cloud: null })
+    expect(loading.map((s) => s.state)).toEqual(['loading', 'loading'])
+    const cloud = cloudMap({ bots: [alpha] }, false)
+    const loaded = resolveSelection(refs, { ...NO_SOURCES, cloud })
+    expect(loaded.map((s) => s.state)).toEqual(['ready', 'missing'])
+    expect(resolveSelection(refs, NO_SOURCES).map((s) => s.state)).toEqual(['missing', 'missing'])
+    expect(
+      resolveSelection(refs, { ...NO_SOURCES, cloud: cloudMap(undefined, true) })[0]?.state,
+    ).toBe('missing')
+  })
+
+  it("fights a public bot at its listed version, and reads that version's source for a replay", async () => {
+    const selection = resolveSelection([{ kind: 'cloud', id: 'alpha' }, roster('imp')], {
+      ...NO_SOURCES,
+      cloud: cloudMap({ bots: [alpha] }, false),
+    })
+    const fight = arenaFight(selection, spec(selection.map((s) => s.ref)), 1)
+    expect(fight.sources).toEqual([null, null])
+    expect([...fight.versions]).toEqual([['alpha', 2]])
+    const asked: string[] = []
+    const fetch = globalThis.fetch
+    globalThis.fetch = (async (input: string | URL | Request) => {
+      asked.push(String(input))
+      return Response.json({
+        version: {
+          id: 'alpha-v2',
+          botId: 'alpha',
+          version: 2,
+          source: 'the source',
+          bytesSha256: 'ab'.repeat(32),
+          size: 1,
+          author: null,
+          strategy: null,
+          isa: 'x16c v1',
+          createdAt: '2026-09-20T00:00:00.000Z',
+        },
+      })
+    }) as typeof globalThis.fetch
+    try {
+      const sources = await replaySources(fight)
+      expect(sources[0]).toBe('the source')
+      expect(sources[1]).toBe(IMP)
+      expect(asked.map((url) => new URL(url, 'http://x').pathname)).toEqual([
+        '/api/bots/alpha/versions/2',
+      ])
+    } finally {
+      globalThis.fetch = fetch
+    }
   })
 })
 

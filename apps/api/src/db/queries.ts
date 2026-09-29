@@ -23,6 +23,7 @@ import {
   type HillStanding,
   type HillSubmission,
   type HillSummary,
+  HOUSE_HANDLE,
   type LiveRoomRef,
   type Match,
   type MatchOutcome,
@@ -504,6 +505,60 @@ export async function listPublicBotPages(
     .bind(limit)
     .all<{ id: string; updated_at: string }>()
   return results.map((row) => ({ id: row.id, updatedAt: row.updated_at }))
+}
+
+/** A public bot's latest version as `listPublicBots` reads it. */
+export interface PublicBotRow extends BotLabelRow {
+  strategy: string | null
+  bytes_sha256: string
+  updated_at: string
+}
+
+/** A public bot's best place on a hill, as `listPublicBests` reads it. */
+export interface PublicBestRow {
+  bot_id: string
+  rank: number
+  rating: number
+  wins: number
+  ties: number
+  losses: number
+  hill_slug: string
+  hill_name: string
+}
+
+/**
+ * The public bots of every player but the house (whose are the roster), each at its latest
+ * version, the latest changed first: at most `limit`.
+ */
+export async function listPublicBots(db: D1Database, limit: number): Promise<PublicBotRow[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT ${LABEL_COLUMNS}, v.strategy, v.bytes_sha256, b.updated_at
+       FROM bot_versions v ${LABEL_JOINS}
+       WHERE b.visibility = 'public' AND b.deleted_at IS NULL AND u.handle <> ?
+         AND ${IS_LATEST_VERSION}
+       ORDER BY b.updated_at DESC LIMIT ?`,
+    )
+    .bind(HOUSE_HANDLE, limit)
+    .all<PublicBotRow>()
+  return results
+}
+
+/** Each public bot's best place on a hill, any version's: the best rank, then the best rating. */
+export async function listPublicBests(db: D1Database): Promise<Map<string, PublicBestRow>> {
+  const { results } = await db
+    .prepare(
+      `SELECT v.bot_id, e.rank, e.rating, e.wins, e.ties, e.losses,
+         h.slug AS hill_slug, h.name AS hill_name
+       FROM hill_entries e JOIN bot_versions v ON v.id = e.bot_version_id
+       JOIN bots b ON b.id = v.bot_id JOIN hills h ON h.id = e.hill_id
+       WHERE b.visibility = 'public' AND b.deleted_at IS NULL
+       ORDER BY e.rank, e.rating DESC`,
+    )
+    .all<PublicBestRow>()
+  const best = new Map<string, PublicBestRow>()
+  for (const row of results) if (!best.has(row.bot_id)) best.set(row.bot_id, row)
+  return best
 }
 
 /** How many bots `ownerId` has, not counting deleted ones: what `MAX_BOTS_PER_USER` holds. */

@@ -10,9 +10,11 @@ import {
   MAX_BOTS_PER_USER,
   MAX_VERSIONS_PER_BOT,
   MyBotList,
+  PublicBotList,
   parse,
   SavedBot,
   SavedBotVersion,
+  toBase64,
   UpdatedBot,
   UserDetail,
 } from '@asmbots/protocol'
@@ -45,9 +47,9 @@ async function myBots(jar: Jar) {
 }
 
 describe('POST /api/bots', () => {
-  it('makes a private bot at version 1, its bytes in R2, listed in my bots', async () => {
+  it('makes a public bot at version 1, its bytes in R2, listed in my bots', async () => {
     const { jar, saved } = await withBot('maker')
-    expect(saved.bot).toMatchObject({ name: 'Spin', slug: 'spin', visibility: 'private' })
+    expect(saved.bot).toMatchObject({ name: 'Spin', slug: 'spin', visibility: 'public' })
     expect(saved.version).toMatchObject({ version: 1, source: SPIN, author: 'Tester' })
     const bytes = await env.REPLAYS.get(botBytesKey(saved.version.bytesSha256))
     expect(bytes?.size).toBe(saved.version.size)
@@ -56,10 +58,10 @@ describe('POST /api/bots', () => {
     expect(mine[0]?.latest?.source).toBeUndefined()
     const again = await send(jar, '/api/bots', {
       method: 'POST',
-      body: { name: 'Spin', source: HALT, visibility: 'public' },
+      body: { name: 'Spin', source: HALT, visibility: 'private' },
     })
     const second = parse(SavedBot, await again.json(), 'the bot')
-    expect([second.bot.slug, second.bot.visibility]).toEqual(['spin-2', 'public'])
+    expect([second.bot.slug, second.bot.visibility]).toEqual(['spin-2', 'private'])
   })
 
   it('is 422 for a source that does not assemble, saying why', async () => {
@@ -137,7 +139,7 @@ describe('POST /api/bots/:id/versions', () => {
 
   it("is 403 for someone else's bot they can see, 404 for one they cannot", async () => {
     const { saved: open } = await withBot('owner-a', SPIN, 'public')
-    const { saved: closed } = await withBot('owner-b')
+    const { saved: closed } = await withBot('owner-b', SPIN, 'private')
     const jar = new Jar()
     await signIn(jar, 'intruder')
     const body = { source: HALT }
@@ -150,7 +152,7 @@ describe('POST /api/bots/:id/versions', () => {
 
 describe('visibility', () => {
   it('holds on GET: private to its owner, unlisted by link without source, public with it', async () => {
-    const { jar, saved } = await withBot('shower')
+    const { jar, saved } = await withBot('shower', SPIN, 'private')
     const id = saved.bot.id
     const stranger = new Jar()
     await signIn(stranger, 'stranger')
@@ -202,6 +204,27 @@ describe('visibility', () => {
       body: { name: 'Mine' },
     })
     expect((await errorOf(theirs)).status).toBe(403)
+  })
+})
+
+describe('GET /api/bots', () => {
+  it('lists the public bots with their bytes, not a private one, cached a minute', async () => {
+    const { saved: open } = await withBot('lister')
+    await withBot('lister-b', HALT, 'private')
+    const res = await send(new Jar(), '/api/bots')
+    expect(res.headers.get('Cache-Control')).toBe('public, max-age=60')
+    const { bots: all } = parse(PublicBotList, await res.json(), 'the public bots')
+    const bots = all.filter((b) => b.bot.owner.startsWith('lister'))
+    const bytes = await env.REPLAYS.get(botBytesKey(open.version.bytesSha256))
+    expect(bots).toEqual([
+      {
+        bot: expect.objectContaining({ botId: open.bot.id, owner: 'lister', version: 1 }),
+        strategy: 'Jump to itself',
+        bytes: toBase64(new Uint8Array((await bytes?.arrayBuffer()) ?? [])),
+        updatedAt: open.bot.updatedAt,
+        best: null,
+      },
+    ])
   })
 })
 

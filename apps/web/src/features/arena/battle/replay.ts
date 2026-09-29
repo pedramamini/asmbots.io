@@ -346,6 +346,7 @@ export function replayFight(replay: Replay, bots: readonly ArenaBot[]): ArenaFig
       },
     },
     sources: replay.bots.map((bot) => bot.source ?? ''),
+    versions: new Map(),
     shared: [],
   }
 }

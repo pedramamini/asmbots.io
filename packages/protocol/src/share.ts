@@ -19,8 +19,11 @@ import { matching, ProtocolError, whole } from './schema'
 /** A slug or an id as a link may carry it. */
 const TOKEN = /^[A-Za-z0-9_-]{1,64}$/
 
-/** A bot a link names: `roster:<slug>`, a roster bot; `local:<id>`, a bot of the browser. */
-export const BotRef = matching(/^(?:roster|local):[A-Za-z0-9_-]{1,64}$/)
+/**
+ * A bot a link names: `roster:<slug>`, a roster bot; `local:<id>`, a bot of the browser;
+ * `cloud:<id>`, a player's public bot on the server.
+ */
+export const BotRef = matching(/^(?:roster|local|cloud):[A-Za-z0-9_-]{1,64}$/)
 
 /** A local bot's source, as a link carries it. */
 export const SharedSource = z.object({ id: matching(TOKEN), source: z.string() })

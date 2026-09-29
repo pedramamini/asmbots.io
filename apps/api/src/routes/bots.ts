@@ -7,13 +7,17 @@ import {
   type ImportBotsResult,
   type ImportedBot,
   MAX_BOTS_PER_USER,
+  MAX_PUBLIC_BOTS,
   MAX_VERSIONS_PER_BOT,
   NewBot,
   NewBotVersion,
+  PUBLIC_BOTS_TTL_SECONDS,
+  type PublicBotList,
   parse,
   type SavedBot,
   type SavedBotVersion,
   sha256Hex,
+  toBase64,
   UpdateBot,
   type UpdatedBot,
 } from '@asmbots/protocol'
@@ -34,10 +38,14 @@ import {
   listBotPlacements,
   listBotSlugs,
   listBotVersions,
+  listPublicBests,
+  listPublicBots,
   toBot,
+  toBotLabel,
   toBotVersion,
 } from '../db/queries'
-import type { AppEnv } from '../env'
+import type { AppEnv, Env } from '../env'
+import { kvCached } from '../kv-cache'
 import { errorResponse } from '../middleware'
 import { botCard } from '../og/bot'
 import { type CardFormat, cardHost, LIVE_CARD_AGE, sendCard } from '../og/send'
@@ -159,12 +167,12 @@ function botInsert(
   slugs.add(slug)
   return c.env.DB.prepare(
     'INSERT INTO bots (id, owner_id, slug, name, visibility) VALUES (?, ?, ?, ?, ?) RETURNING *',
-  ).bind(botId, userId(c), slug, bot.name, bot.visibility ?? 'private')
+  ).bind(botId, userId(c), slug, bot.name, bot.visibility ?? 'public')
 }
 
 /**
  * `POST /api/bots` `{ name, source, visibility? }`: a new bot of the signed-in user at version 1,
- * private unless it says otherwise. 422 when the source does not assemble; 409 when the account
+ * public unless it says otherwise, so the arena lists it. 422 when the source does not assemble; 409 when the account
  * holds `MAX_BOTS_PER_USER`.
  */
 async function createBot(c: Context<AppEnv>): Promise<Response> {
@@ -324,11 +332,53 @@ const card = (format: CardFormat) => async (c: Context<AppEnv>) => {
   return sendCard(c, botCard(await botDetail(c, bot), cardHost(c.env)), format, LIVE_CARD_AGE)
 }
 
+/** Where KV keeps the public bots. */
+export const PUBLIC_BOTS_KEY = 'bots:public'
+
+/**
+ * The public bots as of `now` (ms), each with its latest version's machine code from R2: from KV
+ * while younger than `PUBLIC_BOTS_TTL_SECONDS`. A bot whose bytes R2 does not have is left out.
+ */
+export function publicBotsOf(env: Env, now: number): Promise<PublicBotList> {
+  return kvCached(env.KV, PUBLIC_BOTS_KEY, PUBLIC_BOTS_TTL_SECONDS, now, async () => {
+    const [rows, bests] = await Promise.all([
+      listPublicBots(env.DB, MAX_PUBLIC_BOTS),
+      listPublicBests(env.DB),
+    ])
+    const listed = await Promise.all(
+      rows.map(async (row): Promise<PublicBotList['bots'][number] | null> => {
+        const object = await env.REPLAYS.get(botBytesKey(row.bytes_sha256))
+        if (object === null) return null
+        const best = bests.get(row.bot_id)
+        return {
+          bot: toBotLabel(row),
+          strategy: row.strategy,
+          bytes: toBase64(new Uint8Array(await object.arrayBuffer())),
+          updatedAt: row.updated_at,
+          best:
+            best === undefined
+              ? null
+              : {
+                  hill: { slug: best.hill_slug, name: best.hill_name },
+                  rank: best.rank,
+                  rating: best.rating,
+                  wins: best.wins,
+                  ties: best.ties,
+                  losses: best.losses,
+                },
+        }
+      }),
+    )
+    return { bots: listed.filter((bot) => bot !== null) }
+  })
+}
+
 /** The most a request that carries one source may be: `MAX_SOURCE_TEXT` UTF-16 units as UTF-8. */
 const ONE_SOURCE_BODY = 256 * 1024
 
 /**
- * The write routes above, and the reads. `GET /api/bots/:id`: the bot, its owner, its versions (no
+ * The write routes above, and the reads. `GET /api/bots`: the public bots, the arena's roster of
+ * players' bots (`publicBotsOf`); a browser keeps it a minute. `GET /api/bots/:id`: the bot, its owner, its versions (no
  * sources), and its hill places. `GET /api/bots/:id/versions/:v`: one version, with its source
  * when the bot is public or the reader owns it. An unlisted bot shows to anyone with its link, but
  * not its source. A private or deleted bot is a 404, to its owner too once it is deleted.
@@ -341,6 +391,10 @@ export const bots = new Hono<AppEnv>()
   .patch('/:id', requireUser, limitBody(1024), updateBot)
   .post('/:id/versions', requireUser, limitBody(ONE_SOURCE_BODY), addVersion)
   .delete('/:id', requireUser, deleteBot)
+  .get('/', async (c) => {
+    c.header('Cache-Control', `public, max-age=${PUBLIC_BOTS_TTL_SECONDS}`)
+    return c.json(await publicBotsOf(c.env, Date.now()))
+  })
   .get('/:id', async (c) => c.json(await botDetail(c, await visibleBot(c, c.req.param('id')))))
   .get('/:id/og.svg', card('svg'))
   .get('/:id/og.png', card('png'))

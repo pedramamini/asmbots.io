@@ -157,6 +157,41 @@ export type BotDetail = z.output<typeof BotDetail>
 export const BotVersionDetail = z.object({ version: BotVersion })
 export type BotVersionDetail = z.output<typeof BotVersionDetail>
 
+/** The most bots `GET /api/bots` lists: the latest changed. */
+export const MAX_PUBLIC_BOTS = 500
+
+/** How long the API keeps the public bots before it reads them again, s. */
+export const PUBLIC_BOTS_TTL_SECONDS = 60
+
+/**
+ * A public bot as the arena lists it: its latest version's label, `%strategy`, and machine code
+ * (base64), and its best place on a hill (the best rank, any version's), if it has one.
+ */
+export const PublicBot = z.object({
+  bot: BotLabel,
+  strategy: z.nullable(z.string()),
+  bytes: z.string().check(z.minLength(1), z.regex(BASE64)),
+  updatedAt: Timestamp,
+  best: z.nullable(
+    z.object({
+      hill: z.object({ slug: Slug, name: z.string() }),
+      rank: whole('rank', 1, Number.MAX_SAFE_INTEGER),
+      rating: z.number(),
+      wins: whole('wins', 0, Number.MAX_SAFE_INTEGER),
+      ties: whole('ties', 0, Number.MAX_SAFE_INTEGER),
+      losses: whole('losses', 0, Number.MAX_SAFE_INTEGER),
+    }),
+  ),
+})
+export type PublicBot = z.output<typeof PublicBot>
+
+/**
+ * `GET /api/bots`: the public bots of every player (not the house's, which are the roster), the
+ * latest changed first, at most `MAX_PUBLIC_BOTS`.
+ */
+export const PublicBotList = z.object({ bots: z.array(PublicBot) })
+export type PublicBotList = z.output<typeof PublicBotList>
+
 /** A user's best place on a hill: their highest-ranked bot version there. */
 export const HillBest = z.object({
   hill: z.object({ slug: Slug, name: z.string() }),
@@ -495,8 +530,8 @@ export const MAX_IMPORT = 50
 export const MAX_VERSIONS_PER_BOT = 100
 
 /**
- * `POST /api/bots`, and each bot of an import: a bot to make from its source, private unless it
- * says otherwise.
+ * `POST /api/bots`, and each bot of an import: a bot to make from its source, public (in the
+ * arena's roster for everyone) unless it says otherwise.
  */
 export const NewBot = z.object({
   name: matching(NAME),

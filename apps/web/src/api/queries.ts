@@ -14,6 +14,8 @@ import {
   MatchVerification,
   Me,
   MyBotList,
+  PUBLIC_BOTS_TTL_SECONDS,
+  PublicBotList,
   parse,
   parseReplay,
   SubmissionDetail,
@@ -142,6 +144,15 @@ export const botVersionQuery = (id: string, version: number) =>
     staleTime: Number.POSITIVE_INFINITY,
   })
 
+/** The players' public bots (`GET /api/bots`), which the arena's roster lists: kept a minute. */
+export const publicBotsQuery = () =>
+  queryOptions({
+    queryKey: ['bots', 'public'],
+    queryFn: ({ signal }) =>
+      apiGet('/bots', (v) => parse(PublicBotList, v, 'the public bots'), signal),
+    staleTime: PUBLIC_BOTS_TTL_SECONDS * 1000,
+  })
+
 /**
  * A published match's inputs and its row (`GET /api/matches/:id/verify`), to run it again here.
  * Neither ever changes.
@@ -260,6 +271,8 @@ export const useHillHistory = (slug: string, limit?: number) =>
 export const useSubmission = (slug: string, id: string | null, poll = true) =>
   useQuery({ ...submissionQuery(slug, id ?? '', poll), enabled: id !== null })
 export const useBot = (id: string) => useQuery(botQuery(id))
+/** The players' public bots; asks nothing while `enabled` is false. */
+export const usePublicBots = (enabled = true) => useQuery({ ...publicBotsQuery(), enabled })
 /** One version of a bot; waits while `version` is null. */
 export const useBotVersion = (id: string, version: number | null) =>
   useQuery({ ...botVersionQuery(id, version ?? 0), enabled: version !== null })

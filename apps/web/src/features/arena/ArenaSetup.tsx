@@ -26,7 +26,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { useMe } from '../../api/queries'
+import { useMe, usePublicBots } from '../../api/queries'
 import { type Author, AuthorLink, ByAuthor, ownerAuthor, sourceAuthor } from '../../app/author'
 import { ARENA_ABOUT, ArenaKinds } from '../../app/intros/arena'
 import { ROUTE_SEARCH } from '../../app/keys'
@@ -48,10 +48,12 @@ import { loadAssembly, useAssemble } from './setup/assembler'
 import {
   type ArenaFight,
   arenaFight,
+  BOT_SORTS,
+  type BotSort,
   bestFill,
-  byRank,
   type CatalogBot,
   carriesFiles,
+  cloudMap,
   errorsOf,
   fightSeed,
   fightStatus,
@@ -59,6 +61,8 @@ import {
   matchesQuery,
   maxSpacing,
   outsideWeight,
+  ownerOf,
+  ownersOf,
   randomFill,
   ranksOf,
   resolveSelection,
@@ -66,6 +70,7 @@ import {
   type SetupBot,
   sharedSources,
   sizesOf,
+  sortBots,
 } from './setup/bots'
 import { ConfigForm } from './setup/ConfigForm'
 import {
@@ -103,6 +108,9 @@ const SOURCES = [
   { value: 'mine', label: 'my bots' },
   { value: 'paste', label: 'paste' },
 ] as const satisfies readonly { value: Source; label: string }[]
+
+/** The most players the roster's player filter names: the ones with the most bots. */
+const PLAYER_PILLS = 6
 
 /** The pair a first visit can fight at once: a bomber and a replicator. */
 const STARTERS: readonly BotRef[] = [
@@ -143,6 +151,9 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
   const [source, setSource] = useState<Source>('roster')
   const [query, setQuery] = useState('')
   const [weight, setWeight] = useState<WeightFilter>('all')
+  /** The roster's player filter: a handle, the house's for the roster's own bots, or `all`. */
+  const [owner, setOwner] = useState('all')
+  const [sort, setSort] = useState<BotSort>('rank')
   const [problems, setProblems] = useState<Problems | null>(null)
   const [dragDepth, setDragDepth] = useState(0)
   const picker = useRef<HTMLInputElement>(null)
@@ -158,9 +169,17 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
   // The roster comes prebuilt: the assembler loads for my bots, the paste box, and a local or
   // shared bot picked.
   const assemble = useAssemble(source !== 'roster' || spec.bots.some((ref) => ref.kind === 'local'))
+  // The players' public bots come prebuilt too: listed in the roster, and a `cloud:` ref's bot.
+  const publicBots = usePublicBots(
+    source === 'roster' || spec.bots.some((ref) => ref.kind === 'cloud'),
+  )
+  const cloud = useMemo(
+    () => cloudMap(publicBots.data, publicBots.isError),
+    [publicBots.data, publicBots.isError],
+  )
   const selection = useMemo(
-    () => resolveSelection(spec.bots, { local, shared, assemble }),
-    [spec.bots, local, shared, assemble],
+    () => resolveSelection(spec.bots, { local, shared, assemble, cloud }),
+    [spec.bots, local, shared, assemble, cloud],
   )
   // The spacing slider ends where the bots stop surely fitting; a spacing past it comes down.
   const spacingCap = maxSpacing(sizesOf(selection))
@@ -179,11 +198,35 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
   // The arena's class, when it has one, holds the picker's weight filter to it.
   const locked = spec.config.weight !== 'all'
   const filter: WeightFilter = locked ? spec.config.weight : weight
-  // The bots the picker lists, best ranked first, which the fills draw from: the search's, in the
-  // weight class. A bot's rank is its place among the source's bots with a record.
-  const catalog = source === 'roster' ? rosterCatalog() : source === 'mine' ? (mine ?? []) : []
+  // The bots the picker lists, in the sort's order: the search's, of the player, in the weight
+  // class. The fills draw from them, `best fill` best ranked first. A bot's rank is its place among
+  // the source's bots with a record. The roster is the house's bots and the players' public ones.
+  const catalog =
+    source === 'roster'
+      ? [...rosterCatalog(), ...(cloud?.values() ?? [])]
+      : source === 'mine'
+        ? (mine ?? [])
+        : []
   const ranks = ranksOf(catalog, records)
-  const searched = byRank(catalog, records).filter((bot) => matchesQuery(bot, query))
+  // The players with the most bots, as pills, when there is more than one: the others are a search
+  // away (it reads owners too).
+  const owners = source === 'roster' ? ownersOf(catalog).slice(0, PLAYER_PILLS) : []
+  const player = owners.some((o) => o.owner === owner) ? owner : 'all'
+  const count = (n: number) => <span className="text-muted">{n}</span>
+  const playerFilters = [
+    { value: 'all', label: <>all {count(catalog.length)}</> },
+    ...owners.map((o) => ({
+      value: o.owner,
+      label: (
+        <>
+          {ownerAuthor(o.owner).name} {count(o.count)}
+        </>
+      ),
+    })),
+  ]
+  const searched = sortBots(catalog, sort, records).filter(
+    (bot) => matchesQuery(bot, query) && (player === 'all' || ownerOf(bot) === player),
+  )
   const listed = searched.filter((bot) => inWeight(bot.assembled.bytes.length, filter))
   // Each filter pill counts the search's bots in its class, and the other pills lock with a class.
   const weightFilters = WEIGHT_FILTERS.map(({ value, label }) => ({
@@ -204,15 +247,23 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
   const tourStep =
     tour === undefined ? null : selection.length >= MIN_ARENA_BOTS ? 'fight' : 'roster'
   const clearSearch = {
-    label: locked || weight === 'all' ? 'clear the search' : 'clear the filters',
+    label:
+      (locked || weight === 'all') && player === 'all' ? 'clear the search' : 'clear the filters',
     onClick: () => {
       setQuery('')
       setWeight('all')
+      setOwner('all')
     },
   }
   // What an empty list names: `heavy roster bot matches "x"`, for the class and the search in force.
   const kind = filter === 'all' ? '' : `${WEIGHT_SHORT[filter]} `
-  const matching = query === '' ? '' : ` matches "${query}"`
+  const matching = `${player === 'all' ? '' : ` of ${ownerAuthor(player).name}`}${
+    query === '' ? '' : ` matches "${query}"`
+  }`
+  // The roster's count, and how the players' bots are doing while they are not in it yet.
+  const rosterStatus = `${catalog.length} bots${
+    publicBots.isError ? ' · players offline' : cloud === null ? ' · loading players' : ''
+  }`
   // Bots of more than one class fight as open weight: said, so a 4 KB bot against a 15 B imp is no
   // surprise. An arena held to a class says what it refuses instead.
   const mixed =
@@ -257,7 +308,9 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
   /** Fills the selection to its cap from the bots listed: random picks, or the best ranked. */
   const fill = (best: boolean) => {
     const room = MAX_ARENA_BOTS - latest.current.bots.length
-    const refs = (best ? bestFill : randomFill)(listed, latest.current.bots, room)
+    const refs = best
+      ? bestFill(sortBots(listed, 'rank', records), latest.current.bots, room)
+      : randomFill(listed, latest.current.bots, room)
     add(refs)
     toast(
       `added ${refs.length} ${best ? 'best' : 'random'} ${refs.length === 1 ? 'bot' : 'bots'}.`,
@@ -408,7 +461,7 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
           className="col-span-12 lg:col-span-8"
           data-tour="arena-roster"
           title={SOURCES.find((s) => s.value === source)?.label}
-          status={source === 'roster' ? `${rosterCatalog().length} bots` : undefined}
+          status={source === 'roster' ? rosterStatus : undefined}
           actions={
             <>
               {source !== 'paste' && (
@@ -465,6 +518,34 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
                   options={weightFilters}
                   value={filter}
                   onValueChange={setWeight}
+                  className="flex-wrap"
+                />
+              </div>
+            )}
+            {source !== 'paste' && (
+              <div className="flex flex-wrap items-center gap-2">
+                {owners.length > 1 && (
+                  <>
+                    <span aria-hidden className="text-panel-status text-muted">
+                      player
+                    </span>
+                    <Segmented<string>
+                      label="player"
+                      options={playerFilters}
+                      value={player}
+                      onValueChange={setOwner}
+                      className="flex-wrap"
+                    />
+                  </>
+                )}
+                <span aria-hidden className="text-panel-status text-muted">
+                  sort
+                </span>
+                <Segmented<BotSort>
+                  label="sort bots"
+                  options={BOT_SORTS}
+                  value={sort}
+                  onValueChange={setSort}
                   className="flex-wrap"
                 />
               </div>
@@ -695,12 +776,21 @@ function BotGrid({
 }
 
 /**
- * Who wrote a bot the setup lists: the house, for a roster bot; else its `%author`, linked when it
- * is the reader's, and read as theirs when a local bot has none.
+ * Who wrote a bot the setup lists: the house, for a roster bot; its owner, for a public bot; else
+ * its `%author`, linked when it is the reader's, and read as theirs when a local bot has none.
  */
 function catalogAuthor(bot: CatalogBot, me: Me | null | undefined): Author {
   if (bot.origin === 'roster') return ownerAuthor(HOUSE_HANDLE)
+  if (bot.cloud !== undefined) return ownerAuthor(bot.cloud.bot.owner)
   return sourceAuthor(bot.author, me, bot.origin === 'local')
+}
+
+/** What a bot's origin chip says: a public bot is a player's. */
+const ORIGIN_LABEL: Record<CatalogBot['origin'], string> = {
+  roster: 'roster',
+  cloud: 'player',
+  local: 'local',
+  shared: 'shared',
 }
 
 /**
@@ -734,6 +824,7 @@ function BotCard({
   const broken = errorsOf(bot).length > 0
   const weight = broken ? null : weightClassOf(bytes.length)
   const blurb = bot.roster?.blurb ?? bot.assembled.strategy
+  const hill = bot.cloud?.best ?? null
   return (
     <li
       aria-label={bot.name}
@@ -745,6 +836,15 @@ function BotCard({
           <span className="truncate text-bright">{bot.name}</span>
           {count > 0 && <Chip variant="accent">×{count}</Chip>}
         </p>
+        {hill !== null && (
+          <p
+            className="truncate text-data text-muted"
+            title={`best place on a hill · rating · ${hill.wins}-${hill.ties}-${hill.losses} there`}
+          >
+            <span className="text-accent-fg">{hill.rank === 1 ? 'king' : `#${hill.rank}`}</span>
+            {` · ${hill.hill.name} · ${Math.round(hill.rating)}`}
+          </p>
+        )}
         {record !== undefined && rank !== undefined && (
           <p
             className="truncate text-data text-muted"
@@ -796,7 +896,7 @@ function BotCard({
           </span>
         )}
         <Chip variant={bot.roster?.tier === 'showcase' ? 'accent' : 'neutral'}>
-          {bot.roster?.tier ?? bot.origin}
+          {bot.roster?.tier ?? ORIGIN_LABEL[bot.origin]}
         </Chip>
       </div>
     </li>
@@ -935,7 +1035,9 @@ function SelectionState({
           title={
             ref.kind === 'local'
               ? 'not in this browser: ask for a share link with its source'
-              : 'not in the roster'
+              : ref.kind === 'cloud'
+                ? 'not public, or gone from the server'
+                : 'not in the roster'
           }
         >
           missing
@@ -952,6 +1054,6 @@ function SelectionState({
         </button>
       )
     case 'ready':
-      return <Chip>{bot?.origin ?? 'roster'}</Chip>
+      return <Chip>{bot === null ? 'roster' : ORIGIN_LABEL[bot.origin]}</Chip>
   }
 }

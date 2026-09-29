@@ -106,7 +106,7 @@ describe('PATCH /api/me', () => {
 })
 
 describe('POST /api/bots/import', () => {
-  it('makes each bot at version 1, private, with its bytes in R2', async () => {
+  it('makes each bot at version 1, public unless it says otherwise, with its bytes in R2', async () => {
     const jar = new Jar()
     await signIn(jar, 'importer')
     const res = await send(jar, '/api/bots/import', {
@@ -114,7 +114,7 @@ describe('POST /api/bots/import', () => {
       body: {
         bots: [
           { name: 'Spin', source: SPIN },
-          { name: 'Spin', source: SPIN, visibility: 'public' },
+          { name: 'Spin', source: SPIN, visibility: 'private' },
           { name: 'Halt!', source: HALT },
         ],
       },
@@ -123,9 +123,9 @@ describe('POST /api/bots/import', () => {
     const { results } = parse(ImportBotsResult, await res.json(), 'the import')
     const made = results.map((r) => (r.ok ? r : null))
     expect(made.map((r) => [r?.bot.slug, r?.bot.visibility, r?.version.version])).toEqual([
-      ['spin', 'private', 1],
-      ['spin-2', 'public', 1],
-      ['halt', 'private', 1],
+      ['spin', 'public', 1],
+      ['spin-2', 'private', 1],
+      ['halt', 'public', 1],
     ])
     const spin = made[0]
     expect(spin?.version).toMatchObject({ author: 'Tester', strategy: 'Jump to itself' })
@@ -138,7 +138,7 @@ describe('POST /api/bots/import', () => {
     expect(bots.map((b) => b.name).sort()).toEqual(['Halt!', 'Spin', 'Spin'])
     const theirs = await send(new Jar(), '/api/users/importer')
     const { bots: shown } = parse(UserDetail, await theirs.json(), 'the profile')
-    expect(shown.map((b) => b.slug)).toEqual(['spin-2'])
+    expect(shown.map((b) => b.slug).sort()).toEqual(['halt', 'spin'])
   })
 
   it('refuses a bot that does not assemble or is over the size cap, and makes the rest', async () => {
@@ -218,7 +218,7 @@ describe('GET /api/users/:handle championships', () => {
     await signIn(jar, 'champ')
     const imported = await send(jar, '/api/bots/import', {
       method: 'POST',
-      body: { bots: [{ name: 'Spin', source: SPIN }] },
+      body: { bots: [{ name: 'Spin', source: SPIN, visibility: 'private' }] },
     })
     const { results } = parse(ImportBotsResult, await imported.json(), 'the import')
     const mine = results[0]?.ok ? results[0].version.id : ''

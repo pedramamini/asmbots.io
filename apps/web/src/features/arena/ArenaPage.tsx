@@ -1,9 +1,8 @@
 import { useToast } from '@asmbots/ui'
 import { useLocation, useNavigate, useSearch } from '@tanstack/react-router'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocalBots } from '../../store/local-bots'
 import { useCoachMark, useSettings } from '../../store/settings'
-import { ArenaBattle } from './ArenaBattle'
 import { ArenaSetup } from './ArenaSetup'
 import { BattleLog } from './battle/log'
 import { useArenaView } from './battle/view'
@@ -22,6 +21,13 @@ import {
 import { ARENA_TOUR, WatchStep } from './tour'
 import { ArenaClient, INITIAL_ARENA_STATE } from './worker/client'
 import { DEFAULT_SPEED, isSpeed } from './worker/protocol'
+
+/**
+ * The battle view (the renderer, the HUD, the end panels): a chunk of its own, so the setup does
+ * not wait for it. The page asks for it as it mounts, so it has come by the first fight.
+ */
+const loadBattle = () => import('./ArenaBattle')
+const ArenaBattle = lazy(() => loadBattle().then((m) => ({ default: m.ArenaBattle })))
 
 /** How long the URL waits after the setup's last change, ms: a slider drag writes it once. */
 export const URL_DELAY = 250
@@ -120,6 +126,10 @@ export function ArenaPage({
     return () => clearTimeout(timer)
   })
 
+  useEffect(() => {
+    void loadBattle().catch(() => {})
+  }, [])
+
   // The Worker goes with the page, and the arena store back to nothing loaded.
   useEffect(
     () => () => {
@@ -193,16 +203,18 @@ export function ArenaPage({
     introRun === null ? undefined : { run: introRun, onPickBots: exit }
   if (fight !== null && session.current !== null) {
     return (
-      <ArenaBattle
-        client={session.current.client}
-        log={session.current.log}
-        fight={fight}
-        onExit={exit}
-        onRematch={() => startFight(fight)}
-        onNewSeed={() => newSeed(fight)}
-        intro={intro}
-        coach={tour.open && <WatchStep onDismiss={tour.dismiss} />}
-      />
+      <Suspense fallback={null}>
+        <ArenaBattle
+          client={session.current.client}
+          log={session.current.log}
+          fight={fight}
+          onExit={exit}
+          onRematch={() => startFight(fight)}
+          onNewSeed={() => newSeed(fight)}
+          intro={intro}
+          coach={tour.open && <WatchStep onDismiss={tour.dismiss} />}
+        />
+      </Suspense>
     )
   }
   return (
