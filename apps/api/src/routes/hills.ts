@@ -71,13 +71,58 @@ function busy(c: Context<AppEnv>, hill: Hill, active: string): Response {
   )
 }
 
+/** How long a new submission's `Runner` may take to hold its job before the job counts as lost, ms. */
+const START_GRACE_MS = 60_000
+
+/** Marks submission `id` failed, unless it has ended. */
+async function failSubmission(db: D1Database, id: string): Promise<void> {
+  await db
+    .prepare(
+      "UPDATE hill_submissions SET status = 'failed' WHERE id = ? AND status IN ('queued', 'running')",
+    )
+    .bind(id)
+    .run()
+}
+
+/** Whether submission `row`'s `Runner` holds no job. A runner that does not answer is no proof. */
+async function jobless(env: Env, hill: Hill, row: HillSubmissionRow): Promise<boolean> {
+  const job: HillJob = {
+    kind: 'hill',
+    hill: hill.slug,
+    submissionId: row.id,
+    botVersionId: row.bot_version_id,
+  }
+  try {
+    return (await runnerOf(env, job).status()) === null
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Whether active submission `id` is lost, and marks it failed when it is: older than
+ * `START_GRACE_MS`, and its `Runner` holds no job. A runner reset while it started the job (the
+ * RPC answers "internal error") leaves the row running in D1 with no job to end it, and the row
+ * would hold the user's place on the hill for good.
+ */
+async function reapLost(c: Context<AppEnv>, hill: Hill, id: string): Promise<boolean> {
+  const row = await getHillSubmission(c.env.DB, id)
+  if (row === null) return true
+  if (Date.now() - Date.parse(row.created_at) < START_GRACE_MS) return false
+  if (!(await jobless(c.env, hill, row))) return false
+  await failSubmission(c.env.DB, id)
+  log('warn', 'hill.lost', { requestId: c.get('requestId'), submission: id, status: row.status })
+  return true
+}
+
 /**
  * `POST /api/hills/:slug/submit` `{ botVersionId }`: the signed-in user challenges the hill with a
  * version of one of their bots. The bytes are the ones the server assembled when the version was
  * saved. Refused: a version that is not theirs (404 when they may not see it, else 403), a hill
  * that scores melees, a version over the hill's size or under its floor (422), a version on the
  * hill, bytes an entry has (it would take that entry's place and age), and a second submission
- * while one runs (409).
+ * while one runs (409). A running one whose runner lost its job (`reapLost`) is marked failed and
+ * does not count.
  * The submission row and its `hill.submit` audit row go in one batch; then its `Runner` starts, and
  * the answer is 201 `{ submissionId, liveRoom }`. A job the Runner refuses is marked failed: 409.
  */
@@ -134,7 +179,7 @@ async function submit(c: Context<AppEnv>): Promise<Response> {
     )
   }
   const active = await findActiveSubmission(db, userId, hill.id)
-  if (active !== null) return busy(c, hill, active)
+  if (active !== null && !(await reapLost(c, hill, active))) return busy(c, hill, active)
 
   const id = crypto.randomUUID()
   try {
@@ -165,14 +210,17 @@ async function submit(c: Context<AppEnv>): Promise<Response> {
     const row = await getHillSubmission(db, id)
     log('warn', 'hill.submit', { requestId: c.get('requestId'), submission: id, error: message })
     // The runner marks a job it refuses failed; a runner that did not answer leaves it queued,
-    // and a queued row would hold the user's place on the hill for good.
+    // and one reset after its setup leaves it running with no job. Either row would hold the
+    // user's place on the hill for good.
     if (row?.status === 'failed') {
       return errorResponse(c, 'conflict', `the ${hill.slug} hill could not take it: ${message}`)
     }
-    await db
-      .prepare("UPDATE hill_submissions SET status = 'failed' WHERE id = ? AND status = 'queued'")
-      .bind(id)
-      .run()
+    if (
+      row?.status === 'queued' ||
+      (row?.status === 'running' && (await jobless(c.env, hill, row)))
+    ) {
+      await failSubmission(db, id)
+    }
     throw error
   }
   const submitted: HillSubmitted = {

@@ -591,6 +591,35 @@ describe('POST /api/hills/:slug/submit', () => {
     const { version: next } = await botOf(jar, 'Dud', DUD)
     expect((await post(jar, 'broken', next.id)).status).toBe(201)
   })
+
+  it('marks failed a running submission whose runner lost its job, and the hill takes the next', async () => {
+    const jar = await user('orphaned')
+    const { version: lost } = await botOf(jar, 'Loop', LOOP)
+    const { version: next } = await botOf(jar, 'Dud', DUD)
+    // A runner reset after its setup: the row says running, and no runner holds the job.
+    const orphan = async (id: string, createdAt: string) => {
+      await env.DB.prepare(
+        `INSERT INTO hill_submissions (id, hill_id, bot_version_id, user_id, status, created_at)
+         SELECT ?, 'hill-exit', v.id, b.owner_id, 'running', ? FROM bot_versions v
+         JOIN bots b ON b.id = v.bot_id WHERE v.id = ?`,
+      )
+        .bind(id, createdAt, lost.id)
+        .run()
+    }
+    const status = (id: string) =>
+      env.DB.prepare('SELECT status FROM hill_submissions WHERE id = ?').bind(id).first('status')
+    // Within the grace a runner may still be taking it: one at a time.
+    const fresh = crypto.randomUUID()
+    await orphan(fresh, new Date().toISOString())
+    expect(await errorOf(await post(jar, 'exit', next.id))).toMatchObject({ status: 409 })
+    expect(await status(fresh)).toBe('running')
+    await env.DB.prepare('DELETE FROM hill_submissions WHERE id = ?').bind(fresh).run()
+    // Past it, the row is lost: failed, and the next submission runs.
+    const stale = crypto.randomUUID()
+    await orphan(stale, new Date(Date.now() - 5 * 60_000).toISOString())
+    await submitted(jar, 'exit', next.id)
+    expect(await status(stale)).toBe('failed')
+  })
 })
 
 describe('GET /api/hills/:slug/submissions/:id', () => {
