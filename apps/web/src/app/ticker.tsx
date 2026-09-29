@@ -21,9 +21,12 @@ export interface TickerFeed {
 
 const MAIN_HILL = { to: '/hills/main', label: 'open the main hill' }
 
-/** A ticker item that opens a page: a dotted underline, the accent under the pointer. */
+/**
+ * A ticker item that opens a page: a dotted underline, the accent under the pointer. The ring is
+ * drawn inside the box: the ticker's `truncate` line clips anything past it, top and bottom.
+ */
 const ITEM_LINK =
-  'rounded-sm underline decoration-dotted decoration-border-strong underline-offset-2 transition-colors duration-120 ease-out hover:text-accent-fg hover:decoration-accent focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-accent'
+  'rounded-sm underline decoration-dotted decoration-border-strong underline-offset-2 transition-colors duration-120 ease-out hover:text-accent-fg hover:decoration-accent focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-accent'
 
 /**
  * A championship item: it opens championship `id` (its bracket, live or finished), or the
