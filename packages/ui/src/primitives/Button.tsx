@@ -7,10 +7,19 @@ import { cx } from '../style'
 export type ButtonVariant = 'default' | 'primary' | 'ghost' | 'danger'
 
 const VARIANT: Readonly<Record<ButtonVariant, string>> = {
-  default: cx('text-nav', IDLE),
-  primary: 'border-accent bg-accent-10 text-nav text-accent-fg not-disabled:hover:bg-accent-25',
-  ghost: 'border-transparent text-data text-muted not-disabled:hover:text-text',
-  danger: 'border-danger text-nav text-danger not-disabled:hover:bg-danger/10',
+  default: IDLE,
+  primary: 'border-accent bg-accent-10 text-accent-fg not-disabled:hover:bg-accent-25',
+  ghost: 'border-transparent text-muted not-disabled:hover:text-text',
+  danger: 'border-danger text-danger not-disabled:hover:bg-danger/10',
+}
+
+/**
+ * The label's type: nav type, calm data type for a ghost. At lg, the modal title's from `sm` up; a
+ * phone keeps nav type so `FIGHT · 16 BOTS · 10 ROUNDS` still fits on one line.
+ */
+function typeOf(variant: ButtonVariant, size: 'sm' | 'md' | 'lg'): string {
+  if (size === 'lg') return 'text-nav sm:text-modal-title'
+  return variant === 'ghost' ? 'text-data' : 'text-nav'
 }
 
 /** The three dots' stagger: each a third of the pulse after the one before. */
@@ -19,9 +28,12 @@ const DOT_DELAY = ['', '[animation-delay:160ms]', '[animation-delay:320ms]'] as 
 export interface ButtonProps extends ComponentProps<'button'> {
   /** `default`: hairline, muted. `primary`: accent. `ghost`: no border, lowercase. `danger`. */
   variant?: ButtonVariant | undefined
-  /** `md` is 24 px, the nav button's height; `sm` is 20 px, for dense rows. */
-  size?: 'sm' | 'md' | undefined
-  /** A 12 px lucide icon before the label. */
+  /**
+   * `md` is 24 px, the nav button's height; `sm` is 20 px, for dense rows; `lg` is 72 px in the
+   * modal title's type, for the one call to action a page is built around (the arena's fight).
+   */
+  size?: 'sm' | 'md' | 'lg' | undefined
+  /** A lucide icon before the label: 12 px, 20 px at `lg`. */
   icon?: LucideIcon | undefined
   /**
    * Working: three pulsing dots over the label, which keeps the button's width and name. The
@@ -61,6 +73,7 @@ export function Button({
         CONTROL_BOX,
         CONTROL_SIZE[size],
         'relative',
+        typeOf(variant, size),
         VARIANT[variant],
         FOCUS_RING,
         DISABLED,
@@ -69,7 +82,7 @@ export function Button({
     >
       {/* The label keeps its place (and the button its name) while the dots show over it. */}
       <span className={cx('inline-flex items-center gap-[inherit]', loading && 'opacity-0')}>
-        {drawIcon(icon, 12)}
+        {drawIcon(icon, size === 'lg' ? 20 : 12)}
         {children}
       </span>
       {loading && (

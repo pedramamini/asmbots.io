@@ -186,7 +186,7 @@ exports[`Toast draws a toast in each variant 1`] = `
       submission failed
     </div>
     <button
-      class="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-sm border whitespace-nowrap transition-colors duration-120 ease-out select-none h-5 gap-1 px-2 relative border-transparent text-data text-muted not-disabled:hover:text-text focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40"
+      class="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-sm border whitespace-nowrap transition-colors duration-120 ease-out select-none h-5 gap-1 px-2 relative text-data border-transparent text-muted not-disabled:hover:text-text focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40"
       type="button"
     >
       <span

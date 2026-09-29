@@ -13,7 +13,7 @@ exports[`Button draws each variant 1`] = `
     </span>
   </button>
   <button
-    class="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-sm border whitespace-nowrap transition-colors duration-120 ease-out select-none h-6 gap-1.5 px-2.5 relative border-accent bg-accent-10 text-nav text-accent-fg not-disabled:hover:bg-accent-25 focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40"
+    class="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-sm border whitespace-nowrap transition-colors duration-120 ease-out select-none h-6 gap-1.5 px-2.5 relative text-nav border-accent bg-accent-10 text-accent-fg not-disabled:hover:bg-accent-25 focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40"
     type="button"
   >
     <span
@@ -40,7 +40,7 @@ exports[`Button draws each variant 1`] = `
     </span>
   </button>
   <button
-    class="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-sm border whitespace-nowrap transition-colors duration-120 ease-out select-none h-5 gap-1 px-2 relative border-transparent text-data text-muted not-disabled:hover:text-text focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40"
+    class="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-sm border whitespace-nowrap transition-colors duration-120 ease-out select-none h-5 gap-1 px-2 relative text-data border-transparent text-muted not-disabled:hover:text-text focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40"
     type="button"
   >
     <span
@@ -50,7 +50,7 @@ exports[`Button draws each variant 1`] = `
     </span>
   </button>
   <button
-    class="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-sm border whitespace-nowrap transition-colors duration-120 ease-out select-none h-6 gap-1.5 px-2.5 relative border-danger text-nav text-danger not-disabled:hover:bg-danger/10 focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40"
+    class="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-sm border whitespace-nowrap transition-colors duration-120 ease-out select-none h-6 gap-1.5 px-2.5 relative text-nav border-danger text-danger not-disabled:hover:bg-danger/10 focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40"
     type="button"
   >
     <span

@@ -599,6 +599,7 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
             <Button
               name="fight"
               variant="primary"
+              size="lg"
               icon={Swords}
               className="flex-1"
               disabled={!status.ready}
@@ -610,6 +611,7 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
             <IconButton
               icon={Link}
               label="copy a share link"
+              size="lg"
               tooltip="top"
               disabled={selection.length === 0}
               onClick={() => void share()}

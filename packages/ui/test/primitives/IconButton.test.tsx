@@ -62,6 +62,12 @@ describe('IconButton', () => {
     expect(icon().getAttribute('width')).toBe('12')
   })
 
+  it('is 72 px square with a 20 px icon at lg, beside a lg button', () => {
+    render(<IconButton icon={StepBack} label="step back" size="lg" />)
+    expect(button().className.split(' ')).toContain('size-18')
+    expect(icon().getAttribute('width')).toBe('20')
+  })
+
   it('reports a toggle’s state with aria-pressed, and is accent when on', () => {
     const { rerender } = render(<IconButton icon={Volume2} label="sound" pressed={false} />)
     expect(button().getAttribute('aria-pressed')).toBe('false')

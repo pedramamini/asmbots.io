@@ -4,15 +4,20 @@ import { cx } from './style'
 
 /*
  * The classes the controls share (DESIGN_SYSTEM §4, §8): one box, one idle look, one "on" look,
- * one focus ring. A control is 24 px (md) or 20 px (sm) tall, so any two sit level in a row.
+ * one focus ring. A control is 24 px (md) or 20 px (sm) tall, so any two sit level in a row; lg
+ * (72 px) is for the one call to action a page is built around (the arena's fight).
  */
 
 /** A bordered control: radius 3, the 120 ms color change, a hand cursor, no text selection. */
 export const CONTROL_BOX =
   'inline-flex shrink-0 cursor-pointer items-center justify-center rounded-sm border whitespace-nowrap transition-colors duration-120 ease-out select-none'
 
-/** Height and padding by size: md is the nav button's 24 px (padding 4 10), sm is 20 px. */
-export const CONTROL_SIZE = { sm: 'h-5 gap-1 px-2', md: 'h-6 gap-1.5 px-2.5' } as const
+/** Height and padding by size: md is the nav button's 24 px (padding 4 10), sm is 20 px, lg 72 px. */
+export const CONTROL_SIZE = {
+  sm: 'h-5 gap-1 px-2',
+  md: 'h-6 gap-1.5 px-2.5',
+  lg: 'h-18 gap-3 px-6',
+} as const
 
 /** Off: a hairline and muted text; the pointer strengthens the border. */
 export const IDLE = 'border-border text-muted not-disabled:hover:border-border-strong'
@@ -29,11 +34,12 @@ export const DISABLED = 'disabled:cursor-not-allowed disabled:opacity-40'
 
 /**
  * A lucide icon at `size` px with the kit's 1.75 stroke (DESIGN_SYSTEM §6: 12 px in nav and chips,
- * 16 px in toolbars). Hidden from assistive tech: the control's label names it.
+ * 16 px in toolbars, 20 px on a large call to action). Hidden from assistive tech: the control's
+ * label names it.
  */
 export function drawIcon(
   icon: LucideIcon | undefined,
-  size: 12 | 16,
+  size: 12 | 16 | 20,
   className?: string,
 ): ReactNode {
   if (icon === undefined) return null

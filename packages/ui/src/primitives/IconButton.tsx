@@ -6,6 +6,10 @@ import { cx } from '../style'
 import { Kbd } from './Kbd'
 import { Tooltip } from './Tooltip'
 
+/** The square and its icon by size. */
+const ICON_BOX = { sm: 'size-5', md: 'size-6', lg: 'size-18' } as const
+const ICON_SIZE = { sm: 12, md: 16, lg: 20 } as const
+
 export interface IconButtonProps extends Omit<ComponentProps<'button'>, 'children'> {
   /** The lucide icon: 16 px at md (a toolbar's), 12 px at sm. */
   icon: LucideIcon
@@ -13,8 +17,8 @@ export interface IconButtonProps extends Omit<ComponentProps<'button'>, 'childre
   label: string
   /** The key that does the same, shown in the tooltip: `,`. */
   shortcut?: string | undefined
-  /** `md` is 24 px square, `sm` 20 px. */
-  size?: 'sm' | 'md' | undefined
+  /** `md` is 24 px square, `sm` 20 px, `lg` 72 px (beside a `lg` button). */
+  size?: 'sm' | 'md' | 'lg' | undefined
   /** A button that toggles (sound, minimap): on is accent, and `aria-pressed`. */
   pressed?: boolean | undefined
   /** The tooltip's side. */
@@ -54,7 +58,7 @@ export function IconButton({
         {...rest}
         className={cx(
           CONTROL_BOX,
-          size === 'sm' ? 'size-5' : 'size-6',
+          ICON_BOX[size],
           FOCUS_RING,
           DISABLED,
           pressed
@@ -63,7 +67,7 @@ export function IconButton({
           className,
         )}
       >
-        {drawIcon(icon, size === 'sm' ? 12 : 16)}
+        {drawIcon(icon, ICON_SIZE[size])}
       </button>
     </Tooltip>
   )
@@ -100,13 +104,13 @@ export function IconLink({
         {...rest}
         className={cx(
           CONTROL_BOX,
-          size === 'sm' ? 'size-5' : 'size-6',
+          ICON_BOX[size],
           FOCUS_RING,
           'border-border text-text hover:border-border-strong hover:text-bright',
           className,
         )}
       >
-        {drawIcon(icon, size === 'sm' ? 12 : 16)}
+        {drawIcon(icon, ICON_SIZE[size])}
       </a>
     </Tooltip>
   )

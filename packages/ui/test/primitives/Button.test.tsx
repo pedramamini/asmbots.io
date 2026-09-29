@@ -61,6 +61,18 @@ describe('Button', () => {
     expect(classes(button('more'))).toEqual(expect.arrayContaining(['h-5', 'px-2']))
   })
 
+  it('is 72 px at lg, in the modal title type from sm up, with a 20 px icon', () => {
+    render(
+      <Button variant="primary" size="lg" icon={Play}>
+        fight
+      </Button>,
+    )
+    expect(classes(button('fight'))).toEqual(
+      expect.arrayContaining(['h-18', 'px-6', 'text-nav', 'sm:text-modal-title', 'text-accent-fg']),
+    )
+    expect(button('fight').querySelector('svg')?.getAttribute('width')).toBe('20')
+  })
+
   it('draws default as a muted hairline, primary in accent, ghost bare, danger in --danger', () => {
     render(
       <>
