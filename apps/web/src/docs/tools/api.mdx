@@ -45,6 +45,10 @@ The limits count per account when you are signed in: 60 writes a minute, 20 bot 
 | `GET /api/me/tokens` | your API tokens: name, prefix, when made, when last used (the site only) |
 | `POST /api/me/tokens` | `{ name }` makes a token and answers its secret once (the site only) |
 | `DELETE /api/me/tokens/:id` | revokes a token (the site only) |
+| `GET /api/me/layouts` | your editor layouts, by name |
+| `POST /api/me/layouts` | `{ name, layout }` keeps a layout under the name, in place of the one of that name |
+| `PATCH /api/me/layouts/:id` | `{ name?, layout? }` renames a layout, or keeps a new one in it |
+| `DELETE /api/me/layouts/:id` | deletes a layout |
 
 ## Bots
 

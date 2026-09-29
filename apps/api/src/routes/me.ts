@@ -2,12 +2,17 @@ import {
   type ApiTokenList,
   type AuditList,
   type CreatedApiToken,
+  type EditorLayoutList,
+  type EditorLayoutSaved,
   handleProblem,
   MAX_API_TOKENS,
+  MAX_EDITOR_LAYOUTS,
   type Me,
   type MyBotList,
   NewApiToken,
   parse,
+  SaveEditorLayout,
+  UpdateEditorLayout,
   UpdateMe,
 } from '@asmbots/protocol'
 import { type Context, Hono } from 'hono'
@@ -16,17 +21,22 @@ import { newToken } from '../auth/token'
 import { jsonBody, limitBody } from '../body'
 import {
   countApiTokens,
+  countEditorLayouts,
   deleteAccount,
   deleteApiToken,
+  deleteEditorLayout,
   getUserRow,
   insertApiToken,
   listApiTokens,
   listAudit,
+  listEditorLayouts,
   listMyBots,
+  saveEditorLayout,
   setUserAnonymous,
   setUserHandle,
   toUser,
   type UserRow,
+  updateEditorLayout,
 } from '../db/queries'
 import type { AppEnv } from '../env'
 import { errorResponse, log } from '../middleware'
@@ -58,6 +68,13 @@ async function gone(c: Context<AppEnv>): Promise<Response> {
  * `POST /api/me/tokens` `{ name }`: a new API token, named 1..40 characters once trimmed → 201
  * `{ token, secret }`. `secret` is the token, shown this once. 409 past `MAX_API_TOKENS`.
  * `DELETE /api/me/tokens/:id`: revokes the token at once. 204; 404 when it is not theirs.
+ * `GET /api/me/layouts`: the signed-in user's editor layouts, by name.
+ * `POST /api/me/layouts` `{ name, layout }`: keeps the layout under the name (1..40 characters once
+ * trimmed), in place of the one of that name in any case → 200 `{ saved, created: false }`, or a
+ * new one → 201 `{ saved, created: true }`. 409 for a new one past `MAX_EDITOR_LAYOUTS`.
+ * `PATCH /api/me/layouts/:id` `{ name?, layout? }`: renames it, keeps a new layout in it, or both →
+ * `{ saved, created: false }`; 409 when another of theirs has the name, 404 when it is not theirs.
+ * `DELETE /api/me/layouts/:id`: 204; 404 when it is not theirs.
  * What only a person on the site may do refuses an API token (`refuseToken`, 403): deleting the
  * account and the tokens routes, so a leaked token cannot make more tokens or lock its user out.
  */
@@ -104,6 +121,43 @@ export const me = new Hono<AppEnv>()
     const id = idParam(c.req.param('id'), 'the token id')
     const deleted = await deleteApiToken(c.env.DB, c.get('session')?.userId ?? '', id)
     if (!deleted) return errorResponse(c, 'not_found', `no api token ${id}`)
+    return c.body(null, 204)
+  })
+  .get('/layouts', requireUser, async (c) => {
+    const layouts = await listEditorLayouts(c.env.DB, c.get('session')?.userId ?? '')
+    return c.json({ layouts } satisfies EditorLayoutList)
+  })
+  .post('/layouts', requireUser, limitBody(8192), async (c) => {
+    const userId = c.get('session')?.userId ?? ''
+    const asked = parse(SaveEditorLayout, await jsonBody(c), 'the request')
+    const name = asked.name.trim()
+    const { count, named } = await countEditorLayouts(c.env.DB, userId, name)
+    if (!named && count >= MAX_EDITOR_LAYOUTS) {
+      return errorResponse(
+        c,
+        'conflict',
+        `an account keeps ${MAX_EDITOR_LAYOUTS} layouts: delete one to save another`,
+      )
+    }
+    const kept = await saveEditorLayout(c.env.DB, userId, name, asked.layout)
+    return c.json(kept satisfies EditorLayoutSaved, kept.created ? 201 : 200)
+  })
+  .patch('/layouts/:id', requireUser, limitBody(8192), async (c) => {
+    const id = idParam(c.req.param('id'), 'the layout id')
+    const asked = parse(UpdateEditorLayout, await jsonBody(c), 'the request')
+    const name = asked.name?.trim()
+    const saved = await updateEditorLayout(c.env.DB, c.get('session')?.userId ?? '', id, {
+      name,
+      layout: asked.layout,
+    })
+    if (saved === null) return errorResponse(c, 'not_found', `no layout ${id}`)
+    if (saved === 'taken') return errorResponse(c, 'conflict', `you have a layout named ${name}`)
+    return c.json({ saved, created: false } satisfies EditorLayoutSaved)
+  })
+  .delete('/layouts/:id', requireUser, async (c) => {
+    const id = idParam(c.req.param('id'), 'the layout id')
+    const deleted = await deleteEditorLayout(c.env.DB, c.get('session')?.userId ?? '', id)
+    if (!deleted) return errorResponse(c, 'not_found', `no layout ${id}`)
     return c.body(null, 204)
   })
   .delete('/', requireUser, refuseToken, async (c) => {

@@ -1,6 +1,8 @@
 /** The write routes the web app calls (`apps/api/src/routes`). */
 import {
   CreatedApiToken,
+  EditorLayoutSaved,
+  type EditorLayoutTree,
   HillSubmitted,
   ImportBotsResult,
   Me,
@@ -14,6 +16,7 @@ import {
   TournamentStarted,
   type UpdateBot,
   UpdatedBot,
+  type UpdateEditorLayout,
   type UpdateMe,
 } from '@asmbots/protocol'
 import { apiDelete, apiPatch, apiPost } from './client'
@@ -94,6 +97,29 @@ export function createApiToken(name: string): Promise<CreatedApiToken> {
 /** `DELETE /api/me/tokens/:id`: revokes the token at once. */
 export function revokeApiToken(id: string): Promise<void> {
   return apiDelete(`/me/tokens/${segment(id)}`)
+}
+
+/** `POST /api/me/layouts`: keeps `layout` under `name`, in place of the one of that name. */
+export function saveEditorLayout(
+  name: string,
+  layout: EditorLayoutTree,
+): Promise<EditorLayoutSaved> {
+  return apiPost('/me/layouts', { name, layout }, (v) => parse(EditorLayoutSaved, v, 'the layout'))
+}
+
+/** `PATCH /api/me/layouts/:id`: renames a kept layout, keeps a new one in it, or both. */
+export function updateEditorLayout(
+  id: string,
+  update: UpdateEditorLayout,
+): Promise<EditorLayoutSaved> {
+  return apiPatch(`/me/layouts/${segment(id)}`, update, (v) =>
+    parse(EditorLayoutSaved, v, 'the layout'),
+  )
+}
+
+/** `DELETE /api/me/layouts/:id`. */
+export function deleteEditorLayout(id: string): Promise<void> {
+  return apiDelete(`/me/layouts/${segment(id)}`)
 }
 
 /** `POST /api/auth/logout`: ends the session here and on the server. */

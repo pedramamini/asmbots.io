@@ -29,6 +29,7 @@ import {
   shows,
   swapPanels,
   TILE_MIN,
+  tileBoxes,
   zoneBox,
 } from '../src/features/editor/layout/tree'
 
@@ -177,6 +178,44 @@ describe('sizes and hiding', () => {
     const off = new Set<PanelId>(['arena', 'trace'])
     expect(shows(nodeAt(DEFAULT_LAYOUT.root, [1]) as LayoutNode, off)).toBe(false)
     expect(shows(DEFAULT_LAYOUT.root, off)).toBe(true)
+  })
+})
+
+describe('thumbnails', () => {
+  it('gives each shown panel its share of the page; a hidden one gives its space to the rest', () => {
+    const root: LayoutNode = {
+      kind: 'split',
+      dir: 'row',
+      children: [
+        leaf('library'),
+        {
+          kind: 'split',
+          dir: 'column',
+          children: [leaf('source'), leaf('problems')],
+          weights: [0.75, 0.25],
+        },
+        leaf('help'),
+      ],
+      weights: [0.2, 0.6, 0.2],
+    }
+    expect(tileBoxes({ root, hidden: [] })).toEqual([
+      { id: 'library', x: 0, y: 0, width: 0.2, height: 1 },
+      { id: 'source', x: 0.2, y: 0, width: 0.6, height: 0.75 },
+      { id: 'problems', x: 0.2, y: 0.75, width: 0.6, height: 0.25 },
+      { id: 'help', x: 0.8, y: 0, width: 0.2, height: 1 },
+    ])
+    const boxes = tileBoxes({ root, hidden: ['library', 'problems'] })
+    expect(boxes.map((b) => b.id)).toEqual(['source', 'help'])
+    expect(boxes[0]).toMatchObject({ x: 0, height: 1 })
+    expect(boxes[0]?.width).toBeCloseTo(0.75, 9)
+    expect(boxes[1]?.x).toBeCloseTo(0.75, 9)
+  })
+
+  it('covers the page with the tiles of every preset', () => {
+    for (const make of Object.values(PRESETS)) {
+      const boxes = tileBoxes(make())
+      expect(boxes.reduce((area, b) => area + b.width * b.height, 0)).toBeCloseTo(1, 9)
+    }
   })
 })
 

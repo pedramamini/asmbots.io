@@ -1,5 +1,5 @@
 import { MAX_BOT_BYTES } from '@asmbots/asm'
-import { weightClassOf } from '@asmbots/protocol'
+import { type EditorLayout, weightClassOf } from '@asmbots/protocol'
 import {
   Button,
   Chip,
@@ -16,6 +16,8 @@ import {
 import {
   AlignLeft,
   Binary,
+  Bookmark,
+  BookmarkPlus,
   Eye,
   EyeOff,
   GitFork,
@@ -24,6 +26,7 @@ import {
   LayoutDashboard,
   LayoutTemplate,
   Link,
+  LogIn,
   type LucideIcon,
   PanelLeft,
   Save,
@@ -80,6 +83,13 @@ export interface EditorToolbarProps {
   hiddenPanels: readonly PanelId[]
   onPanelHidden: (id: PanelId, hide: boolean) => void
   onPreset: (preset: PresetId) => void
+  /** The user's kept layouts, by name; null signed out. */
+  savedLayouts: readonly EditorLayout[] | null
+  onSavedLayout: (kept: EditorLayout) => void
+  /** Opens `layouts`, to save the layout on screen and keep the rest. */
+  onLayouts: () => void
+  /** Sends a signed-out user to sign in, to keep layouts. */
+  onSignIn: () => void
   listing: boolean
   onListing: () => void
   lint: boolean
@@ -232,8 +242,19 @@ export function EditorToolbar(props: EditorToolbarProps) {
   )
 }
 
-/** The layout menu: each panel shown or hidden, and the preset layouts. */
-function LayoutMenu({ hiddenPanels, onPanelHidden, onPreset }: EditorToolbarProps) {
+/**
+ * The layout menu: each panel shown or hidden, the preset layouts, and the user's kept layouts with
+ * `save layout…`, which opens `layouts`; signed out, `sign in to save layouts`.
+ */
+function LayoutMenu({
+  hiddenPanels,
+  onPanelHidden,
+  onPreset,
+  savedLayouts,
+  onSavedLayout,
+  onLayouts,
+  onSignIn,
+}: EditorToolbarProps) {
   const toggles = PANEL_IDS.filter((id) => !FIXED_PANELS.has(id)).map((id) => {
     const hidden = hiddenPanels.includes(id)
     return {
@@ -247,11 +268,22 @@ function LayoutMenu({ hiddenPanels, onPanelHidden, onPreset }: EditorToolbarProp
     icon: LayoutDashboard,
     onSelect: () => onPreset(preset),
   }))
+  const kept =
+    savedLayouts === null
+      ? [{ label: 'sign in to save layouts', icon: LogIn, onSelect: onSignIn }]
+      : [
+          ...savedLayouts.map((layout) => ({
+            label: layout.name,
+            icon: Bookmark,
+            onSelect: () => onSavedLayout(layout),
+          })),
+          { label: 'save layout…', icon: BookmarkPlus, onSelect: onLayouts },
+        ]
   return (
     <Menu
       placement="bottom-end"
       trigger={<Button icon={LayoutDashboard}>layout ▾</Button>}
-      items={[...toggles, 'separator', ...presets]}
+      items={[...toggles, 'separator', ...presets, 'separator', ...kept]}
     />
   )
 }

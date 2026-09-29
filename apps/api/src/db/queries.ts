@@ -13,6 +13,8 @@ import {
   type BotVersion,
   type ChampionshipResult,
   DELETED_HANDLE,
+  type EditorLayout,
+  type EditorLayoutTree,
   type Hill,
   type HillBest,
   type HillEntry,
@@ -1311,6 +1313,122 @@ export function touchApiToken(db: D1Database, id: string, at: string): Promise<D
   return db.prepare('UPDATE api_tokens SET last_used_at = ? WHERE id = ?').bind(at, id).run()
 }
 
+export interface EditorLayoutRow {
+  id: string
+  user_id: string
+  name: string
+  /** The layout's JSON, as it was sent. */
+  layout: string
+  created_at: string
+  updated_at: string
+}
+
+export function toEditorLayout(row: EditorLayoutRow): EditorLayout {
+  return {
+    id: row.id,
+    name: row.name,
+    layout: JSON.parse(row.layout) as EditorLayoutTree,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
+/** The editor layouts of `userId`, by name, in any case. */
+export async function listEditorLayouts(db: D1Database, userId: string): Promise<EditorLayout[]> {
+  const { results } = await db
+    .prepare('SELECT * FROM editor_layouts WHERE user_id = ? ORDER BY name, created_at')
+    .bind(userId)
+    .all<EditorLayoutRow>()
+  return results.map(toEditorLayout)
+}
+
+/** How many editor layouts `userId` keeps, and whether one of them is named `name`, in any case. */
+export async function countEditorLayouts(
+  db: D1Database,
+  userId: string,
+  name: string,
+): Promise<{ count: number; named: boolean }> {
+  const row = await db
+    .prepare(
+      'SELECT COUNT(*) AS n, COALESCE(SUM(name = ?2), 0) AS named FROM editor_layouts WHERE user_id = ?1',
+    )
+    .bind(userId, name)
+    .first<{ n: number; named: number }>()
+  return { count: row?.n ?? 0, named: (row?.named ?? 0) > 0 }
+}
+
+const NOW = "strftime('%Y-%m-%dT%H:%M:%fZ', 'now')"
+
+/**
+ * Keeps `layout` as `userId`'s layout `name`: in place of the one of that name, in any case, which
+ * takes the new name's case; a new one otherwise. `created` says which.
+ */
+export async function saveEditorLayout(
+  db: D1Database,
+  userId: string,
+  name: string,
+  layout: EditorLayoutTree,
+): Promise<{ saved: EditorLayout; created: boolean }> {
+  const id = crypto.randomUUID()
+  const row = await db
+    .prepare(
+      `INSERT INTO editor_layouts (id, user_id, name, layout) VALUES (?, ?, ?, ?)
+       ON CONFLICT (user_id, name) DO UPDATE SET
+         name = excluded.name, layout = excluded.layout, updated_at = ${NOW}
+       RETURNING *`,
+    )
+    .bind(id, userId, name, JSON.stringify(layout))
+    .first<EditorLayoutRow>()
+  const saved = row as EditorLayoutRow
+  return { saved: toEditorLayout(saved), created: saved.id === id }
+}
+
+/**
+ * Renames `userId`'s layout `id`, keeps a new layout in it, or both. Null when it is not theirs;
+ * `taken` when another of theirs has the name.
+ */
+export async function updateEditorLayout(
+  db: D1Database,
+  userId: string,
+  id: string,
+  change: { name?: string | undefined; layout?: EditorLayoutTree | undefined },
+): Promise<EditorLayout | 'taken' | null> {
+  try {
+    const row = await db
+      .prepare(
+        `UPDATE editor_layouts
+         SET name = COALESCE(?3, name), layout = COALESCE(?4, layout), updated_at = ${NOW}
+         WHERE id = ?1 AND user_id = ?2 RETURNING *`,
+      )
+      .bind(
+        id,
+        userId,
+        change.name ?? null,
+        change.layout === undefined ? null : JSON.stringify(change.layout),
+      )
+      .first<EditorLayoutRow>()
+    return row === null ? null : toEditorLayout(row)
+  } catch (err) {
+    if (err instanceof Error && /UNIQUE constraint failed: editor_layouts/.test(err.message)) {
+      return 'taken'
+    }
+    throw err
+  }
+}
+
+/** Deletes `userId`'s layout `id`. False when it is not theirs. */
+export async function deleteEditorLayout(
+  db: D1Database,
+  userId: string,
+  id: string,
+): Promise<boolean> {
+  const result = await db
+    .prepare('DELETE FROM editor_layouts WHERE id = ? AND user_id = ?')
+    .bind(id, userId)
+    .run()
+  return result.meta.changes > 0
+}
+
 /** The user that owns what deleted accounts leave on hills and in tournaments. */
 export const DELETED_USER = { id: 'deleted', handle: DELETED_HANDLE } as const
 
@@ -1375,6 +1493,7 @@ export async function deleteAccount(db: D1Database, userId: string): Promise<boo
       .prepare('UPDATE tournament_entries SET user_id = ? WHERE user_id = ?')
       .bind(DELETED_USER.id, userId),
     db.prepare('DELETE FROM api_tokens WHERE user_id = ?').bind(userId),
+    db.prepare('DELETE FROM editor_layouts WHERE user_id = ?').bind(userId),
     db.prepare('DELETE FROM users WHERE id = ?').bind(userId),
   ])
   return (results.at(-1)?.meta.changes ?? 0) > 0

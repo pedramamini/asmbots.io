@@ -159,6 +159,7 @@ matches(id, tournament_id, hill_id, a_version_id, b_version_id, participants_jso
 ratings(bot_version_id, hill_id, rating, rd, volatility, updated_at)          -- Glicko-2; each hill submission is one rating period
 audit(id, user_id, action, target, at)                                     -- action: protocol AUDIT_ACTIONS
 api_tokens(id, user_id, name, prefix, hash, created_at, last_used_at)     -- personal API tokens: SHA-256 of the token, never the token
+editor_layouts(id, user_id, name NOCASE, layout, created_at, updated_at)   -- named editor layouts, the editor's JSON; UNIQUE(user_id, name)
 hill_submissions(id, hill_id, bot_version_id, user_id, status, score, rank, needed, created_at)  -- one Runner job each; one queued|running per user per hill
 hill_history(id, hill_id, submission_id, event, bot_version_id, rank, score, delta, at)  -- event: entered|rejected|evicted|replaced; the hill page's feed
 ```

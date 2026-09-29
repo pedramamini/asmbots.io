@@ -28,7 +28,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ApiRequestError } from '../../api/client'
-import { botVersionQuery, useMe, useMyBots } from '../../api/queries'
+import { botVersionQuery, useEditorLayouts, useMe, useMyBots } from '../../api/queries'
 import { EDITOR_KEYS } from '../../app/editor-keymaps'
 import { FrameToolbar } from '../../app/Frame'
 import { type KeyCommand, useKeys } from '../../app/keys'
@@ -42,6 +42,7 @@ import {
   useLocalBots,
 } from '../../store/local-bots'
 import { useCoachMark } from '../../store/settings'
+import { signIn } from '../account/AccountSlot'
 import type { ArenaCanvasHandle } from '../arena/ArenaCanvas'
 import { type CatalogBot, fightSeed, rosterCatalog } from '../arena/setup/bots'
 import { battleConfig, randomSeed } from '../arena/setup/config'
@@ -78,7 +79,14 @@ import { HelpPanel } from './help/HelpPanel'
 import { topicAtLine } from './help/topics'
 import { Library } from './Library'
 import { TileFrame } from './layout/TileFrame'
-import { type Layout, type PanelId, PRESETS, type PresetId, setHidden } from './layout/tree'
+import {
+  type Layout,
+  type PanelId,
+  PRESETS,
+  type PresetId,
+  sanitizeLayout,
+  setHidden,
+} from './layout/tree'
 import { Workspace } from './layout/Workspace'
 import { Problems } from './Problems'
 import { useEditorPrefs } from './store'
@@ -87,6 +95,7 @@ import { TEST_CONFIG, TEST_ROUNDS, tally, testBots, testedId, watchSetup } from 
 import { type RestoredText, VersionsModal } from './VersionsModal'
 
 /** `watch`'s player: its own chunk, loaded on the first `watch`. */
+const LayoutsModal = lazy(() => import('./LayoutsModal').then((m) => ({ default: m.LayoutsModal })))
 const WatchModal = lazy(() => import('./WatchModal').then((m) => ({ default: m.WatchModal })))
 
 export interface EditorPageProps {
@@ -282,6 +291,7 @@ function Workbench({
   const { save: saveBot } = useLocalBotActions()
   const signedIn = Boolean(useMe().data)
   const myBots = useMyBots()
+  const savedLayouts = useEditorLayouts()
   const listingOn = useEditorPrefs((state) => state.listing)
   const lintOn = useEditorPrefs((state) => state.lint)
   const recent = useEditorPrefs((state) => state.recent)
@@ -315,6 +325,7 @@ function Workbench({
   const [problems, setProblems] = useState<Problem[]>([])
   const [saving, setSaving] = useState(false)
   const [versionsOpen, setVersionsOpen] = useState(false)
+  const [layoutsOpen, setLayoutsOpen] = useState(false)
   const [test, setTest] = useState<TestState>({ status: 'idle' })
   const [watching, setWatching] = useState(false)
   const arena = useRef<ArenaClient | null>(null)
@@ -830,6 +841,18 @@ function Workbench({
           hiddenPanels={layout.hidden}
           onPanelHidden={setPanelHidden}
           onPreset={applyPreset}
+          savedLayouts={signedIn ? (savedLayouts.data?.layouts ?? []) : null}
+          onSavedLayout={(kept) => {
+            const next = sanitizeLayout(kept.layout)
+            if (next === null) {
+              toast(`layout ${kept.name} is not one this editor reads.`, { variant: 'danger' })
+              return
+            }
+            setLayout(next)
+            toast(`layout ${kept.name}.`)
+          }}
+          onLayouts={() => setLayoutsOpen(true)}
+          onSignIn={signIn}
           listing={listingOn}
           onListing={toggleListing}
           lint={lintOn}
@@ -948,6 +971,19 @@ function Workbench({
         onRestore={restore}
         onSave={() => void save()}
       />
+      {layoutsOpen && (
+        <Suspense fallback={null}>
+          <LayoutsModal
+            open
+            current={layout}
+            onClose={() => setLayoutsOpen(false)}
+            onApply={(next, kept) => {
+              setLayout(next)
+              toast(`layout ${kept}.`)
+            }}
+          />
+        </Suspense>
+      )}
       {watching && watch !== null && watchHref !== undefined && (
         <Suspense fallback={null}>
           <WatchModal
