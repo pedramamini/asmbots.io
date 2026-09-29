@@ -9,18 +9,9 @@ import { type KeyCommand, useKeys } from '../../../app/keys'
 import { toggleSound } from '../../sound/engine'
 import type { ArenaCanvasHandle } from '../ArenaCanvas'
 import type { ArenaClient } from '../worker/client'
+import { spaceTaken } from './space'
 import { faster, slower } from './speed'
 import { useArenaView } from './view'
-
-/** Roles and inputs that `space` presses when they have the focus. */
-const SPACE_CONTROLS =
-  'button, a[href], summary, [role="button"], [role="radio"], [role="switch"], [role="checkbox"], [role="menuitem"], [role="tab"], [role="option"], input[type="checkbox"], input[type="radio"]'
-
-/** Whether the focused element takes `space` itself: a button presses, a radio picks. */
-export function spaceTaken(): boolean {
-  const focused = document.activeElement
-  return focused instanceof Element && focused.matches(SPACE_CONTROLS)
-}
 
 export interface ArenaKeysOptions {
   client: ArenaClient

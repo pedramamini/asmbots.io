@@ -10,7 +10,7 @@ import { type RefObject, useEffect, useMemo } from 'react'
 import { DEBUG_FUNCTION_KEYS, DEBUG_KEYS, functionKey } from '../../../app/editor-keymaps'
 import { type KeyCommand, useKeys } from '../../../app/keys'
 import type { ArenaCanvasHandle } from '../../arena/ArenaCanvas'
-import { spaceTaken } from '../../arena/battle/keys'
+import { spaceTaken } from '../../arena/battle/space'
 import { faster, slower } from '../../arena/battle/speed'
 import type { DebugController } from './controller'
 
