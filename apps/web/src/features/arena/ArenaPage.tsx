@@ -1,6 +1,7 @@
 import { useToast } from '@asmbots/ui'
 import { useLocation, useNavigate, useSearch } from '@tanstack/react-router'
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { CONTENT_ID } from '../../app/Frame'
 import { useLocalBots } from '../../store/local-bots'
 import { useCoachMark, useSettings } from '../../store/settings'
 import { ArenaSetup } from './ArenaSetup'
@@ -97,12 +98,14 @@ export function ArenaPage({
 
   const writeUrl = (next: ArenaSetupSpec) => {
     inUrl.current = keyOf(next)
-    // An empty fragment is none: the URL loses its `#`.
+    // An empty fragment is none: the URL loses its `#`. The page keeps its own scroll: the router
+    // would put the setup's back on each write, a fight's included.
     void navigate({
       to: '/arena',
       search: searchFromSetup(next),
       hash: fragmentOf(next),
       replace: true,
+      resetScroll: false,
     })
   }
 
@@ -129,6 +132,11 @@ export function ArenaPage({
   useEffect(() => {
     void loadBattle().catch(() => {})
   }, [])
+
+  // A fight starts at the top of the page: the arena, not wherever the setup was scrolled to.
+  useLayoutEffect(() => {
+    if (fight !== null) document.getElementById(CONTENT_ID)?.scrollTo({ top: 0 })
+  }, [fight])
 
   // The Worker goes with the page, and the arena store back to nothing loaded.
   useEffect(

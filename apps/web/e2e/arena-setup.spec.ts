@@ -138,3 +138,25 @@ test('fight runs the battle in the Worker, and setup comes back', async ({ page 
   await expect(picked(page)).toHaveCount(4)
   expect(errors).toEqual([])
 })
+
+test('the fight starts at the top of the page, wherever the setup was scrolled', async ({
+  page,
+}) => {
+  const errors = watch(page)
+  await page.goto('/arena?b=roster:dwarf,roster:imp&seed=42&cycles=100000&rounds=1')
+  await expect(fightButton(page)).toBeEnabled()
+  // The footer comes once the page is idle: below the battle's fold, it leaves room to scroll.
+  await expect(page.getByRole('navigation', { name: 'site' })).toBeAttached()
+  const content = page.locator('#content')
+  await content.evaluate((main) => main.scrollTo({ top: main.scrollHeight }))
+  await expect.poll(() => content.evaluate((main) => main.scrollTop)).toBeGreaterThan(0)
+  await fightButton(page).click()
+  await expect(page.getByRole('button', { name: 'setup' })).toBeVisible()
+  const [top, room] = await content.evaluate((main) => [
+    main.scrollTop,
+    main.scrollHeight - main.clientHeight,
+  ])
+  expect(room).toBeGreaterThan(0)
+  expect(top).toBe(0)
+  expect(errors).toEqual([])
+})
