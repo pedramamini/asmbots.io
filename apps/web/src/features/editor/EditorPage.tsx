@@ -93,10 +93,15 @@ import { Problems } from './Problems'
 import { useEditorPrefs } from './store'
 import { isBlankBot, TEMPLATES, type TemplateId, templateSource } from './templates'
 import { TEST_CONFIG, TEST_ROUNDS, tally, testBots, testedId, watchSetup } from './test-vs'
-import { type RestoredText, VersionsModal } from './VersionsModal'
+import type { RestoredText } from './VersionsModal'
 
-/** `watch`'s player: its own chunk, loaded on the first `watch`. */
+/** `layouts`: its own chunk, loaded when the dialog first opens. */
 const LayoutsModal = lazy(() => import('./LayoutsModal').then((m) => ({ default: m.LayoutsModal })))
+/** `versions`, with its diff: its own chunk, loaded when the dialog first opens. */
+const VersionsModal = lazy(() =>
+  import('./VersionsModal').then((m) => ({ default: m.VersionsModal })),
+)
+/** `watch`'s player: its own chunk, loaded on the first `watch`. */
 const WatchModal = lazy(() => import('./WatchModal').then((m) => ({ default: m.WatchModal })))
 
 export interface EditorPageProps {
@@ -963,15 +968,19 @@ function Workbench({
           ),
         }}
       />
-      <VersionsModal
-        open={versionsOpen}
-        botId={doc.local?.id ?? null}
-        cloudId={cloudId}
-        current={source}
-        onClose={() => setVersionsOpen(false)}
-        onRestore={restore}
-        onSave={() => void save()}
-      />
+      {versionsOpen && (
+        <Suspense fallback={null}>
+          <VersionsModal
+            open
+            botId={doc.local?.id ?? null}
+            cloudId={cloudId}
+            current={source}
+            onClose={() => setVersionsOpen(false)}
+            onRestore={restore}
+            onSave={() => void save()}
+          />
+        </Suspense>
+      )}
       {layoutsOpen && (
         <Suspense fallback={null}>
           <LayoutsModal

@@ -1,18 +1,25 @@
 /**
- * Keeps, renames, and deletes the signed-in user's editor layouts (`/api/me/layouts`). Apart from
- * `layouts.ts`: only the layouts dialog, a chunk of its own, writes one.
+ * Reads, keeps, renames, and deletes the signed-in user's editor layouts (`/api/me/layouts`), with
+ * their schemas. Apart from `layouts.ts`: the layouts dialog loads it, and the list's query when it
+ * first asks, so none of it rides the editor's cold JS.
  */
 import {
+  EditorLayoutList,
   EditorLayoutSaved,
   type EditorLayoutTree,
   parse,
   type UpdateEditorLayout,
 } from '@asmbots/protocol'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { apiDelete, apiPatch, apiPost } from './client'
+import { apiDelete, apiGet, apiPatch, apiPost } from './client'
 import { editorLayoutsQuery } from './layouts'
 
 const segment = encodeURIComponent
+
+/** `GET /api/me/layouts`. */
+export function getEditorLayouts(signal?: AbortSignal): Promise<EditorLayoutList> {
+  return apiGet('/me/layouts', (v) => parse(EditorLayoutList, v, 'your layouts'), signal)
+}
 
 /** `POST /api/me/layouts`: keeps `layout` under `name`, in place of the one of that name. */
 export function saveEditorLayout(
