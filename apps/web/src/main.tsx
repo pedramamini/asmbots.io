@@ -6,7 +6,11 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { armBoot } from './app/boot/boot'
 import { ErrorBoundary } from './app/ErrorPage'
+import { armStaleChunkReload } from './app/stale-chunk'
 import { createAppRouter, createQueryClient } from './router'
+
+// A tab from before the last deploy asks for chunks that no longer exist: reload it once.
+armStaleChunkReload()
 
 // index.html's boot script has applied the theme already; this covers a page without it (tests).
 initTheme()
