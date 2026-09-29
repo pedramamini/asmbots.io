@@ -77,7 +77,7 @@ export function Victory({
       <section
         aria-labelledby={titleId}
         data-result-hash={hash}
-        className="flex max-h-full w-full max-w-xl flex-col gap-3 overflow-auto rounded-lg border border-border-strong bg-panel p-4"
+        className="flex max-h-full w-full max-w-4xl flex-col gap-3 overflow-auto rounded-lg border border-border-strong bg-panel p-4"
         onKeyDown={(event) => {
           if (event.key === 'Escape') onDismiss()
         }}
