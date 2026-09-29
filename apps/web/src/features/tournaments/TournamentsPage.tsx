@@ -3,7 +3,7 @@
  * height (`TournamentTile`: name, kind, entrants, status, matches played, and the champion and its
  * author once there is one; a server one with the `server` chip, and its entry window while it
  * takes entries), running ones first, then the newest, filtered by kind and status and searched by
- * name and bot. Mounting it picks up the local tournaments a reload left running.
+ * name and bot, the first 25 at a time. Mounting it picks up the local tournaments a reload left running.
  */
 
 import { HOUSE_AUTHOR, type Me } from '@asmbots/protocol'
@@ -25,6 +25,7 @@ import { IntroArt } from '../../app/IntroArt'
 import { TOURNAMENTS_ABOUT } from '../../app/intros/tournaments'
 import { LoadFailure } from '../../app/LoadFailure'
 import { PageIntro } from '../../app/PageIntro'
+import { ShowMore, useShowMore } from '../../app/ShowMore'
 import { assembleCached } from '../arena/setup/assembly'
 import { rosterCatalog } from '../arena/setup/bots'
 import { takesEntries, utcTime } from './entry'
@@ -205,6 +206,7 @@ export function TournamentsPage({ onNew, runner = tournamentRunner() }: Tourname
       }
     }),
   ])
+  const { visible, hidden, more } = useShowMore(cards)
   const total = (tournaments?.length ?? 0) + serverCards.length
   // The server's list may be slow or down: this browser's still show.
   const reading = tournaments === undefined || (server.isPending && server.error === null)
@@ -277,17 +279,20 @@ export function TournamentsPage({ onNew, runner = tournamentRunner() }: Tourname
               no tournament matches.
             </EmptyState>
           ) : (
-            <ul
-              aria-label="tournament list"
-              className="grid auto-rows-fr grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"
-            >
-              {cards.map((card) => card.node)}
-              {onNew !== undefined && (
-                <li className="h-full">
-                  <NewTournamentTile onNew={onNew} />
-                </li>
-              )}
-            </ul>
+            <>
+              <ul
+                aria-label="tournament list"
+                className="grid auto-rows-fr grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3"
+              >
+                {visible.map((card) => card.node)}
+                {onNew !== undefined && (
+                  <li className="h-full">
+                    <NewTournamentTile onNew={onNew} />
+                  </li>
+                )}
+              </ul>
+              <ShowMore hidden={hidden} onMore={more} />
+            </>
           )}
         </div>
       </Panel>

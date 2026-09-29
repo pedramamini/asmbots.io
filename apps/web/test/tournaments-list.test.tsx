@@ -140,6 +140,20 @@ describe('the tournament list', () => {
     expect(await screen.findByText('1 of 1')).toBeTruthy()
   })
 
+  it('shows the first 25, and 25 more a click', async () => {
+    for (let i = 0; i < 30; i++) {
+      await seed(`cup ${i}`, 'bracket', { createdAt: 1_000 + i })
+    }
+    await renderList()
+    await screen.findByRole('listitem', { name: 'cup 29' })
+    expect(names()).toHaveLength(25)
+    expect(screen.queryByRole('listitem', { name: 'cup 4' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /show 5 more · 5 left/ }))
+    expect(names()).toHaveLength(30)
+    expect(screen.getByRole('listitem', { name: 'cup 0' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /more/ })).toBeNull()
+  })
+
   it('shows a card per tournament with its kind, status, entrants, and champion', async () => {
     await seed('spring cup', 'bracket', { status: 'finished', champion: 1 })
     await seed('summer melee', 'melee')

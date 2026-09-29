@@ -25,6 +25,7 @@ import { useUser } from '../../api/user'
 import { LoadFailure } from '../../app/LoadFailure'
 import { useLinkAction } from '../../app/link-action'
 import { Placeholder } from '../../app/Placeholder'
+import { ShowMore, useShowMore } from '../../app/ShowMore'
 import { preconnectAvatars } from '../account/avatars'
 import { ProfileBadges } from '../badges/ProfileBadges'
 import { ago, BotLink, CELL_LINK, count, day, plural } from '../hills/links'
@@ -372,19 +373,20 @@ function Arsenal({ data }: Part) {
   )
 }
 
+/** The hills' and the championships' tile grids: a full row each, a championship's name the wider. */
+const HILL_GRID =
+  'grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
+const CUP_GRID = 'grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'
+
 /** Their best place on each hill as a tile: the rank, where it sits in the field, the bot. */
 function Hills({ data }: Part) {
   const link = useLinkAction()
   return (
-    <Panel
-      className="col-span-12 xl:col-span-6"
-      title="hills"
-      status={`on ${plural(data.hills.length, 'hill')}`}
-    >
+    <Panel className="col-span-12" title="hills" status={`on ${plural(data.hills.length, 'hill')}`}>
       {data.hills.length === 0 ? (
         <EmptyState action={link('see the hills', '/hills')}>on no hill yet.</EmptyState>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className={HILL_GRID}>
           {data.hills.map((h) => (
             <Tile key={h.hill.slug} accent={h.entry.rank === 1}>
               <div className="flex items-baseline justify-between gap-2">
@@ -415,13 +417,17 @@ function Hills({ data }: Part) {
   )
 }
 
-/** Their championships as tiles: the bot, its record there, and whether it won. */
+/**
+ * Their championships as tiles: the bot, its record there, and whether it won. The latest
+ * `PAGE_SIZE` show; a button shows the next page.
+ */
 function Championships({ data }: Part) {
   const link = useLinkAction()
   const won = data.championships.filter((r) => r.champion).length
+  const { visible, hidden, more } = useShowMore(data.championships)
   return (
     <Panel
-      className="col-span-12 xl:col-span-6"
+      className="col-span-12"
       title="championships"
       status={`${won} won of ${data.championships.length}`}
     >
@@ -430,25 +436,28 @@ function Championships({ data }: Part) {
           no championships yet.
         </EmptyState>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {data.championships.map((r: ChampionshipResult) => (
-            <Tile key={`${r.tournament.id}:${r.bot.versionId}`} accent={r.champion}>
-              <div className="flex items-baseline justify-between gap-2">
-                <Link
-                  to="/tournaments/$id"
-                  params={{ id: r.tournament.id }}
-                  className={cx(CELL_LINK, 'truncate')}
-                >
-                  {r.tournament.name}
-                </Link>
-                {r.champion && <Chip variant="accent">champion</Chip>}
-              </div>
-              <div className="text-data text-muted">
-                <BotLink bot={r.bot} />
-              </div>
-              <RecordBar wins={r.wins} ties={r.ties} losses={r.losses} />
-            </Tile>
-          ))}
+        <div className="flex flex-col gap-3">
+          <div className={CUP_GRID}>
+            {visible.map((r: ChampionshipResult) => (
+              <Tile key={`${r.tournament.id}:${r.bot.versionId}`} accent={r.champion}>
+                <div className="flex items-baseline justify-between gap-2">
+                  <Link
+                    to="/tournaments/$id"
+                    params={{ id: r.tournament.id }}
+                    className={cx(CELL_LINK, 'truncate')}
+                  >
+                    {r.tournament.name}
+                  </Link>
+                  {r.champion && <Chip variant="accent">champion</Chip>}
+                </div>
+                <div className="text-data text-muted">
+                  <BotLink bot={r.bot} />
+                </div>
+                <RecordBar wins={r.wins} ties={r.ties} losses={r.losses} />
+              </Tile>
+            ))}
+          </div>
+          <ShowMore hidden={hidden} onMore={more} />
         </div>
       )}
     </Panel>
