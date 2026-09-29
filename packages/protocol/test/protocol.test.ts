@@ -520,7 +520,7 @@ describe('records', () => {
       author: null,
     }
     const summary = { tournament, entrants: 5, done: 4, of: 4, champion: label }
-    const feed = { championships: [summary] }
+    const feed = { upcoming: [], schedule: [at], championships: [summary] }
     expect(parse(ChampionshipList, JSON.parse(JSON.stringify(feed)), 'it')).toEqual(feed as never)
     expect(parse(TournamentList, { tournaments: [summary] }, 'it').tournaments).toHaveLength(1)
     expect(() => parse(TournamentList, { tournaments: [tournament] }, 'the list')).toThrow(

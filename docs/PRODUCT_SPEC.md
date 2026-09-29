@@ -18,7 +18,7 @@ Every screen, every interaction, every state. The playbooks implement this; the 
 
 ## 1. Home `/`
 
-- Ticker: latest hill event, latest tournament result, next scheduled championship countdown.
+- Ticker: latest hill event, latest tournament result, next scheduled championship countdown. The championship items are links (decision 2026-09-29, Pedram): the last champion opens its bracket, the next championship opens `/tournaments/championships` (its bracket while live). The marquee pauses under the pointer, so they can be clicked.
 - Overview: `ASM BOTS`, one line ("Write 8086 assembly. Fight for 64 KB."), then a card for each part of the site (arena, editor, hills, tournaments, docs, for agents): its nav icon, its name as a link, and one or two sentences on what it is. The arena's card also links the intro fight (`/arena?intro=true`). Nothing on the page moves.
 - How it works: the core, write, fight, climb, each with its art (DESIGN_SYSTEM §10) and a screenshot, then `take the tour`.
 - Three panels: **Main hill** top 10 (rank, bot, author, score, rating, age); **Recent matches** (10 rows, click → replay); **Championship** (the week's five, one for each weight class and one for open weight: a class picker, then the picked one's next event, entrants so far, and `enter` button).
@@ -67,10 +67,11 @@ Tiled workspace, default the `writing` layout: library, the source over its prob
 - Transport: `run`, `pause`, `step`, `step over` (call), `step out`, `run to cursor`, `run until death`, `run N cycles`, `step back` (256-deep), `reset`. Current line highlighted in the editor; clicking a gutter sets a breakpoint (INT3 is not written into the core; breakpoints are engine-side).
 - Arena strip: the same renderer, small, following the selected process with a viewport lock toggle.
 
-## 4. Tournaments `/tournaments`, `/tournaments/:id`
+## 4. Tournaments `/tournaments`, `/tournaments/championships`, `/tournaments/:id`
 
 - List: tiles of one height for scheduled, running, finished: a glyph of the kind, the status's color down the left edge, the champion (identicon and name), the live match count, or the entry window (`no entries yet` for an open one nobody entered), and a bar of the matches played. A championship cancelled with no entries is left out; a week's championships list lightest first. The first 25 show; `show 25 more` shows the next. Kinds: `round robin`, `bracket`, `melee`. Filter and search.
 - Weekly championships (decision 2026-09-28, Pedram: "one for every weight class and the open class"): every Friday 18:00 US Central the server runs five open brackets, `weekly <day> · lightweight`, `middleweight`, `heavyweight`, `super-heavy`, and `open weight`, each under its class hill's rules. A bot enters its own class's and open weight; one entry a player in each.
+- Championships page `/tournaments/championships` (decision 2026-09-29, Pedram: "a schedule of championship bouts"), a tab beside `tournaments` in the page intro: the next week's five (a days, hours, minutes, seconds clock to the start, or `LIVE`; the start and the entry deadline in Central time and the reader's own; a card for each class with its sizes, its status, its entrants' identicons, and `enter`, or `watch live` while it runs), the champions (a week a row, a class a column, each champion linked to its bracket, with its author), the schedule (the next eight Fridays, each with its entries: open, closed, live, or when they open), and the builders with the most titles. There are no timed bouts: at the start each bracket is seeded and its matches play back to back, a week's five in about a minute. It reads `GET /api/championships`.
 - Create (signed in): name, kind, entrant source (my bots / roster / open entry with deadline), rounds per match, config preset, start now or schedule.
 - **Bracket view**: SVG bracket, 4..32 entrants, byes, third-place match, live-updating; click a node → match panel (rounds, seeds, per-round survivors, `watch` → arena replay).
 - **Round robin view**: results matrix (entrants × entrants, cell = points, hue-tinted), standings table with W/T/L and points, sortable.

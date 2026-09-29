@@ -1184,6 +1184,23 @@ export async function listChampionships(db: D1Database, limit = 20): Promise<Tou
   return tournamentSummaries(db, results)
 }
 
+/**
+ * The championships not finished yet: running first, then scheduled (a championship due that the
+ * cron has not started yet included), the soonest first, lightest class first.
+ */
+export async function listUpcomingChampionships(db: D1Database): Promise<TournamentSummary[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT ${SUMMARY_COLUMNS} FROM tournaments t
+       WHERE t.owner_id IS NULL AND t.status IN ('running', 'scheduled')
+       ORDER BY t.status = 'running' DESC, t.starts_at IS NULL, t.starts_at, ${BY_CLASS}
+       LIMIT ?`,
+    )
+    .bind(MAX_LIMIT)
+    .all<TournamentSummaryRow>()
+  return tournamentSummaries(db, results)
+}
+
 export async function getTournament(db: D1Database, id: string): Promise<Tournament | null> {
   const row = await db
     .prepare('SELECT * FROM tournaments WHERE id = ?')

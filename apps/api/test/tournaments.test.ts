@@ -39,6 +39,7 @@ import {
 import { applySeed, buildSeed, SEED_HILLS, type SeedHill, sqlScript } from '../src/db/seed'
 import { runnerOf } from '../src/do/runner'
 import worker from '../src/index'
+import { championshipSchedule } from '../src/routes/championships'
 import { errorOf, me, send, signIn } from './fake-auth'
 import { Jar } from './jar'
 
@@ -612,6 +613,15 @@ describe('the cron', () => {
     )
   })
 
+  it('schedules the next Fridays across the end of daylight time', () => {
+    expect(championshipSchedule(new Date('2026-10-23T23:00:00.000Z'), 3)).toEqual([
+      '2026-10-30T23:00:00.000Z',
+      '2026-11-07T00:00:00.000Z',
+      '2026-11-14T00:00:00.000Z',
+    ])
+    expect(championshipSchedule(new Date('2026-09-29T12:00:00.000Z'))).toHaveLength(8)
+  })
+
   it('starts a championship due, seeded by rating, and its champion lands in the feed', async () => {
     // Five entrants, two rated above the rest: they get seeds 1 and 2.
     const entrants = ['roster-halt-v1', 'roster-spin-v1', 'roster-dwarf-v1']
@@ -662,6 +672,11 @@ describe('the cron', () => {
       await (await send(new Jar(), '/api/championships')).json(),
       'it',
     )
+    // Next week's five are still to come, lightest first.
+    expect(feed.upcoming.map((s) => s.tournament.id)).toEqual(
+      CHAMPIONSHIP_CLASSES.map((c) => `weekly-2026-10-09-${c.slug}`),
+    )
+    expect(feed.schedule).toHaveLength(8)
     expect(feed.championships).toHaveLength(1)
     expect(feed.championships[0]).toMatchObject({
       tournament: { id: 'weekly-2026-10-02-lightweight', status: 'finished' },

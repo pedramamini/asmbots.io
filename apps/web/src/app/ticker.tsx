@@ -7,6 +7,7 @@ import {
   type TickerHillEvent,
 } from '@asmbots/protocol'
 import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { fetchTicker, tickerQuery } from '../api/queries'
 import { paintedAndIdle } from './paint'
@@ -20,13 +21,36 @@ export interface TickerFeed {
 
 const MAIN_HILL = { to: '/hills/main', label: 'open the main hill' }
 
+/** A ticker item that opens a page: a dotted underline, the accent under the pointer. */
+const ITEM_LINK =
+  'rounded-sm underline decoration-dotted decoration-border-strong underline-offset-2 transition-colors duration-120 ease-out hover:text-accent-fg hover:decoration-accent focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-accent'
+
+/**
+ * A championship item: it opens championship `id` (its bracket, live or finished), or the
+ * championships page (the schedule, and `enter`) when `id` is null. The marquee pauses under the
+ * pointer and keyboard focus, so a moving item can still be clicked.
+ */
+export function CupLink({ id, children }: { id: string | null; children: string }) {
+  return id === null ? (
+    <Link to="/tournaments/championships" className={ITEM_LINK}>
+      {children}
+    </Link>
+  ) : (
+    <Link to="/tournaments/$id" params={{ id }} className={ITEM_LINK}>
+      {children}
+    </Link>
+  )
+}
+
 /** Until the feed comes, and when it cannot: what is always so. */
 export const QUIET_FEED: TickerFeed = {
   items: [
     <b key="lead">▍ASM BOTS</b>,
     'WRITE 8086 ASSEMBLY',
     'FIGHT FOR 64 KB',
-    'FIVE CHAMPIONSHIPS EVERY FRIDAY 18:00 CENTRAL',
+    <CupLink key="cups" id={null}>
+      FIVE CHAMPIONSHIPS EVERY FRIDAY 18:00 CENTRAL
+    </CupLink>,
   ],
   link: MAIN_HILL,
 }
@@ -79,8 +103,9 @@ function nextText(next: TickerChampionship, now: number): string {
 /**
  * The line `ticker` makes at `now` (PRODUCT_SPEC §1): `▍LIVE`, the latest challenge on a hill, the
  * last championship's champion, the next championship (live, or the countdown to it, and its
- * entrants), and the spectators watching now. The `→` opens a championship that is live, else the
- * hill of the challenge. No feed yet: `QUIET_FEED`.
+ * entrants), and the spectators watching now. The last champion opens its bracket; the next
+ * championship opens its bracket while live, else the championships page. The `→` opens a
+ * championship that is live, else the hill of the challenge. No feed yet: `QUIET_FEED`.
  */
 export function tickerFeed(ticker: Ticker | undefined, now: number): TickerFeed {
   if (ticker === undefined) return QUIET_FEED
@@ -88,10 +113,18 @@ export function tickerFeed(ticker: Ticker | undefined, now: number): TickerFeed 
   const items: ReactNode[] = [<b key="lead">▍LIVE</b>]
   if (hill !== null) items.push(`HILL "${hill.hill.name.toUpperCase()}"`, challengeText(hill))
   if (last?.champion) {
-    items.push(`CUP "${last.name.toUpperCase()}" to ${botName(last.champion)}`)
+    items.push(
+      <CupLink key="last" id={last.id}>
+        {`CUP "${last.name.toUpperCase()}" to ${botName(last.champion)}`}
+      </CupLink>,
+    )
   }
   if (next !== null) {
-    items.push(nextText(next, now))
+    items.push(
+      <CupLink key="next" id={next.status === 'running' ? next.id : null}>
+        {nextText(next, now)}
+      </CupLink>,
+    )
     if (next.entrants > 0) items.push(`${next.entrants} ENTERED`)
   }
   if (spectators > 0) items.push(`${spectators} WATCHING`)

@@ -4,6 +4,7 @@ import { lazy, Suspense, useState } from 'react'
 import { PageHeading } from '../../app/PageHeading'
 import { titleHead } from '../../app/title'
 import { TournamentsPage } from '../../features/tournaments/TournamentsPage'
+import { TournamentsTabs } from '../../features/tournaments/TournamentsTabs'
 
 export const Route = createFileRoute('/tournaments/')({
   head: () => titleHead('tournaments'),
@@ -29,7 +30,7 @@ function TournamentsRoute() {
   return (
     <>
       <PageHeading>tournaments</PageHeading>
-      <TournamentsPage onNew={create} />
+      <TournamentsPage onNew={create} tabs={<TournamentsTabs />} />
       {asked && (
         <Suspense fallback={null}>
           <NewTournament open={creating} onClose={() => setCreating(false)} />

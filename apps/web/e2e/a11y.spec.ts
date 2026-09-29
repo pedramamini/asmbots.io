@@ -101,6 +101,7 @@ for (const theme of THEMES) {
         '/editor/roster-dwarf',
         '/tournaments',
         `/tournaments/${tournament}`,
+        '/tournaments/championships',
         '/hills',
         '/hills/main',
         '/hills/melee',

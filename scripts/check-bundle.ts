@@ -74,6 +74,11 @@ const PAGE_BUDGETS: readonly PageBudget[] = [
   { page: '/editor/$botId', route: 'src/routes/editor/$botId.tsx', kb: 440 },
   { page: '/tournaments', route: 'src/routes/tournaments/index.tsx', kb: 235 },
   { page: '/tournaments/$id', route: 'src/routes/tournaments/$id.tsx', kb: 275 },
+  {
+    page: '/tournaments/championships',
+    route: 'src/routes/tournaments/championships.tsx',
+    kb: 190,
+  },
   { page: '/hills', route: 'src/routes/hills/index.tsx', kb: 180 },
   { page: '/hills/$slug', route: 'src/routes/hills/$slug.tsx', kb: 200 },
   { page: '/bots/$id', route: 'src/routes/bots/$id.tsx', kb: 195 },

@@ -354,10 +354,16 @@ export const TournamentList = z.object({ tournaments: z.array(TournamentSummary)
 export type TournamentList = z.output<typeof TournamentList>
 
 /**
- * `GET /api/championships`: the championships feed, the finished championships with their
- * champions, the latest first.
+ * `GET /api/championships`: the championships page's feed. `upcoming`: the championships not
+ * finished yet, running first, then the soonest to start, lightest class first. `schedule`: the
+ * next starts, Fridays 18:00 US Central, the soonest first. `championships`: the finished
+ * championships with their champions, the latest first.
  */
-export const ChampionshipList = z.object({ championships: z.array(TournamentSummary) })
+export const ChampionshipList = z.object({
+  upcoming: z.array(TournamentSummary),
+  schedule: z.array(Timestamp),
+  championships: z.array(TournamentSummary),
+})
 export type ChampionshipList = z.output<typeof ChampionshipList>
 
 /** A challenge as the ticker names it: its challenger's event, its bot, and its hill. */

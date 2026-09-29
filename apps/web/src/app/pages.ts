@@ -46,6 +46,13 @@ const APP_PAGES: Readonly<Record<string, PageMeta>> = {
     label: 'tournaments',
     headline: 'tournaments',
   },
+  '/tournaments/championships': {
+    title: routeTitle('tournaments', 'championships'),
+    description:
+      'Five brackets every Friday at 18:00 US Central, one for each weight class and one open weight: the schedule, the entrants, and every champion.',
+    label: 'championships',
+    headline: 'the weekly championships',
+  },
   '/hills': {
     title: routeTitle('hills'),
     description:

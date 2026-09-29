@@ -26,6 +26,7 @@ import { Route as StatsIndexRouteImport } from './routes/stats/index'
 import { Route as StatsLeaderboardRouteImport } from './routes/stats/leaderboard'
 import { Route as TournamentsIndexRouteImport } from './routes/tournaments/index'
 import { Route as TournamentsIdRouteImport } from './routes/tournaments/$id'
+import { Route as TournamentsChampionshipsRouteImport } from './routes/tournaments/championships'
 import { Route as UHandleRouteImport } from './routes/u/$handle'
 import { Route as EmbedArenaIndexRouteImport } from './routes/embed/arena/index'
 import { Route as EmbedArenaReplayIdRouteImport } from './routes/embed/arena/$replayId'
@@ -115,6 +116,12 @@ const TournamentsIdRoute = TournamentsIdRouteImport.update({
   path: '/tournaments/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TournamentsChampionshipsRoute =
+  TournamentsChampionshipsRouteImport.update({
+    id: '/tournaments/championships',
+    path: '/tournaments/championships',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const UHandleRoute = UHandleRouteImport.update({
   id: '/u/$handle',
   path: '/u/$handle',
@@ -143,6 +150,7 @@ export interface FileRoutesByFullPath {
   '/hills/$slug': typeof HillsSlugRoute
   '/stats/leaderboard': typeof StatsLeaderboardRoute
   '/tournaments/$id': typeof TournamentsIdRoute
+  '/tournaments/championships': typeof TournamentsChampionshipsRoute
   '/u/$handle': typeof UHandleRoute
   '/arena/': typeof ArenaIndexRoute
   '/docs/': typeof DocsIndexRoute
@@ -164,6 +172,7 @@ export interface FileRoutesByTo {
   '/hills/$slug': typeof HillsSlugRoute
   '/stats/leaderboard': typeof StatsLeaderboardRoute
   '/tournaments/$id': typeof TournamentsIdRoute
+  '/tournaments/championships': typeof TournamentsChampionshipsRoute
   '/u/$handle': typeof UHandleRoute
   '/arena': typeof ArenaIndexRoute
   '/docs': typeof DocsIndexRoute
@@ -187,6 +196,7 @@ export interface FileRoutesById {
   '/hills/$slug': typeof HillsSlugRoute
   '/stats/leaderboard': typeof StatsLeaderboardRoute
   '/tournaments/$id': typeof TournamentsIdRoute
+  '/tournaments/championships': typeof TournamentsChampionshipsRoute
   '/u/$handle': typeof UHandleRoute
   '/arena/': typeof ArenaIndexRoute
   '/docs/': typeof DocsIndexRoute
@@ -211,6 +221,7 @@ export interface FileRouteTypes {
     | '/hills/$slug'
     | '/stats/leaderboard'
     | '/tournaments/$id'
+    | '/tournaments/championships'
     | '/u/$handle'
     | '/arena/'
     | '/docs/'
@@ -232,6 +243,7 @@ export interface FileRouteTypes {
     | '/hills/$slug'
     | '/stats/leaderboard'
     | '/tournaments/$id'
+    | '/tournaments/championships'
     | '/u/$handle'
     | '/arena'
     | '/docs'
@@ -254,6 +266,7 @@ export interface FileRouteTypes {
     | '/hills/$slug'
     | '/stats/leaderboard'
     | '/tournaments/$id'
+    | '/tournaments/championships'
     | '/u/$handle'
     | '/arena/'
     | '/docs/'
@@ -276,6 +289,7 @@ export interface RootRouteChildren {
   HillsSlugRoute: typeof HillsSlugRoute
   StatsLeaderboardRoute: typeof StatsLeaderboardRoute
   TournamentsIdRoute: typeof TournamentsIdRoute
+  TournamentsChampionshipsRoute: typeof TournamentsChampionshipsRoute
   UHandleRoute: typeof UHandleRoute
   ArenaIndexRoute: typeof ArenaIndexRoute
   EditorIndexRoute: typeof EditorIndexRoute
@@ -407,6 +421,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TournamentsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tournaments/championships': {
+      id: '/tournaments/championships'
+      path: '/tournaments/championships'
+      fullPath: '/tournaments/championships'
+      preLoaderRoute: typeof TournamentsChampionshipsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/u/$handle': {
       id: '/u/$handle'
       path: '/u/$handle'
@@ -454,6 +475,7 @@ const rootRouteChildren: RootRouteChildren = {
   HillsSlugRoute: HillsSlugRoute,
   StatsLeaderboardRoute: StatsLeaderboardRoute,
   TournamentsIdRoute: TournamentsIdRoute,
+  TournamentsChampionshipsRoute: TournamentsChampionshipsRoute,
   UHandleRoute: UHandleRoute,
   ArenaIndexRoute: ArenaIndexRoute,
   EditorIndexRoute: EditorIndexRoute,

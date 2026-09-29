@@ -180,9 +180,18 @@ export interface TournamentsPageProps {
   onNew?: (() => void) | undefined
   /** The runner whose saves the list shows. Default: the page's. */
   runner?: TournamentRunner | undefined
+  /**
+   * Under the intro's lead: the route's `TournamentsTabs`. A prop, as `/tournaments/$id` takes
+   * this module for its helpers and must not take the tabs with it.
+   */
+  tabs?: ReactNode
 }
 
-export function TournamentsPage({ onNew, runner = tournamentRunner() }: TournamentsPageProps) {
+export function TournamentsPage({
+  onNew,
+  runner = tournamentRunner(),
+  tabs,
+}: TournamentsPageProps) {
   useRunnerSync(runner)
   const { data: tournaments } = useTournaments()
   const server = useServerTournaments()
@@ -217,7 +226,7 @@ export function TournamentsPage({ onNew, runner = tournamentRunner() }: Tourname
   )
   return (
     <PanelGrid className="p-3">
-      <PageIntro about={TOURNAMENTS_ABOUT} art={<IntroArt name="bracket" />} />
+      <PageIntro about={TOURNAMENTS_ABOUT} art={<IntroArt name="bracket" />} more={tabs} />
       <Panel
         className="col-span-12"
         title="tournaments"

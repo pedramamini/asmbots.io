@@ -111,11 +111,23 @@ describe('NotFound', () => {
 describe('the ticker', () => {
   // 2 days and 4 hours before the next weekly (TICKER: 2026-09-26 18:00 UTC).
   const NOW = Date.parse('2026-09-24T14:00:00.000Z')
-  const texts = (feed: TickerFeed) => feed.items.slice(1)
+  type Cup = ReactElement<{ id: string | null; children: string }>
+  /** An item's words: a championship's are its link's. */
+  const text = (item: ReactNode) => (typeof item === 'string' ? item : (item as Cup).props.children)
+  const texts = (feed: TickerFeed) => feed.items.slice(1).map(text)
+  /** Where each championship item goes: its id, or null for the championships page. */
+  const cups = (feed: TickerFeed) =>
+    feed.items.flatMap((item) =>
+      item !== null && typeof item === 'object' && 'props' in item && 'id' in (item as Cup).props
+        ? [(item as Cup).props.id]
+        : [],
+    )
 
   it('says what is always so until the feed comes', () => {
     expect(tickerFeed(undefined, NOW)).toBe(QUIET_FEED)
     expect(QUIET_FEED.link).toEqual({ to: '/hills/main', label: 'open the main hill' })
+    expect(texts(QUIET_FEED)).toContain('FIVE CHAMPIONSHIPS EVERY FRIDAY 18:00 CENTRAL')
+    expect(cups(QUIET_FEED)).toEqual([null])
   })
 
   it('names the latest challenge, the last champion, the next cup, and who is watching', () => {
@@ -131,6 +143,8 @@ describe('the ticker', () => {
       '4 WATCHING',
     ])
     expect(feed.link).toEqual({ to: '/hills/main', label: 'open the main hill' })
+    // The last cup opens its bracket; the next, not started yet, the championships page.
+    expect(cups(feed)).toEqual([(TICKER.lastChampionship as TickerChampionship).id, null])
   })
 
   it('counts down to the minute, then says the cup is starting, or live', () => {
@@ -144,6 +158,7 @@ describe('the ticker', () => {
       NOW,
     )
     expect(texts(live).slice(3)).toEqual(['CUP "WEEKLY 2026-09-26" LIVE NOW', '3 ENTERED'])
+    expect(cups(live)[1]).toBe('weekly-2026-09-26')
     expect(live.link).toEqual({
       to: '/tournaments/weekly-2026-09-26',
       label: 'watch weekly 2026-09-26',

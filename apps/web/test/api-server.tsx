@@ -87,6 +87,9 @@ const STUBS = [
   '/editor',
   '/stats',
   '/stats/leaderboard',
+  '/tournaments',
+  '/tournaments/$id',
+  '/tournaments/championships',
 ]
 
 /**
