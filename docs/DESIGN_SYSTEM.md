@@ -93,6 +93,7 @@ Bot 13+ wraps with a hatched marker in the roster so two bots never share an unm
 └ status ─────────────────────────────────────────────────────────────┘  22 px chips: bottom-left status, bottom-center attribution, bottom-right version + fps
 ```
 
+- **Frame width**: the frame (ticker to status row) is at most 1920 px wide, centered, with a hairline `--border` on each side. Past it the window shows a 16 px dot grid in `--border-strong` on `--bg`. 1920 holds the arena's square core at a big monitor's height and the bots column beside it; a wider page only adds empty panel.
 - **Panel**: `--panel` fill, 1 px `--border`, radius 4, padding 12. Title row: title left (accent), status right (muted). Hairline under the title row.
 - **Nav button**: 1 px `--border`, radius 3, padding 4 10, icon 12 px + label. Active: `--accent` border + text + `--accent-10` fill. Hover: `--border-strong`. Under `xl` the label goes (icon only); under `md` the nav is one menu button that opens a full-screen sheet (`Modal` `full`): one 48 px row per route, icon, UPPER name, a muted line on what it holds, the current route in the active look.
 - **Segmented control**: bordered pills, 2 px gap, active pill accent-bordered.

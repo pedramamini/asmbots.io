@@ -116,6 +116,12 @@ export function fillsScreen(pathname: string): boolean {
 const ToolbarSlot = createContext<HTMLElement | null>(null)
 
 /**
+ * The frame's widest, px (DESIGN_SYSTEM §4): the arena's square core, as tall as a big monitor
+ * gives it, and the bots column beside it. Past it, the frame stands centered on a dot grid.
+ */
+const FRAME_MAX = 'max-w-[1920px] min-[1920px]:border-x min-[1920px]:border-border'
+
+/**
  * The page chrome of DESIGN_SYSTEM §4 around a route: the ticker, the header (brand, the route's
  * stat, the nav, theme and keys), the route's optional toolbar, the content, and the status row.
  * It also owns the global keys and the key help.
@@ -137,57 +143,59 @@ export function Frame({ children }: { children: ReactNode }) {
   const idle = usePaintedAndIdle()
 
   return (
-    <div className="flex h-dvh flex-col bg-bg text-text">
-      <SkipLink />
-      {/* A landmark, so the ticker is not content outside every region. */}
-      <aside aria-label="ticker">
-        <FrameTicker />
-      </aside>
-      <Header
-        brand={<Brand />}
-        stat={<HeaderStat />}
-        nav={<Nav />}
-        right={<HeaderActions onKeys={openKeys} onThemes={() => setMenu('theme')} />}
-      />
-      <div ref={setToolbar} className="contents" />
-      <ToolbarSlot value={toolbar}>
-        {/* The scroll padding: a Tab stop scrolled into view keeps its focus ring clear of the edge. */}
-        <main
-          id={CONTENT_ID}
-          tabIndex={-1}
-          className="relative min-h-0 flex-1 scroll-py-2 overflow-auto outline-none"
-        >
-          {footer ? (
-            // The page fills the height at least, so a short page's footer stands at the bottom.
-            // A page that fills the screen gets all of it, and its footer waits below the fold,
-            // past the box's own height: a view that grows (`flex-1 basis-0`) fills the screen
-            // exactly, and a long page runs on past it.
-            <div className={fill ? 'h-full' : 'flex min-h-full flex-col'}>
-              <div className={fill ? 'flex min-h-full flex-col' : 'flex-1'}>{children}</div>
-              {idle && (
-                <Suspense fallback={null}>
-                  <SiteFooter />
-                </Suspense>
-              )}
-            </div>
-          ) : (
-            children
-          )}
-        </main>
-      </ToolbarSlot>
-      <FrameStatus />
-      {keysOpen && (
-        <Suspense fallback={null}>
-          <KeysModal onClose={() => setKeysOpen(false)} />
-        </Suspense>
-      )}
-      {menu !== null && (
-        <Suspense fallback={null}>
-          <CommandMenu query={menu} onClose={() => setMenu(null)} />
-        </Suspense>
-      )}
-      <Onboarding />
-      <BootLayer />
+    <div className="h-dvh bg-bg bg-[radial-gradient(var(--border-strong)_1px,transparent_1px)] bg-size-[16px_16px] text-text">
+      <div className={cx('mx-auto flex h-full flex-col bg-bg', FRAME_MAX)}>
+        <SkipLink />
+        {/* A landmark, so the ticker is not content outside every region. */}
+        <aside aria-label="ticker">
+          <FrameTicker />
+        </aside>
+        <Header
+          brand={<Brand />}
+          stat={<HeaderStat />}
+          nav={<Nav />}
+          right={<HeaderActions onKeys={openKeys} onThemes={() => setMenu('theme')} />}
+        />
+        <div ref={setToolbar} className="contents" />
+        <ToolbarSlot value={toolbar}>
+          {/* The scroll padding: a Tab stop scrolled into view keeps its focus ring clear of the edge. */}
+          <main
+            id={CONTENT_ID}
+            tabIndex={-1}
+            className="relative min-h-0 flex-1 scroll-py-2 overflow-auto outline-none"
+          >
+            {footer ? (
+              // The page fills the height at least, so a short page's footer stands at the bottom.
+              // A page that fills the screen gets all of it, and its footer waits below the fold,
+              // past the box's own height: a view that grows (`flex-1 basis-0`) fills the screen
+              // exactly, and a long page runs on past it.
+              <div className={fill ? 'h-full' : 'flex min-h-full flex-col'}>
+                <div className={fill ? 'flex min-h-full flex-col' : 'flex-1'}>{children}</div>
+                {idle && (
+                  <Suspense fallback={null}>
+                    <SiteFooter />
+                  </Suspense>
+                )}
+              </div>
+            ) : (
+              children
+            )}
+          </main>
+        </ToolbarSlot>
+        <FrameStatus />
+        {keysOpen && (
+          <Suspense fallback={null}>
+            <KeysModal onClose={() => setKeysOpen(false)} />
+          </Suspense>
+        )}
+        {menu !== null && (
+          <Suspense fallback={null}>
+            <CommandMenu query={menu} onClose={() => setMenu(null)} />
+          </Suspense>
+        )}
+        <Onboarding />
+        <BootLayer />
+      </div>
     </div>
   )
 }
