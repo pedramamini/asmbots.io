@@ -15,6 +15,7 @@ import {
 } from '@tanstack/react-router'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { useDom, window } from '../../../packages/ui/test/dom'
+import { statusLabel } from '../src/features/tournaments/entrants'
 import { type MatchExecutor, TournamentRunner } from '../src/features/tournaments/runner'
 import {
   createTournament,
@@ -24,11 +25,7 @@ import {
   type Tournament,
   type TournamentEntrant,
 } from '../src/features/tournaments/store'
-import {
-  filterTournaments,
-  statusLabel,
-  TournamentsPage,
-} from '../src/features/tournaments/TournamentsPage'
+import { filterTournaments, TournamentsPage } from '../src/features/tournaments/TournamentsPage'
 import { answer, useApiServer } from './api-server'
 
 useDom()

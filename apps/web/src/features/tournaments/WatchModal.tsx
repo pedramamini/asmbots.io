@@ -17,8 +17,8 @@ import { ByAuthor } from '../../app/author'
 import { ArenaCanvas } from '../arena/ArenaCanvas'
 import { ArenaClient, createArenaStore } from '../arena/worker/client'
 import type { Speed } from '../arena/worker/protocol'
+import { entrantAuthor } from './entrants'
 import type { Tournament, TournamentEntrant } from './store'
-import { entrantAuthor } from './TournamentsPage'
 import { replayWatchTarget, type WatchTarget, watchTarget } from './watch'
 
 export interface WatchModalProps {

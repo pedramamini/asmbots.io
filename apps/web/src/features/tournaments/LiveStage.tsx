@@ -17,8 +17,8 @@ import { count } from '../hills/links'
 import { LiveChip, SpectatorCount } from '../live/LiveChip'
 import { LIVE_DWELL_MS, ROUND_REST_MS } from '../live/LivePanel'
 import { currentMatch, type LiveRoomState, matchAuthors, roomBusy } from '../live/room'
+import { identiconValue } from './entrants'
 import type { Tournament } from './store'
-import { identiconValue } from './TournamentsPage'
 
 const LiveArena = lazy(() => import('../live/LiveArena').then((m) => ({ default: m.LiveArena })))
 

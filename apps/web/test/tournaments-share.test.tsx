@@ -23,6 +23,7 @@ import {
 import { act, render, screen, within } from '@testing-library/react'
 import { deflateSync, strToU8 } from 'fflate'
 import { useDom, window } from '../../../packages/ui/test/dom'
+import { entrantAuthor } from '../src/features/tournaments/entrants'
 import {
   entrantBots,
   type MatchExecutor,
@@ -44,7 +45,6 @@ import {
   type TournamentEntrant,
 } from '../src/features/tournaments/store'
 import { TournamentPage } from '../src/features/tournaments/TournamentPage'
-import { entrantAuthor } from '../src/features/tournaments/TournamentsPage'
 import { watchTarget } from '../src/features/tournaments/watch'
 import { refuse, testQueryClient, useApiServer } from './api-server'
 import { pickShare } from './share-menu'

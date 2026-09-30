@@ -35,6 +35,7 @@ import { ShareMenu, type ShareTarget } from '../share/ShareMenu'
 import { embedTitle, embedUrl } from '../share/share'
 import { BracketView } from './BracketView'
 import { EnterButton } from './EnterModal'
+import { identiconValue, useEntrantAuthors } from './entrants'
 import { takesEntries, utcTime } from './entry'
 import { LiveStage } from './LiveStage'
 import { MeleeView } from './MeleeView'
@@ -42,7 +43,6 @@ import { RoundRobinView } from './RoundRobinView'
 import { fromServer } from './server'
 import { KIND_LABELS, type Tournament } from './store'
 import { StatusChip } from './TournamentControls'
-import { identiconValue, useEntrantAuthors } from './TournamentsPage'
 
 const VIEWS = { bracket: BracketView, 'round-robin': RoundRobinView, melee: MeleeView } as const
 

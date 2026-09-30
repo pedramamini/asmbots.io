@@ -10,11 +10,11 @@ import { Chip, Identicon, Panel, useToast } from '@asmbots/ui'
 import { ByAuthor } from '../../app/author'
 import { WeightChip } from '../hills/WeightChip'
 import { ShareMenu } from '../share/ShareMenu'
+import { identiconValue, useEntrantAuthors } from './entrants'
 import { downloadBracketPng } from './export'
 import { copyTournamentLink } from './share'
 import { KIND_LABELS, type Tournament } from './store'
 import { StatusChip, TournamentControls } from './TournamentControls'
-import { identiconValue, useEntrantAuthors } from './TournamentsPage'
 
 export interface TournamentHeaderProps {
   tournament: Tournament
