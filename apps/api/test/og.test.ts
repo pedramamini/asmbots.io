@@ -4,12 +4,14 @@
  * not exist: a private bot's, a draft's, a page the web build did not describe.
  */
 import { env, exports } from 'cloudflare:workers'
+import { rosterImage } from '@asmbots/bots/images'
 import { CARD_HEIGHT, CARD_WIDTH, type Hill } from '@asmbots/protocol'
 import { createBracket } from '@asmbots/tourney'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { applySeed, buildSeed, SEED_HILLS } from '../src/db/seed'
 import { wrap } from '../src/og/card'
 import { hillCard } from '../src/og/hill'
+import { HOME_BOTS, homeFight, LISTING } from '../src/og/home'
 import { me, send, signIn } from './fake-auth'
 import { Jar } from './jar'
 import { pngSize, wellFormed } from './xml'
@@ -196,9 +198,31 @@ describe('GET /api/pages/og.svg and og.png', () => {
     expect(svg).toContain('>&#160;// DOCS</tspan>')
     expect(svg).toContain('>memory</text>')
     expect(svg).toContain('one 64 KB ring: wrap, zero as DAT, code as data, and ownership.')
+  })
+
+  it("draws the home page's own card: the pitch, Dwarf's listing, and a battle's arena", async () => {
     // The home page's, with no path.
-    expect(await svgOf('/api/pages/og.svg')).toContain('Write 8086 assembly.')
+    const svg = await svgOf('/api/pages/og.svg')
+    expect(svg).toContain('Write 8086 assembly.')
+    expect(svg).toContain('; dwarf.asm · 23 bytes · bombs every 4th byte')
+    expect(svg).toContain('CYCLE 12,400 · 8 BOTS · 64 KB CORE')
+    for (const slug of HOME_BOTS) expect(svg).toContain(`>${rosterImage(slug).name}</text>`)
+    expect(svg).toContain('asmbots.io</tspan> · editor · debugger · tournaments · hills')
     await pngOf('/api/pages/og.png')
+  })
+
+  it("lists Dwarf's bytes as the roster's dwarf.asm assembles them", () => {
+    const listed = LISTING.flatMap(([, bytes]) =>
+      bytes.split(' ').map((b) => Number.parseInt(b, 16)),
+    )
+    expect(listed).toEqual([...rosterImage('dwarf').bytes])
+  })
+
+  it('keeps every bot of the home battle alive at its cycle', () => {
+    const fight = homeFight()
+    expect(fight.cycle).toBe(12_400)
+    expect(fight.ips.filter((ips) => ips.length > 0).length).toBeGreaterThanOrEqual(6)
+    for (let tag = 1; tag <= HOME_BOTS.length; tag++) expect(fight.owners).toContain(tag)
   })
 
   it('draws nothing for a page the build did not describe', async () => {

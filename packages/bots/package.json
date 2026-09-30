@@ -5,7 +5,8 @@
   "type": "module",
   "sideEffects": false,
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./images": "./src/images.ts"
   },
   "scripts": {
     "build": "tsc -b",

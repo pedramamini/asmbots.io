@@ -2,6 +2,7 @@ import type { PageMeta } from '@asmbots/protocol'
 import { type Context, Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import type { AppEnv } from '../env'
+import { homeCard } from '../og/home'
 import { pageCard } from '../og/page'
 import { CARD_TTL, type CardFormat, cardHost, sendCard } from '../og/send'
 import { HOME } from '../site/heads'
@@ -13,12 +14,16 @@ async function pageAt(c: Context<AppEnv>, path: string): Promise<PageMeta | unde
   return manifest?.pages[path] ?? (path === '/' ? HOME : undefined)
 }
 
-/** The share card of the page `?path=` names in `format`; it changes only with a deploy. */
+/**
+ * The share card of the page `?path=` names in `format`; it changes only with a deploy. The home
+ * page's is its own: the pitch beside a battle's arena (`og/home.ts`).
+ */
 const card = (format: CardFormat) => async (c: Context<AppEnv>) => {
   const path = c.req.query('path') ?? '/'
   const page = await pageAt(c, path)
   if (page === undefined) throw new HTTPException(404, { message: `no page ${path}` })
-  return sendCard(c, pageCard(page, cardHost(c.env)), format, CARD_TTL)
+  const draw = path === '/' ? homeCard : pageCard
+  return sendCard(c, draw(page, cardHost(c.env)), format, CARD_TTL)
 }
 
 /**
