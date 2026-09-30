@@ -7,7 +7,6 @@ import { sitePath } from '../app/site'
 import { Asm } from './Asm'
 import { isAgentFile } from './agent-files'
 import { Fig, Keys, Note, Shot, Warn } from './blocks'
-import { Encoding, Flags } from './reference'
 import { headingId, textOf } from './text'
 
 /** The keyboard map: its own chunk, since one page shows it and it holds every key table. */
@@ -18,6 +17,32 @@ function KeyMap() {
   return (
     <Suspense fallback={null}>
       <LazyKeyMap />
+    </Suspense>
+  )
+}
+
+/**
+ * The reference's encoding and flag tables: their own chunk, with the opcode table they read, since
+ * only the instruction reference and the registers page draw them.
+ */
+const reference = () => import('./reference')
+const LazyEncoding = lazy(() => reference().then((m) => ({ default: m.Encoding })))
+const LazyFlags = lazy(() => reference().then((m) => ({ default: m.Flags })))
+
+/** `<Encoding form="…" />` in MDX, loaded when the page draws it. */
+function Encoding(props: { form: string }) {
+  return (
+    <Suspense fallback={null}>
+      <LazyEncoding {...props} />
+    </Suspense>
+  )
+}
+
+/** `<Flags op="…" set="…" />` in MDX, loaded when the page draws it. */
+function Flags(props: { op?: string; set?: string }) {
+  return (
+    <Suspense fallback={null}>
+      <LazyFlags {...props} />
     </Suspense>
   )
 }

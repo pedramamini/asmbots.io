@@ -33,7 +33,7 @@ about 5% over its page, so what grows one is a choice, made here and in `BUDGETS
 | `/bots/$id` | 186.9 KB | 195 KB | |
 | `/u/$handle` | 185.3 KB | 190 KB | the profile's charts: HTML boxes and SVG, no chart library, the stats page's size bars shared; its badges |
 | `/docs` | 179.5 KB | 182 KB | a page's own MDX loads after its route; 180 until the header's `stats` and the badge ids (every page's API schemas read them) |
-| `/docs/$` | 189.7 KB | 192 KB | 190.0 on CI before the profile's `User.name` and `github` (every page +0.2 KB) |
+| `/docs/$` | 186.0 KB | 192 KB | the reference's `Encoding` and `Flags` load as a page draws them, with the opcode table (−5 KB); 192.1 before, when the ticker and the frame's width came (+0.2 KB) |
 | `/stats` | 181.3 KB | 190 KB | the charts are HTML boxes, no chart library |
 | `/stats/leaderboard` | 177.0 KB | 185 KB | the badge catalog and its 8 × 8 glyphs |
 | `/settings` | 183.5 KB | 195 KB | |
