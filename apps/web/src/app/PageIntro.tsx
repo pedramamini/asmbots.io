@@ -1,8 +1,7 @@
-import { Button, cx, IconButton, Modal } from '@asmbots/ui'
+import { cx, IconButton } from '@asmbots/ui'
 import { Link } from '@tanstack/react-router'
-import { BookOpen, Info } from 'lucide-react'
+import { Info } from 'lucide-react'
 import { lazy, type ReactNode, Suspense, useState } from 'react'
-import { NavLink } from './Frame'
 import { useRouteAbout } from './slots'
 
 /** What a page says about itself: a line at its top, and more behind the `ⓘ`. */
@@ -38,12 +37,6 @@ export type AboutFigure =
       readonly name: 'hill' | 'match' | 'versions' | 'badges'
       readonly caption: string
     }
-
-/** The figure's drawing and frame: their own chunk, loaded when a dialog first opens. */
-const FigureView = lazy(() => import('./intros/figures'))
-
-/** The figure's box while its chunk loads: its frame at 16:10, so the dialog does not move. */
-const FIGURE_BOX = 'aspect-[16/10] w-full rounded-sm border border-border bg-panel-2'
 
 /** A link inside an intro's text: underlined, as a link in running text is (DESIGN_SYSTEM §8). */
 const INTRO_LINK =
@@ -89,53 +82,33 @@ export function PageIntro({ about, art, more, className }: PageIntroProps) {
   )
 }
 
+/** The `ⓘ`'s dialog: its own chunk, with the kit's `Modal`, loaded when it first opens. */
+const AboutDialog = lazy(() => import('./AboutDialog'))
+
 /**
  * The `ⓘ`, which the header draws beside the page's name (`useRouteAbout`): it opens the dialog
- * with the page's `details` and its docs link.
+ * with the page's `details` and its docs link. The dialog stays mounted once loaded, so it closes
+ * as it opened.
  */
 export function AboutButton({ about }: { about: PageAbout }) {
   const [open, setOpen] = useState(false)
-  const close = () => setOpen(false)
+  const [loaded, setLoaded] = useState(false)
   return (
     <>
       <IconButton
         icon={Info}
         label={`about ${about.name}`}
         size="sm"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setLoaded(true)
+          setOpen(true)
+        }}
       />
-      <Modal
-        open={open}
-        onClose={close}
-        title={`about ${about.name}`}
-        size="xl"
-        actions={
-          <>
-            <Button variant="ghost" onClick={close}>
-              close
-            </Button>
-            <NavLink to="/docs/$" params={{ _splat: about.docs }} icon={BookOpen}>
-              read the docs
-            </NavLink>
-          </>
-        }
-      >
-        <div
-          className={cx(
-            'grid gap-5 text-body text-text',
-            about.figure && 'lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]',
-          )}
-        >
-          <div className="flex min-w-0 flex-col gap-3">{about.details}</div>
-          {about.figure && (
-            <div className="min-w-0 lg:sticky lg:top-0 lg:self-start">
-              <Suspense fallback={<div className={FIGURE_BOX} />}>
-                <FigureView figure={about.figure} />
-              </Suspense>
-            </div>
-          )}
-        </div>
-      </Modal>
+      {loaded && (
+        <Suspense fallback={null}>
+          <AboutDialog about={about} open={open} onClose={() => setOpen(false)} />
+        </Suspense>
+      )}
     </>
   )
 }

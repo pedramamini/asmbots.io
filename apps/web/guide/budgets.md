@@ -19,7 +19,7 @@ about 5% over its page, so what grows one is a choice, made here and in `BUDGETS
 
 | What | Now | Budget | Note |
 | --- | ---: | ---: | --- |
-| shell, every page | 166.2 KB | 175 KB | the entry and `vendor`; 185.2 KB before this pass |
+| shell, every page | 168.4 KB | 175 KB | the entry and `vendor`; 185.2 KB before this pass; the `ⓘ`'s dialog and `Modal` load on its first click (`app/AboutDialog.tsx`, −0.9 KB) |
 | `/` | 184.0 KB | 185 KB | the overview's cards and `how it works` copy; the art and the footer load after paint |
 | `/arena` | 209.4 KB | 250 KB | the setup, the engine, and the shell; the battle view loads as the page mounts (250.8 KB with it, as the players' bots came); 263.2 KB before the first pass |
 | `/arena/$replayId` | 234.1 KB | 250 KB | |
@@ -28,7 +28,7 @@ about 5% over its page, so what grows one is a choice, made here and in `BUDGETS
 | `/tournaments` | 224.7 KB | 235 KB | |
 | `/tournaments/$id` | 269.8 KB | 275 KB | the bracket, the watch's renderer, the assembler and engine a local run uses; the list page stays out (its status chip and entrant authors are in `tournaments/entrants.ts`, −4.9 KB) |
 | `/tournaments/championships` | 181.4 KB | 190 KB | the week's cards, the champions table, the schedule; the enter dialog loads on `enter` |
-| `/hills` | 178.7 KB | 180 KB | the cards and their skylines; the diagram, ruler, feed, and table load after the page (`HillsLower.tsx`) |
+| `/hills` | 179.1 KB | 180 KB | the cards and their skylines; the diagram, ruler, feed, and table load after the page (`HillsLower.tsx`) |
 | `/hills/$slug` | 192.2 KB | 200 KB | |
 | `/bots/$id` | 186.9 KB | 195 KB | |
 | `/u/$handle` | 185.3 KB | 190 KB | the profile's charts: HTML boxes and SVG, no chart library, the stats page's size bars shared; its badges |
