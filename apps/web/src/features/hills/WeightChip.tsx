@@ -34,11 +34,16 @@ export interface WeightChipProps extends Omit<ChipProps, 'children'> {
   weight: WeightClass
 }
 
-/** The class's short name in a chip, with its name and bounds in a tooltip. */
+/**
+ * The class's short name in a chip, with its name and bounds in a tooltip. A chip takes no focus,
+ * so the tooltip is the pointer's only: the chip is a labelled image to assistive tech, which reads
+ * the name and bounds in place of the short name.
+ */
 export function WeightChip({ weight, ...rest }: WeightChipProps) {
+  const bounds = weightBounds(weight)
   return (
-    <Tooltip content={weightBounds(weight)}>
-      <Chip data-weight={weight.slug} {...rest}>
+    <Tooltip content={bounds} describe={false}>
+      <Chip data-weight={weight.slug} role="img" aria-label={bounds} {...rest}>
         {WEIGHT_SHORT[weight.slug]}
       </Chip>
     </Tooltip>

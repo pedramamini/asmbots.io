@@ -261,13 +261,16 @@ describe('the library', () => {
     expect(onOpenCloud.mock.calls[0]?.[0].bot.id).toBe('c7')
   })
 
-  it('filters my account bots and the roster by weight class, and leaves this browser’s be', () => {
+  it('filters my bots, my account bots, and the roster by weight class', () => {
     const cloud: MyBot[] = [
       { bot: cloudBot('c7', 'Spin'), latest: cloudVersion('c7', 3) },
       { bot: cloudBot('c8', 'Fort'), latest: { ...cloudVersion('c8', 1), size: 1500 } },
       { bot: cloudBot('c9', 'Draft'), latest: null },
     ]
-    const local = [{ id: 'l1', name: 'Mine', source: SPIN, updatedAt: 0 }]
+    const local = [
+      { id: 'l1', name: 'Mine', source: SPIN, updatedAt: 0 },
+      { id: 'l2', name: 'Broken', source: 'mov ax,', updatedAt: 0 },
+    ]
     render(
       <Library
         current="scratch"
@@ -286,10 +289,16 @@ describe('the library', () => {
     const weight = screen.getByRole('radiogroup', { name: 'weight class' })
     const allRoster = names('roster').length
     expect(names('mine (cloud)')).toEqual(['Spin · v3', 'Fort · v1', 'Draft'])
+    expect(names('my bots')).toEqual(['Mine', 'Broken'])
+
+    // A local bot's class is the size it assembles to; one with errors has none.
+    fireEvent.click(within(weight).getByRole('radio', { name: 'light' }))
+    expect(names('my bots')).toEqual(['Mine'])
 
     fireEvent.click(within(weight).getByRole('radio', { name: 'heavy' }))
     expect(names('mine (cloud)')).toEqual(['Fort · v1'])
-    expect(names('my bots')).toEqual(['Mine'])
+    const browser = screen.getByRole('region', { name: 'my bots' })
+    expect(within(browser).getByText('no heavy bots in this browser.')).toBeTruthy()
     const heavy = names('roster')
     expect(heavy.length).toBeGreaterThan(0)
     expect(heavy.length).toBeLessThan(allRoster)
@@ -299,6 +308,7 @@ describe('the library', () => {
     expect(within(mine).getByText('no super bots in your account.')).toBeTruthy()
     fireEvent.click(within(mine).getByRole('button', { name: 'show every class' }))
     expect(names('mine (cloud)')).toHaveLength(3)
+    expect(names('my bots')).toHaveLength(2)
     expect(names('roster')).toHaveLength(allRoster)
   })
 })

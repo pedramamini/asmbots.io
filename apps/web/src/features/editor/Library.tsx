@@ -4,6 +4,7 @@ import { GitFork, Plus } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { LoadFailure, type RetryableRead } from '../../app/LoadFailure'
 import type { LocalBot } from '../../store/local-bots'
+import { assembleCached } from '../arena/setup/assembly'
 import { type CatalogBot, rosterCatalog } from '../arena/setup/bots'
 import { inWeight, WEIGHT_FILTERS, WEIGHT_SHORT, type WeightFilter } from '../hills/WeightChip'
 import { type DocTarget, docKey, parseDocKey, SCRATCH } from './doc'
@@ -34,9 +35,9 @@ export interface LibraryProps {
 /**
  * The bot library (PRODUCT_SPEC §3, `b`): my bots, which open to edit; when signed in, my bots in
  * the account (`mine (cloud)`), which open in their local copy; the roster, which opens read-only
- * and forks into my bots; and the documents opened lately. A weight filter narrows the account's
- * bots and the roster to one class; this browser's bots have no size until they assemble, so it
- * leaves them be.
+ * and forks into my bots; and the documents opened lately. A weight filter narrows every list to
+ * one class: this browser's bots by the size they assemble to (a bot with errors has none, so it
+ * shows under `all` only).
  */
 export function Library({
   current,
@@ -62,6 +63,8 @@ export function Library({
   const currentCloud = (local ?? []).find(
     (bot) => docKey({ kind: 'local', id: bot.id }) === current,
   )?.cloudId
+  const localShown =
+    weight === 'all' ? local : local?.filter((bot) => inWeight(assembledSize(bot.source), weight))
   const roster = rosterCatalog()
   const rosterShown = roster.filter((bot) => inWeight(bot.assembled.bytes.length, weight))
   const cloudShown = cloud?.filter((mine) => inWeight(mine.latest?.size, weight))
@@ -121,9 +124,13 @@ export function Library({
             <EmptyState dense action={first}>
               none saved in this browser yet.
             </EmptyState>
+          ) : weight !== 'all' && localShown?.length === 0 ? (
+            <EmptyState dense action={showAll}>
+              no {WEIGHT_SHORT[weight]} bots in this browser.
+            </EmptyState>
           ) : (
             <Rows>
-              {local.map((bot) => {
+              {(localShown ?? []).map((bot) => {
                 const target: DocTarget = { kind: 'local', id: bot.id }
                 return (
                   <Row
@@ -204,6 +211,12 @@ export function Library({
       </div>
     </Panel>
   )
+}
+
+/** The size `source` assembles to, or null when it has errors and so no class. */
+function assembledSize(source: string): number | null {
+  const assembled = assembleCached(source)
+  return assembled.diagnostics.some((d) => d.severity === 'error') ? null : assembled.bytes.length
 }
 
 function Section({

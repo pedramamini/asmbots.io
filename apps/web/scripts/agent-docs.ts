@@ -394,7 +394,7 @@ function bySection(pages: readonly AgentPage[]): [string, AgentPage[]][] {
 /** What llms.txt says ASM Bots is: the rules a bot author needs first (ISA_SPEC §1, §5). */
 const SUMMARY =
   'ASM Bots is Core War in a real 16-bit 8086 subset, "x16c v1": bots of variable sizes, in ' +
-  'weight classes from 512 bytes (lightweight) to 4 KB (super-heavy), share one 64 KB core and run one instruction a cycle each, and a process that runs a zero byte ' +
+  'weight classes from lightweight (up to 512 bytes) to super-heavy (up to 4 KB), share one 64 KB core and run one instruction a cycle each, and a process that runs a zero byte ' +
   '(DAT) dies. The last bot with a live process wins.'
 
 const FACTS = [

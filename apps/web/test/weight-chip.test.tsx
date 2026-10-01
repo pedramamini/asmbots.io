@@ -10,11 +10,13 @@ useDom()
 const [light, middle, , superHeavy] = WEIGHT_CLASSES
 
 describe('WeightChip', () => {
-  it('reads the short name, and its tooltip the full name and bounds', async () => {
+  it('reads the short name, and its tooltip and its label the full name and bounds', async () => {
     render(<WeightChip weight={middle} />)
     const chip = screen.getByText('middle')
+    expect(screen.getByRole('img', { name: 'middleweight · 513 to 1,024 bytes' })).toBe(chip)
     fireEvent.pointerEnter(chip, { pointerType: 'mouse' })
-    const tip = await screen.findByRole('tooltip', {}, { timeout: 2_000 })
+    // The label says it already, so the tooltip is hidden from assistive tech.
+    const tip = await screen.findByRole('tooltip', { hidden: true }, { timeout: 2_000 })
     expect(tip.textContent).toBe('middleweight · 513 to 1,024 bytes')
   })
 
