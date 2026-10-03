@@ -8,7 +8,8 @@
     "declarationMap": true,
     "sourceMap": true,
     "jsx": "react-jsx",
-    "types": ["vite/client", "mdx"]
+    "types": ["vite/client", "mdx"],
+    "paths": { "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime.d.ts"] }
   },
   "include": ["src", "src/**/*.json"],
   "references": [
