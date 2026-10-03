@@ -20,12 +20,15 @@ import {
   SubmissionDetail,
 } from '@asmbots/protocol'
 import {
+  botHash,
   createHill,
   DEFAULT_RATING,
   type HillState,
   hill,
+  melee,
   type Rating,
   rateMatches,
+  settleMelee,
 } from '@asmbots/tourney'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { applySeed, buildSeed, SEED_MATCH_SEED, type SeedHill } from '../src/db/seed'
@@ -102,6 +105,7 @@ const HILLS: SeedHill[] = [
   duel('small', 5, { ...CONFIG, maxBotBytes: 4 }),
   duel('floor', 5),
   { ...duel('crowd', 8), scoring: 'melee' },
+  { ...duel('mob', 2), scoring: 'melee' },
 ]
 
 const loaded = (source: string): LoadedBot => {
@@ -373,6 +377,65 @@ describe('POST /api/hills/:slug/submit', () => {
     }
   })
 
+  it('plays one melee of a melee hill and every entry, and ranks the board by it', async () => {
+    const jar = await user('brawler')
+    const { version } = await botOf(jar, 'Loop', LOOP)
+    const before = await standings('mob')
+    const board: HillState = {
+      config: { size: 2, rounds: ROUNDS, battle: { ...CONFIG, seed: SEED_MATCH_SEED } },
+      entries: before.map(({ entry }) => ({
+        id: entry.botVersionId,
+        name: BOTS.get(entry.botVersionId)?.name ?? '',
+        hash: botHash(BOTS.get(entry.botVersionId) as LoadedBot),
+        points: entry.score,
+        wins: entry.wins,
+        ties: entry.ties,
+        losses: entry.losses,
+        age: entry.age,
+        rating: entry.rating,
+      })),
+      matches: [],
+    }
+    const order = board.entries.map((e) => e.id)
+    expect(order).toEqual(['roster-spin-v1', 'roster-halt-v1'])
+    const { submissionId, runner } = await submitted(jar, 'mob', version.id)
+    const started = await detail('mob', submissionId)
+    expect(started.progress).toMatchObject({ done: 0, of: 1 })
+    expect(started.progress?.next?.map((b) => b?.versionId)).toEqual([version.id, ...order])
+    await drain(runner)
+
+    const bots = [version.id, ...order].map((id) => BOTS.get(id) as LoadedBot)
+    const played = melee(bots, board.config.battle, ROUNDS).match
+    const expected = settleMelee(
+      board,
+      { id: version.id, bot: bots[0] as LoadedBot },
+      order,
+      played,
+    )
+    // Loop and Spin outlive Halt: level on points, the older Spin keeps the crown.
+    expect(expected.board.map((r) => r.entry.id)).toEqual(['roster-spin-v1', version.id])
+    const done = await detail('mob', submissionId)
+    expect(done.submission).toMatchObject({
+      status: 'finished',
+      score: expected.challenger.points,
+      rank: 2,
+      needed: null,
+    })
+    expect(done.matches.map((m) => m.match.participants)).toEqual([[version.id, ...order]])
+    expect(done.matches[0]?.match.result?.points).toEqual(played.points)
+    expect(done.events.map(({ event, bot }) => [event.kind, bot?.name, event.rank])).toEqual([
+      ['entered', 'Loop', 2],
+      ['evicted', 'Halt', 2],
+    ])
+    const after = await standings('mob')
+    expect(
+      after.map((s) => [s.entry.botVersionId, s.entry.rank, s.entry.score, s.entry.age]),
+    ).toEqual(expected.board.map((r) => [r.entry.id, r.rank, r.entry.points, r.entry.age]))
+    expect(after.map((s) => s.entry.reign)).toEqual([(before[0]?.entry.reign ?? 0) + 1, null])
+    // A melee rates no one.
+    expect((await ratings('mob')).has(version.id)).toBe(false)
+  })
+
   it('turns away a bot below the lowest entry: rejected, with the score it had to beat', async () => {
     const jar = await user('hopeful')
     const { version } = await botOf(jar, 'Dud', DUD)
@@ -473,11 +536,6 @@ describe('POST /api/hills/:slug/submit', () => {
       403,
       'forbidden',
       `bot version ${theirs.id} is not yours`,
-    ])
-    expect(await refusal(await post(jar, 'crowd', mine.id))).toEqual([
-      409,
-      'conflict',
-      'the crowd hill scores melees, and takes no submissions yet',
     ])
     expect(await refusal(await post(jar, 'small', big.id))).toEqual([
       422,

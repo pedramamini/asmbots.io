@@ -26,11 +26,13 @@ export function cycles(n: number): string {
 
 /**
  * What one challenge on a hill fights: a match against each entry, each of the hill's rounds at
- * most its cycles. A melee hill takes no submissions.
+ * most its cycles; on a melee hill, one melee of the challenger and every entry.
  */
 export function challengeCost({ hill, entrants }: HillSummary): string {
-  if (hill.scoring === 'melee') return 'no submissions'
   if (entrants === 0) return 'no entries yet'
+  if (hill.scoring === 'melee') {
+    return `1 melee of ${count(entrants + 1)} · ≤ ${cycles(hill.rounds * hill.config.maxCycles)} cycles`
+  }
   return `${count(entrants)} ${entrants === 1 ? 'match' : 'matches'} · ≤ ${cycles(entrants * hill.rounds * hill.config.maxCycles)} cycles`
 }
 
@@ -92,7 +94,7 @@ const COLUMNS: TableColumn<HillSummary>[] = [
     header: 'a challenge',
     cell: (summary) => <span className="text-muted">{challengeCost(summary)}</span>,
     sortValue: ({ hill, entrants }) =>
-      hill.scoring === 'melee' ? -1 : entrants * hill.rounds * hill.config.maxCycles,
+      (hill.scoring === 'melee' ? 1 : entrants) * hill.rounds * hill.config.maxCycles,
   },
 ]
 

@@ -515,6 +515,46 @@ describe('a hill job', () => {
     expect(heard.at(-1)).toMatchObject({ type: 'progress', status: 'cancelled', done: 1 })
   })
 
+  it("plays a melee hill's job as one melee, and melees again with an entry new to it", async () => {
+    const job = await submit('s-crowd', 'crowd', 'loop-v1')
+    const runner = runnerOf(env, job)
+    expect(await runner.start(job)).toMatchObject({
+      of: 1,
+      next: ['loop-v1', 'roster-spin-v1', 'roster-halt-v1'],
+    })
+    // Another job's board write lands before this one's: Dwarf is on the hill now.
+    await env.DB.prepare(
+      "INSERT INTO hill_entries (hill_id, bot_version_id, rank) VALUES ('hill-crowd', 'roster-dwarf-v1', 3)",
+    ).run()
+    await drain(runner)
+    expect(await runner.status()).toMatchObject({ status: 'finished', done: 2, of: 2 })
+    const rows = await jobMatches('s-crowd')
+    expect(rows.map((r) => JSON.parse(r.participants_json))).toEqual([
+      ['loop-v1', 'roster-spin-v1', 'roster-halt-v1'],
+      ['loop-v1', 'roster-spin-v1', 'roster-halt-v1', 'roster-dwarf-v1'],
+    ])
+    // The board is the second melee's, ranked by its points: nothing goes from a hill of 8.
+    const ids = ['loop-v1', 'roster-spin-v1', 'roster-halt-v1', 'roster-dwarf-v1']
+    const { points } = runMatch(
+      ids.map((id) => BOTS.get(id) as LoadedBot),
+      { ...CONFIG, seed: SEED_MATCH_SEED },
+      ROUNDS,
+    )
+    const scores = new Map(ids.map((id, i) => [id, points[i]]))
+    const after = await board('crowd')
+    expect(after.map(([id]) => id).sort()).toEqual([...ids].sort())
+    expect(after.map(([id, , score]) => [id, score])).toEqual(
+      after.map(([id]) => [id, scores.get(id as string)]),
+    )
+    expect(after.map(([, , score]) => score as number)).toEqual(
+      [...points].sort((a, b) => (b as number) - (a as number)),
+    )
+    expect(await submissionRow('s-crowd')).toMatchObject({
+      status: 'finished',
+      score: scores.get('loop-v1'),
+    })
+  })
+
   it('refuses a job it cannot run, and marks its submission failed', async () => {
     /** Why `job` does not start; the runner keeps nothing of it. */
     const refused = async (job: RunnerJob) => {
@@ -526,9 +566,6 @@ describe('a hill job', () => {
       expect(await runner.status()).toBeNull()
       return why
     }
-    const crowd = await submit('s-crowd', 'crowd', 'loop-v1')
-    expect(await refused(crowd)).toMatch(/the crowd hill scores melees/)
-    expect(await submissionRow('s-crowd')).toMatchObject({ status: 'failed' })
     const standing = await submit('s-eta-on', 'eta', 'roster-spin-v1')
     expect(await refused(standing)).toMatch(/roster-spin-v1 is on the eta hill already/)
     expect(await submissionRow('s-eta-on')).toMatchObject({ status: 'failed' })

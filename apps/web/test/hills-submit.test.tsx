@@ -1,6 +1,6 @@
 /**
  * The hill page's submission flow (PRODUCT_SPEC §5) against `msw`: `submit` (sign-in, the melee
- * hill, picking a bot and a version, the cap, a refusal), the progress panel as the job runs, the
+ * hill's melee row, picking a bot and a version, the cap, a refusal), the progress panel as the job runs, the
  * result card for a bot that stayed and one that did not, the recent submissions feed with its
  * deltas, the king's card, `challenge` under the hill's rules, and `/hills`' best rank.
  */
@@ -18,7 +18,7 @@ import type {
 } from '@asmbots/protocol'
 import { type QueryClient, useQueryClient } from '@tanstack/react-query'
 import { useLocation } from '@tanstack/react-router'
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { HttpResponse, http } from 'msw'
 import { useDom, window } from '../../../packages/ui/test/dom'
 import { SUBMISSION_POLL_MS, submissionQuery } from '../src/api/queries'
@@ -30,7 +30,12 @@ import { HillPage } from '../src/features/hills/HillPage'
 import { HillsPage } from '../src/features/hills/HillsPage'
 import { KingCard } from '../src/features/hills/KingCard'
 import { ago } from '../src/features/hills/links'
-import { closestFight, missedText, submissionStatus } from '../src/features/hills/SubmissionPanel'
+import {
+  closestFight,
+  meleePlace,
+  missedText,
+  submissionStatus,
+} from '../src/features/hills/SubmissionPanel'
 import { validateHillSearch } from '../src/features/hills/search'
 import { clearLocalBots, saveLocalBot } from '../src/store/local-bots'
 import { answer, answerPost, refuse, renderAt, useApiServer } from './api-server'
@@ -264,6 +269,22 @@ describe('the words of a submission', () => {
     expect(submissionStatus(FINISHED)).toBe('3 matches')
   })
 
+  it("places the challenger in a melee hill's melee by its points, and finds no closest fight", () => {
+    const one = match('s1-0', PAPER, [9, 0])
+    const melee = (points: number[]): MatchSummary => ({
+      match: {
+        ...one.match,
+        participants: [LOOP, PAPER, DWARF].map((b) => b.versionId),
+        result: { points, survivors: [0], resultHash: '0123456789abcdef' },
+      },
+      bots: [LOOP, PAPER, DWARF],
+    })
+    expect(meleePlace(melee([400, 240, 0]))).toBe('#1 of 3 · 400')
+    expect(meleePlace(melee([80, 240, 80]))).toBe('#2 of 3 · 80')
+    expect(meleePlace(one)).toBeNull()
+    expect(closestFight([melee([0, 240, 0])])).toBeNull()
+  })
+
   it('reads the route query, feed deltas, and times', () => {
     expect(validateHillSearch({ submission: 'abc-1' })).toEqual({ submission: 'abc-1' })
     expect(validateHillSearch({ submission: 'a b' })).toEqual({})
@@ -323,16 +344,13 @@ describe('the words of a submission', () => {
 })
 
 describe('submit', () => {
-  it('asks a signed-out reader to sign in, and holds the melee hill shut', async () => {
+  it('asks a signed-out reader to sign in, on a duel hill and the melee hill alike', async () => {
     await renderAt('/hills/main', Page, '/hills/$slug')
     expect(await screen.findByRole('button', { name: 'sign in to submit' })).toBeTruthy()
+    cleanup()
     server.use(answer('/hills/main', { ...MAIN_DETAIL, hill: { ...MAIN, scoring: 'melee' } }))
     await renderAt('/hills/main', Page, '/hills/$slug')
-    await waitFor(() =>
-      expect(
-        screen.getAllByRole('button', { name: 'submit' }).some((b) => b.hasAttribute('disabled')),
-      ).toBe(true),
-    )
+    expect(await screen.findByRole('button', { name: 'sign in to submit' })).toBeTruthy()
   })
 
   it('sends me to the editor when my account has no bot', async () => {
@@ -370,14 +388,17 @@ describe('submit', () => {
     expect(await screen.findByRole('dialog', { name: 'submit to main' })).toBeTruthy()
   })
 
-  it('points the melee hill’s empty standings at how hills score', async () => {
+  it('opens the submit dialog from the melee hill’s empty standings, signed in', async () => {
+    signedIn(true)
     server.use(
       answer('/hills/main', { ...MAIN_DETAIL, hill: { ...MAIN, scoring: 'melee' }, standings: [] }),
     )
     await renderAt('/hills/main', Page, '/hills/$slug')
     const standings = await screen.findByRole('table', { name: 'standings' })
-    const link = await within(standings).findByRole('link', { name: 'see how hills score' })
-    expect(link.getAttribute('href')).toBe('/docs/tournaments/hills')
+    const action = await within(standings).findByRole('button', { name: 'submit a bot' })
+    await waitFor(() => expect(action.hasAttribute('disabled')).toBe(false))
+    fireEvent.click(action)
+    expect(await screen.findByRole('dialog', { name: 'submit to main' })).toBeTruthy()
   })
 
   it('picks a version under the cap, submits it, and follows the submission', async () => {

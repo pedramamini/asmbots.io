@@ -1,7 +1,7 @@
 /**
  * `submit` on a hill (PRODUCT_SPEC §5): pick one of my account's bots and a version of it, and the
- * server fights it against every entry with the bytes it assembled when the version was saved. A
- * signed-out reader gets `sign in to submit`; the melee hill takes no submissions yet.
+ * server fights it against every entry with the bytes it assembled when the version was saved (on
+ * the melee hill, all of them at once). A signed-out reader gets `sign in to submit`.
  */
 import type { Hill } from '@asmbots/protocol'
 import { Button, EmptyState, type EmptyStateAction, Modal, Skeleton, useToast } from '@asmbots/ui'
@@ -124,13 +124,6 @@ export function SubmitButton({
   onOpenChange: setOpen,
 }: SubmitButtonProps) {
   const me = useMe()
-  if (hill?.scoring === 'melee') {
-    return (
-      <Button size="sm" icon={Upload} disabled title="the melee hill takes no submissions yet">
-        submit
-      </Button>
-    )
-  }
   if (me.data === null) return <SignInButton>sign in to submit</SignInButton>
   return (
     <>
@@ -161,13 +154,10 @@ export function SubmitButton({
 
 /**
  * What a hill page's empty lists offer, as `submit` does: `submit a bot` opens the dialog
- * (`onOpen`), a signed-out reader signs in first, and the melee hill, which takes none, shows how
- * hills score.
+ * (`onOpen`), and a signed-out reader signs in first.
  */
 export function useSubmitAction(hill: Hill | undefined, onOpen: () => void): EmptyStateAction {
   const me = useMe()
-  const link = useLinkAction()
-  if (hill?.scoring === 'melee') return link('see how hills score', '/docs/tournaments/hills')
   if (me.data === null) return { label: 'sign in to submit a bot', onClick: signIn }
   return {
     label: 'submit a bot',

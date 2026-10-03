@@ -1,7 +1,9 @@
 /**
  * A hill submission as it runs and after (PRODUCT_SPEC §5): the progress panel ("fighting 24 of
  * 32"), a row per match as it lands and one for the match being fought, then the result card: the
- * rank it took, or the score it had against the score it needed and its closest fight. While
+ * rank it took, or the score it had against the score it needed and its closest fight. A melee
+ * hill's job plays one melee of the challenger and every entry: its row is the melee, and the
+ * place the challenger took in it. While
  * its job runs, the hill's live room says each time the job moves, and the submission is read
  * again; with the room not open it is polled instead. When it has finished, the hill's reads
  * load again.
@@ -34,15 +36,25 @@ export interface Fight {
 }
 
 export function fightOf({ match }: MatchSummary): Fight | null {
-  const [mine, theirs] = match.result?.points ?? []
-  if (mine === undefined || theirs === undefined) return null
+  const points = match.result?.points ?? []
+  const [mine, theirs] = points
+  if (points.length !== 2 || mine === undefined || theirs === undefined) return null
   return { outcome: mine > theirs ? 'won' : mine < theirs ? 'lost' : 'tie', mine, theirs }
+}
+
+/** A melee from the challenger's side (entrant 0): `#2 of 9 · 240`, its place by points. */
+export function meleePlace({ match }: MatchSummary): string | null {
+  const points = match.result?.points ?? []
+  const mine = points[0]
+  if (points.length < 3 || mine === undefined) return null
+  const place = 1 + points.filter((p) => p > mine).length
+  return `#${place} of ${points.length} · ${count(mine)}`
 }
 
 /** `lost 2–8`. */
 export const fightText = (fight: Fight) => `${fight.outcome} ${fight.mine}–${fight.theirs}`
 
-/** The match it lost by the fewest points: its closest fight; null when it lost none. */
+/** The match it lost by the fewest points: its closest fight; null when it lost none, or melees. */
 export function closestFight(matches: readonly MatchSummary[]): MatchSummary | null {
   let closest: MatchSummary | null = null
   let margin = Number.POSITIVE_INFINITY
@@ -81,7 +93,15 @@ export function submissionStatus({ progress, matches }: SubmissionDetail): strin
 /** A row of the matches table: a match played, or the one being fought. */
 type Row =
   | { readonly kind: 'played'; readonly summary: MatchSummary }
-  | { readonly kind: 'fighting'; readonly opponent: BotLabel | null }
+  | {
+      readonly kind: 'fighting'
+      readonly opponent: BotLabel | null
+      /** The bots of a melee being fought; 2 for a duel. */
+      readonly bots: number
+    }
+
+/** A melee of `n` bots, as the `vs` column names it. */
+const meleeText = (n: number) => `the hill, ${count(n)} bots in one melee`
 
 const OUTCOME_CLASS = { won: 'text-accent-fg', lost: 'text-danger', tie: 'text-muted' } as const
 
@@ -90,6 +110,8 @@ const COLUMNS: TableColumn<Row>[] = [
     id: 'opponent',
     header: 'vs',
     cell: (row) => {
+      const bots = row.kind === 'played' ? row.summary.bots.length : row.bots
+      if (bots > 2) return <span className="text-bright">{meleeText(bots)}</span>
       const bot = row.kind === 'played' ? row.summary.bots[1] : row.opponent
       return (
         <>
@@ -109,6 +131,12 @@ const COLUMNS: TableColumn<Row>[] = [
     header: 'result',
     cell: (row) => {
       if (row.kind === 'fighting') return <span className="text-info">fighting…</span>
+      const place = meleePlace(row.summary)
+      if (place !== null) {
+        return (
+          <span className={place.startsWith('#1 ') ? 'text-accent-fg' : 'text-muted'}>{place}</span>
+        )
+      }
       const fight = fightOf(row.summary)
       return fight && <span className={OUTCOME_CLASS[fight.outcome]}>{fightText(fight)}</span>
     },
@@ -270,7 +298,9 @@ export function SubmissionPanel({ hill, id, onClose, live, className }: Submissi
   const opponent = progress?.next?.[1] ?? null
   const rows: Row[] = [
     ...matches.map((summary): Row => ({ kind: 'played', summary })),
-    ...(active && progress?.next ? [{ kind: 'fighting' as const, opponent }] : []),
+    ...(active && progress?.next
+      ? [{ kind: 'fighting' as const, opponent, bots: progress.next.length }]
+      : []),
   ]
   return (
     <Panel

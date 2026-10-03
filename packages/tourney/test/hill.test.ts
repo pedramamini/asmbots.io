@@ -13,6 +13,7 @@ import {
   hill,
   type MatchResult,
   runMatch,
+  settleMelee,
   submitToHill,
 } from '../src/index'
 
@@ -329,5 +330,94 @@ describe('hill', () => {
     const revived = JSON.parse(JSON.stringify(state)) as HillState
     expect(revived).toEqual(state)
     expect(hill(revived, c, lookup)).toEqual(hill(state, c, lookup))
+  })
+})
+
+describe('settleMelee', () => {
+  const MELEE: HillConfig = { size: 3, rounds: 2, battle: { maxCycles: 100, seed: 1 } }
+  const entry = (id: string, points: number, age: number): HillEntry => ({
+    id,
+    name: id,
+    hash: botHash(bot(id, [id.charCodeAt(0)])),
+    points,
+    wins: 0,
+    ties: 0,
+    losses: 0,
+    age,
+    rating: null,
+  })
+  /** A whole melee of `names` whose rounds left `survivors` alive, each round's points pMARS's. */
+  const meleeOf = (names: string[], survivors: number[][]): MatchResult => {
+    const n = names.length
+    const rounds = survivors.map((alive, round) => {
+      const points = names.map((_, i) => (alive.includes(i) ? (n * n - 1) / alive.length : 0))
+      return {
+        round,
+        seed: round + 1,
+        order: names.map((_, i) => i),
+        resultHash: '',
+        durationCycles: 100,
+        points,
+        survivors: alive,
+        survival: names.map((_, i) => (alive.includes(i) ? 100 : 10)),
+      }
+    })
+    const points = names.map((_, i) => rounds.reduce((sum, r) => sum + (r.points[i] as number), 0))
+    return { key: `melee:${names.join(',')}`, names, of: survivors.length, rounds, points }
+  }
+  const board: HillState = {
+    config: MELEE,
+    entries: [entry('p', 30, 2), entry('q', 10, 1), entry('r', 5, 0)],
+    matches: [],
+  }
+  const x: HillChallenger = { id: 'x', bot: bot('x', [9]) }
+
+  it('scores the whole board from the one melee and evicts the lowest', () => {
+    // x alone in round 0; x and q in round 1: x 15 + 7.5, q 7.5, p and r 0.
+    const r = settleMelee(board, x, ['p', 'q', 'r'], meleeOf(['x', 'p', 'q', 'r'], [[0], [0, 2]]))
+    expect(ids(r.field)).toEqual(['x', 'q', 'p', 'r'])
+    expect(r.challenger).toMatchObject({ points: 22.5, wins: 1, ties: 1, losses: 0, age: 0 })
+    expect(r.accepted).toBe(true)
+    expect(r.rank).toBe(1)
+    expect(r.evicted?.id).toBe('r')
+    expect(ids(r.state.entries)).toEqual(['x', 'q', 'p'])
+    expect(r.state.entries.map((e) => e.age)).toEqual([0, 2, 3])
+    expect(r.state.matches).toEqual([])
+    expect(r.board.map((b) => [b.rank, b.rankDelta, b.pointsDelta])).toEqual([
+      [1, null, null],
+      [2, 0, -2.5],
+      [3, -2, -30],
+    ])
+  })
+
+  it('breaks a tie of points by age, so a challenger level with the lowest entry goes', () => {
+    // Every bot lives both rounds: 3.75 points each.
+    const r = settleMelee(
+      board,
+      x,
+      ['r', 'p', 'q'],
+      meleeOf(
+        ['x', 'r', 'p', 'q'],
+        [
+          [0, 1, 2, 3],
+          [0, 1, 2, 3],
+        ],
+      ),
+    )
+    expect(ids(r.field)).toEqual(['p', 'q', 'r', 'x'])
+    expect(r.accepted).toBe(false)
+    expect(r.rank).toBeNull()
+    expect(r.evicted?.id).toBe('x')
+    expect(ids(r.state.entries)).toEqual(['p', 'q', 'r'])
+  })
+
+  it('refuses a melee of other bots, or not of the whole board', () => {
+    const whole = meleeOf(['x', 'p', 'q', 'r'], [[0], [0]])
+    expect(() => settleMelee(board, x, ['p', 'q'], whole)).toThrow(/defenders/)
+    expect(() => settleMelee(board, x, ['p', 'q', 's'], whole)).toThrow(/not a defender/)
+    expect(() => settleMelee(board, x, ['q', 'p', 'r'], whole)).toThrow(/whole melee/)
+    expect(() =>
+      settleMelee(board, x, ['p', 'q', 'r'], meleeOf(['x', 'p', 'q', 'r'], [[0]])),
+    ).toThrow(/whole melee/)
   })
 })

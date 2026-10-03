@@ -14,12 +14,16 @@
  * (the same `botHash`) replaces that entry: the old entry and its matches go, and the
  * challenger fights the rest with the old entry's age.
  *
+ * A melee hill (`settleMelee`) plays one melee of the challenger and every entry instead, and
+ * ranks the field by its melee points: the newest melee scores the whole board.
+ *
  * The state is plain data (JSON-safe) and the functions on it are pure. `submitToHill` runs one
  * match per step through the caller's runner, so the Durable Object can load bots by id, persist
  * each match, and resume with the matches it has.
  */
 import { type BattleConfigInput, fnv1a64, type LoadedBot } from '@asmbots/engine'
 import { type MatchResult, runMatch } from './match'
+import { type MeleeStanding, meleeStandings } from './melee-standings'
 
 export interface HillConfig {
   /** The most entries on the hill. */
@@ -290,6 +294,97 @@ function settle(
     evicted,
     replaced,
     matches: results,
+  }
+}
+
+/**
+ * The melee hill after `challenger`'s melee `result`: one match of the challenger (entrant 0) and
+ * every defender, `order` the defenders' ids in the melee's entrant order after it. Each entry's
+ * score and W/T/L are its melee points and rounds, so the field is ranked as `rank` ranks a duel
+ * hill's (score, age, board order, the challenger last), and the lowest goes when the field is
+ * over `size`; the others keep the scores the melee gave them. The state keeps no matches.
+ * Throws an `Error` when `order` is not the defenders or `result` is not a whole melee of them.
+ */
+export function settleMelee(
+  state: HillState,
+  challenger: HillChallenger,
+  order: readonly string[],
+  result: MatchResult,
+): HillResult {
+  const p = plan(state, challenger)
+  const { config } = state
+  const byId = new Map(p.defenders.map((d) => [d.id, d] as const))
+  if (order.length !== byId.size || new Set(order).size !== order.length) {
+    throw new Error(`hill: the melee's ${order.length} defenders are not the hill's ${byId.size}`)
+  }
+  const melee = order.map((id) => {
+    const d = byId.get(id)
+    if (d === undefined) throw new Error(`hill: ${id} is not a defender`)
+    return d
+  })
+  const names = [challenger.bot.name, ...melee.map((d) => d.name)]
+  if (
+    result.names.length !== names.length ||
+    result.names.some((n, i) => n !== names[i]) ||
+    result.of !== config.rounds ||
+    result.rounds.length !== result.of
+  ) {
+    throw new Error(
+      `hill: match ${result.key} is not a whole melee of ${challenger.id} and the hill`,
+    )
+  }
+  const lines = new Map(meleeStandings(result, config.battle).map((s) => [s.entrant, s] as const))
+  const scored = (e: HillEntry, entrant: number): HillEntry => {
+    const s = lines.get(entrant) as MeleeStanding
+    return { ...e, points: s.points, wins: s.wins, ties: s.ties, losses: s.losses }
+  }
+  const mine: HillEntry = scored(
+    {
+      id: challenger.id,
+      name: challenger.bot.name,
+      hash: p.hash,
+      points: 0,
+      wins: 0,
+      ties: 0,
+      losses: 0,
+      age: p.replaced?.age ?? 0,
+      rating: challenger.rating ?? p.replaced?.rating ?? null,
+    },
+    0,
+  )
+  const ranked = (entries: readonly HillEntry[]) =>
+    entries
+      .map((e, i) => ({ e, i }))
+      .sort((x, y) => y.e.points - x.e.points || y.e.age - x.e.age || x.i - y.i)
+      .map(({ e }) => e)
+  const field = ranked([...p.defenders.map((d) => scored(d, order.indexOf(d.id) + 1)), mine])
+  const evicted = field.length > config.size ? (field.at(-1) as HillEntry) : null
+  const entries = ranked(
+    field
+      .filter((e) => e !== evicted)
+      .map((e) => (e.id === challenger.id ? e : { ...e, age: e.age + 1 })),
+  )
+  const before = new Map(state.entries.map((e, i) => [e.id, { entry: e, rank: i + 1 }] as const))
+  const board = entries.map((entry, i) => {
+    const old = before.get(entry.id === challenger.id ? (p.replaced?.id ?? entry.id) : entry.id)
+    return {
+      rank: i + 1,
+      entry,
+      rankDelta: old === undefined ? null : old.rank - (i + 1),
+      pointsDelta: old === undefined ? null : entry.points - old.entry.points,
+    }
+  })
+  const at = entries.findIndex((e) => e.id === challenger.id)
+  return {
+    state: { config, entries, matches: [] },
+    board,
+    challenger: mine,
+    field,
+    accepted: at >= 0,
+    rank: at >= 0 ? at + 1 : null,
+    evicted,
+    replaced: p.replaced,
+    matches: [result],
   }
 }
 

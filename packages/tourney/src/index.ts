@@ -51,7 +51,7 @@ export type {
   HillState,
   SubmitToHillOptions,
 } from './hill'
-export { botHash, createHill, hill, submitToHill } from './hill'
+export { botHash, createHill, hill, settleMelee, submitToHill } from './hill'
 export type {
   IterateMatchOptions,
   MatchProgress,

@@ -1,5 +1,7 @@
 /**
- * Hill jobs (PRODUCT_SPEC §5): a submission fights each entry of a duel hill, one match an alarm.
+ * Hill jobs (PRODUCT_SPEC §5): a submission fights each entry of a duel hill, one match an alarm,
+ * or plays one melee of itself and every entry of a melee hill (`settleMelee`: the melee scores
+ * the whole board, and an entry new to the job means a melee again with it).
  * Then `submitToHill` ranks the field from the stored results, playing nothing, and the new board
  * goes to D1 over the hill's revision as it was read, in one batch with the submission's status,
  * score, and rank. Other submissions run beside it, so the board can change first: the job then
@@ -9,8 +11,8 @@
  * onto the hill, so the latest match of a pair is the one the hill ranks the pair by. A bot
  * version already on the hill is refused, so no challenge of one leaves a later match behind.
  *
- * Each submission is a Glicko-2 rating period (`rateMatches`): the challenger's matches rate it
- * and every entry it fought. The board write carries the new ratings (`ratings`, and each entry's
+ * Each submission to a duel hill is a Glicko-2 rating period (`rateMatches`): the challenger's
+ * matches rate it and every entry it fought. A melee rates no one. The board write carries the new ratings (`ratings`, and each entry's
  * `hill_entries.rating`), the challenge's events (`hill_history`), and the king's reign
  * (`reign.ts`) in its batch.
  */
@@ -29,9 +31,11 @@ import {
   type HillMatch,
   type HillResult,
   type HillState,
+  MAX_MELEE_ENTRANTS,
   type MatchResult,
   type MatchSpec,
   type Rating,
+  settleMelee,
   submitToHill,
 } from '@asmbots/tourney'
 import type {
@@ -51,6 +55,7 @@ import {
   type JobSetup,
   type JobState,
   loadBots,
+  type PlayedSpec,
   type VersionRef,
 } from './job'
 import { rateChallenge } from './rating'
@@ -171,9 +176,10 @@ async function readBoard(db: D1Database, hillId: string, submissionId: string): 
 /**
  * Sets up submission `job`, and marks it running: the hill, the challenger (bot 0), and the
  * entries (the bots after it). The queue has one match per entry, less one with the challenger's
- * bytes, which it replaces. Throws `JobError` when there is no such hill, submission, or version,
- * the submission is of another hill or version or has ended, the hill scores melees, or the
- * version is over the hill's size or on the hill already.
+ * bytes, which it replaces; on a melee hill, one melee of the challenger and those entries
+ * (`meleeSpec`). Throws `JobError` when there is no such hill, submission, or version, the
+ * submission is of another hill or version or has ended, a melee hill's field is over a melee's,
+ * or the version is over the hill's size or on the hill already.
  */
 export async function setupHill(env: Env, job: HillJob): Promise<JobSetup> {
   const db = env.DB
@@ -182,8 +188,8 @@ export async function setupHill(env: Env, job: HillJob): Promise<JobSetup> {
     .bind(job.hill)
     .first<HillRow>()
   if (hill === null) throw new JobError(`no hill ${job.hill}`)
-  if (hill.scoring !== 'duel') {
-    throw new JobError(`the ${hill.slug} hill scores melees, and the runner plays duel hills`)
+  if (hill.scoring === 'melee' && hill.size + 1 > MAX_MELEE_ENTRANTS) {
+    throw new JobError(`the ${hill.slug} hill holds ${hill.size}, over a melee's field`)
   }
   if (hill.rounds > MAX_REPLAY_ROUNDS) {
     throw new JobError(`the ${hill.slug} hill has ${hill.rounds} rounds a match, over a replay's`)
@@ -222,9 +228,11 @@ export async function setupHill(env: Env, job: HillJob): Promise<JobSetup> {
     ...board.entries.map(entryRef),
   ])
   const hash = botHash(bots[0] as JobBot)
-  const queue = bots.flatMap((bot, i) =>
-    i > 0 && botHash(bot) !== hash ? [{ id: i, entrants: [0, i] }] : [],
-  )
+  const defenders = bots.flatMap((bot, i) => (i > 0 && botHash(bot) !== hash ? [i] : []))
+  const queue =
+    hill.scoring === 'melee'
+      ? meleeSpec([], defenders)
+      : defenders.map((i) => ({ id: i, entrants: [0, i] }))
   await db
     .prepare("UPDATE hill_submissions SET status = 'running' WHERE id = ? AND status = 'queued'")
     .bind(job.submissionId)
@@ -241,6 +249,27 @@ export async function setupHill(env: Env, job: HillJob): Promise<JobSetup> {
     queue,
     of: queue.length,
   }
+}
+
+/**
+ * The melee of the challenger (bot 0) and `defenders` (bot indexes, in board order), as a queue: its
+ * id is one past the job's highest, `played` and queued. Empty when there is no one to fight.
+ */
+function meleeSpec(specs: readonly MatchSpec[], defenders: readonly number[]): MatchSpec[] {
+  if (defenders.length === 0) return []
+  const id = specs.reduce((max, s) => Math.max(max, s.id + 1), 0)
+  return [{ id, entrants: [0, ...defenders] }]
+}
+
+/** The newest of `played` that is a melee of the challenger and exactly `defenders`. */
+function meleeOf(played: readonly PlayedSpec[], defenders: readonly number[]): PlayedSpec | null {
+  const want = new Set(defenders)
+  for (let i = played.length - 1; i >= 0; i--) {
+    const spec = played[i] as PlayedSpec
+    const [first, ...rest] = spec.entrants
+    if (first === 0 && rest.length === want.size && rest.every((e) => want.has(e))) return spec
+  }
+  return null
 }
 
 /** A submission's line of the batch that writes its board. */
@@ -453,7 +482,8 @@ function challengeEvents(board: Board, result: HillResult): HistoryEvent[] {
  * Settles hill job `state`: ranks the field from the challenger's stored `results` (keyed by spec
  * id, the defender's bot index) and the entries' matches in D1, rates the period, then writes the
  * board with the ratings and the events. An entry new to the job is loaded into its bots; one it
- * has not fought comes back as `more`. A submission marked finished means the board has the
+ * has not fought comes back as `more`. A melee hill ranks the field by the job's melee of the
+ * board as it is now, and queues that melee when the job has not played it. A submission marked finished means the board has the
  * challenge already: it is not written again.
  */
 export async function finalizeHill(
@@ -505,30 +535,46 @@ export async function finalizeHill(
       }
     }
     const defenders = entries.filter((e) => e.hash !== hash)
-    const missing = defenders.filter((e) => !results.has(at(e.id)))
-    if (missing.length > 0) {
-      const queue = missing.map((e) => ({ id: at(e.id), entrants: [0, at(e.id)] }))
-      return { kind: 'more', bots: all, queue }
-    }
     const field: HillState = {
       config: { size: board.hill.size, rounds: board.hill.rounds, battle: state.battle },
       entries,
       matches: board.pairs,
     }
+    const entrant = {
+      id: challenger.versionId,
+      bot: { name: challenger.name, bytes: challenger.bytes },
+    }
     let result: HillResult | null = null
-    const steps = submitToHill(
-      field,
-      { id: challenger.versionId, bot: { name: challenger.name, bytes: challenger.bytes } },
-      (_, defender) => resultOf(defender),
-    )
-    for await (const step of steps) result = step.final ?? result
+    let ratings: ReadonlyMap<string, Rating> = new Map()
+    if (board.hill.scoring === 'melee' && defenders.length > 0) {
+      const indexes = defenders.map((e) => at(e.id))
+      const spec = meleeOf(state.played, indexes)
+      const stored = spec && results.get(spec.id)
+      if (!stored) {
+        return {
+          kind: 'more',
+          bots: all,
+          queue: meleeSpec([...state.played, ...state.queue], indexes),
+        }
+      }
+      const order = (spec as PlayedSpec).entrants.slice(1).map((i) => (all[i] as JobBot).versionId)
+      result = settleMelee(field, entrant, order, stored)
+    } else {
+      const missing = defenders.filter((e) => !results.has(at(e.id)))
+      if (missing.length > 0) {
+        const queue = missing.map((e) => ({ id: at(e.id), entrants: [0, at(e.id)] }))
+        return { kind: 'more', bots: all, queue }
+      }
+      const steps = submitToHill(field, entrant, (_, defender) => resultOf(defender))
+      for await (const step of steps) result = step.final ?? result
+      ratings = rateChallenge(
+        (id) => board.ratings.get(id),
+        challenger.versionId,
+        defenders.map((d) => d.id),
+        defenders.map(resultOf),
+      )
+    }
     if (result === null) throw new Error(`the ${board.hill.slug} hill did not settle`)
-    const ratings = rateChallenge(
-      (id) => board.ratings.get(id),
-      challenger.versionId,
-      defenders.map((d) => d.id),
-      defenders.map(resultOf),
-    )
     const outcome: HillOutcome = {
       accepted: result.accepted,
       rank: result.rank,

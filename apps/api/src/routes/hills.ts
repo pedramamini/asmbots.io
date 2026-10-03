@@ -118,10 +118,10 @@ async function reapLost(c: Context<AppEnv>, hill: Hill, id: string): Promise<boo
 /**
  * `POST /api/hills/:slug/submit` `{ botVersionId }`: the signed-in user challenges the hill with a
  * version of one of their bots. The bytes are the ones the server assembled when the version was
- * saved. Refused: a version that is not theirs (404 when they may not see it, else 403), a hill
- * that scores melees, a version over the hill's size or under its floor (422), a version on the
- * hill, bytes an entry has (it would take that entry's place and age), and a second submission
- * while one runs (409). A running one whose runner lost its job (`reapLost`) is marked failed and
+ * saved. A melee hill's job plays one melee of it and every entry. Refused: a version that is not
+ * theirs (404 when they may not see it, else 403), a version over the hill's size or under its
+ * floor (422), a version on the hill, bytes an entry has (it would take that entry's place and
+ * age), and a second submission while one runs (409). A running one whose runner lost its job (`reapLost`) is marked failed and
  * does not count.
  * The submission row and its `hill.submit` audit row go in one batch; then its `Runner` starts, and
  * the answer is 201 `{ submissionId, liveRoom }`. A job the Runner refuses is marked failed: 409.
@@ -131,13 +131,6 @@ async function submit(c: Context<AppEnv>): Promise<Response> {
   const hill = await hillOf(c)
   const userId = viewerId(c) ?? ''
   const db = c.env.DB
-  if (hill.scoring !== 'duel') {
-    return errorResponse(
-      c,
-      'conflict',
-      `the ${hill.slug} hill scores melees, and takes no submissions yet`,
-    )
-  }
   const version = await getSubmittedVersion(db, botVersionId)
   if (
     version === null ||

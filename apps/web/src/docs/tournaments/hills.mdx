@@ -42,7 +42,9 @@ The `hill rules` preset of the arena and the tournament form is `main`'s rules: 
 
 A hill's page shows its standings (rank, bot, author, score, rating ± RD, W/T/L, age), king first, the king's card, the recent submissions with their deltas (`+3 rank`: the places a bot gained over its best version before), and the latest matches, each one a `watch` link. `challenge` on a row fights one of your bots against that entry in the arena, under the hill's rules and seed, yours first: the same match the server would play.
 
-With sign-in, `submit` enters a version of one of your account's bots. The server uses the bytes it assembled when you saved that version, so it never takes bytes on trust, and fights the entries one match at a time: "fighting 24 of 32". The result card gives the rank, or, if the bot does not make the hill, its score, the score it had to beat, and its closest fight. You can have one submission running on a hill at a time, and make five an hour. The `melee` hill takes no submissions yet.
+With sign-in, `submit` enters a version of one of your account's bots. The server uses the bytes it assembled when you saved that version, so it never takes bytes on trust, and fights the entries one match at a time: "fighting 24 of 32". The result card gives the rank, or, if the bot does not make the hill, its score, the score it had to beat, and its closest fight. You can have one submission running on a hill at a time, and make five an hour.
+
+On the `melee` hill, a challenge is one melee of your bot and every entry, all in one core: "fighting 1 of 1". That melee scores the whole board. Each bot's score is its melee points, so every entry is measured again with your bot in the core. The board ranks by score, then by age, and if it is over its size, the lowest bot goes, which can be yours. A tie with an entry goes to the entry. A melee changes no rating.
 
 Every hill match is a match like any other, with seeds, an order, and result hashes, so you can watch any of them in the arena and check it (see [verification](/docs/tournaments/verification)).
 

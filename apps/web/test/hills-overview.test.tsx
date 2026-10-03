@@ -24,13 +24,13 @@ describe('mountainOrder', () => {
 })
 
 describe('challengeCost', () => {
-  it('counts a match per entry and the cycles they may take', () => {
+  it('counts a match per entry and the cycles they may take, or one melee of them all', () => {
     const [main, tiny] = HILLS.hills
     if (main === undefined || tiny === undefined) throw new Error('fixture')
     expect(challengeCost(main)).toBe('3 matches · ≤ 3M cycles')
     expect(challengeCost(tiny)).toBe('no entries yet')
     expect(challengeCost({ ...main, hill: { ...main.hill, scoring: 'melee' } })).toBe(
-      'no submissions',
+      '1 melee of 4 · ≤ 1M cycles',
     )
     expect(cycles(16_800_000)).toBe('16.8M')
     expect(cycles(800_000)).toBe('800k')
