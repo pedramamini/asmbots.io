@@ -1,6 +1,7 @@
 /** The write routes the web app calls (`apps/api/src/routes`). */
 import {
   CreatedApiToken,
+  DeletedBots,
   HillSubmitted,
   ImportBotsResult,
   Me,
@@ -13,7 +14,9 @@ import {
   TournamentEntered,
   TournamentStarted,
   type UpdateBot,
+  type UpdateBots,
   UpdatedBot,
+  UpdatedBots,
   type UpdateMe,
 } from '@asmbots/protocol'
 import { apiDelete, apiPatch, apiPost } from './client'
@@ -43,6 +46,16 @@ export function createBot(bot: NewBot): Promise<SavedBot> {
 /** `PATCH /api/bots/:id`: a new name or visibility. */
 export function updateBot(id: string, update: UpdateBot): Promise<UpdatedBot> {
   return apiPatch(`/bots/${segment(id)}`, update, (v) => parse(UpdatedBot, v, 'the bot'))
+}
+
+/** `PATCH /api/me/bots`: one visibility for many of my bots, in one request. */
+export function updateBots(update: UpdateBots): Promise<UpdatedBots> {
+  return apiPatch('/me/bots', update, (v) => parse(UpdatedBots, v, 'the bots'))
+}
+
+/** `POST /api/me/bots/delete`: deletes many of my bots, in one request. */
+export function deleteBots(ids: readonly string[]): Promise<DeletedBots> {
+  return apiPost('/me/bots/delete', { ids }, (v) => parse(DeletedBots, v, 'the bots deleted'))
 }
 
 /** `POST /api/bots/:id/versions`: the next version, or the latest when its bytes are the same. */

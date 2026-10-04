@@ -59,6 +59,8 @@ const server = useApiServer(
   }),
 )
 
+const KEY_DAY = '2026-09-01T00:00:00.000Z'
+
 const cells = (table: HTMLElement) =>
   within(table)
     .getAllByRole('row')
@@ -404,6 +406,42 @@ describe('/bots/$id', () => {
     server.use(answer('/bots/roster-dwarf/versions/1', { version: DWARF_DETAIL.versions[0] }))
     await renderAt('/bots/roster-dwarf', () => <BotPage id="roster-dwarf" />)
     expect(await screen.findByText('its source is not public.')).toBeTruthy()
+  })
+
+  it('gives its owner the visibility, and changes it in one request', async () => {
+    const seen: unknown[] = []
+    server.use(
+      answer('/me', {
+        user: { id: 'system', handle: 'system', avatarUrl: null, createdAt: KEY_DAY },
+        onboarded: true,
+      }),
+      http.patch('*/api/me/bots', async ({ request }) => {
+        seen.push(await request.json())
+        return HttpResponse.json({ bots: [{ ...DWARF_DETAIL.bot, visibility: 'private' }] })
+      }),
+    )
+    // biome-ignore lint/suspicious/noDocumentCookie: the hint cookie the API would set
+    document.cookie = 'signed_in=1; Path=/'
+    try {
+      await renderAt('/bots/roster-dwarf', () => <BotPage id="roster-dwarf" />)
+      const picker = await screen.findByRole('radiogroup', { name: 'visibility' })
+      expect(
+        within(picker).getByRole('radio', { name: 'public' }).getAttribute('aria-checked'),
+      ).toBe('true')
+      expect(screen.getByText(/^public: anyone can see, fight, and fork it/)).toBeTruthy()
+      fireEvent.click(within(picker).getByRole('radio', { name: 'private' }))
+      await waitFor(() => expect(seen).toEqual([{ ids: ['roster-dwarf'], visibility: 'private' }]))
+      expect(await screen.findByText('Dwarf is now private.')).toBeTruthy()
+    } finally {
+      // biome-ignore lint/suspicious/noDocumentCookie: the hint cookie the API would set
+      document.cookie = 'signed_in=; Max-Age=0; Path=/'
+    }
+  })
+
+  it('shows no visibility control to anyone but the owner', async () => {
+    await renderAt('/bots/roster-dwarf', () => <BotPage id="roster-dwarf" />)
+    await screen.findByRole('heading', { level: 1 })
+    expect(screen.queryByRole('radiogroup', { name: 'visibility' })).toBeNull()
   })
 
   it('does not tell a private bot from a missing one', async () => {

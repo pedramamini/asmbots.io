@@ -1,4 +1,10 @@
-import { HOUSE_HANDLE, type Me, type OwnBot, weightClassOf } from '@asmbots/protocol'
+import {
+  HOUSE_HANDLE,
+  type Me,
+  type OwnBot,
+  type Visibility,
+  weightClassOf,
+} from '@asmbots/protocol'
 import {
   Button,
   Chip,
@@ -37,7 +43,8 @@ import { useRouteStat } from '../../app/slots'
 import { type BotRecord, gamesOf, useBotRecords } from '../../store/bot-records'
 import { type LocalBot, useLocalBotActions, useLocalBots } from '../../store/local-bots'
 import { type ArenaConfig, useSettings } from '../../store/settings'
-import { VisibilityChip } from '../bots/visibility'
+import { useBotChanges } from '../bots/bulk'
+import { VisibilityChip, VisibilityMenu } from '../bots/visibility'
 import {
   inWeight,
   WEIGHT_FILTERS,
@@ -157,6 +164,7 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
   const { data: me } = useMe()
   const records = useBotRecords((state) => state.records)
   const { save } = useLocalBotActions()
+  const { setVisibility } = useBotChanges()
   const [source, setSource] = useState<Source>('roster')
   const [query, setQuery] = useState('')
   const [weight, setWeight] = useState<WeightFilter>('all')
@@ -614,6 +622,10 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
                 full={full}
                 onAdd={addBot}
                 onErrors={showErrors}
+                onVisibility={(bot, visibility) => {
+                  const id = listingOf(bot)?.bot.botId
+                  if (id !== undefined) void setVisibility([id], [bot.name], visibility)
+                }}
                 write={link('write a bot', '/editor')}
                 clearSearch={clearSearch}
               />
@@ -762,6 +774,8 @@ interface GridProps {
   full: boolean
   onAdd: (bot: CatalogBot) => void
   onErrors: (bot: CatalogBot) => void
+  /** Gives one of my account bots a new visibility. */
+  onVisibility?: ((bot: CatalogBot, visibility: Visibility) => void) | undefined
 }
 
 /**
@@ -780,6 +794,7 @@ function BotGrid({
   full,
   onAdd,
   onErrors,
+  onVisibility,
   empty,
   coach,
 }: GridProps & {
@@ -807,6 +822,7 @@ function BotGrid({
             full={full}
             onAdd={() => onAdd(bot)}
             onErrors={() => onErrors(bot)}
+            onVisibility={onVisibility && ((visibility) => onVisibility(bot, visibility))}
             coach={index === 0 ? coach : undefined}
           />
         ))}
@@ -856,6 +872,7 @@ function BotCard({
   full,
   onAdd,
   onErrors,
+  onVisibility,
   coach,
 }: {
   bot: CatalogBot
@@ -866,6 +883,7 @@ function BotCard({
   full: boolean
   onAdd: () => void
   onErrors: () => void
+  onVisibility?: ((visibility: Visibility) => void) | undefined
   coach?: ReactNode
 }) {
   const { bytes } = bot.assembled
@@ -948,8 +966,10 @@ function BotCard({
           <Chip variant={bot.roster?.tier === 'showcase' ? 'accent' : 'neutral'}>
             {bot.roster?.tier ?? ORIGIN_LABEL[bot.origin]}
           </Chip>
-        ) : (
+        ) : visibility === 'local' || onVisibility === undefined ? (
           <VisibilityChip visibility={visibility} />
+        ) : (
+          <VisibilityMenu name={bot.name} value={visibility} onChange={onVisibility} />
         )}
       </div>
     </li>

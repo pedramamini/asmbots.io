@@ -3,7 +3,7 @@
  * not in the account is local. One look everywhere: the arena's cards and table, the bot page.
  */
 import type { Visibility } from '@asmbots/protocol'
-import { Chip, type ChipVariant } from '@asmbots/ui'
+import { Button, Chip, type ChipVariant, Menu, Segmented } from '@asmbots/ui'
 import { Eye, EyeOff, Link, type LucideIcon } from 'lucide-react'
 
 /** A bot's visibility, or `local`: kept in this browser only. */
@@ -49,5 +49,69 @@ export function VisibilityChip({ visibility }: { visibility: BotVisibility }) {
     <Chip variant={look.variant} icon={look.icon} title={look.about}>
       {visibility}
     </Chip>
+  )
+}
+
+/**
+ * The owner's control on a bot's page: the three visibilities side by side, the chosen one lit,
+ * and what it means under them. `onChange` gets the new one; `busy` holds it while a change runs.
+ */
+export function VisibilityPicker({
+  value,
+  onChange,
+  busy = false,
+}: {
+  value: Visibility
+  onChange: (visibility: Visibility) => void
+  busy?: boolean
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <Segmented<Visibility>
+        label="visibility"
+        options={VISIBILITIES.map((v) => ({ value: v, label: v, disabled: busy }))}
+        value={value}
+        onValueChange={onChange}
+      />
+      <p className="text-data text-muted">{VISIBILITY[value].about}</p>
+    </div>
+  )
+}
+
+/**
+ * A card's control for one of my account bots: its visibility as a button that opens the other
+ * two, so a change is two clicks from any list of my bots.
+ */
+export function VisibilityMenu({
+  name,
+  value,
+  onChange,
+}: {
+  /** The bot's name, for the button's accessible name. */
+  name: string
+  value: Visibility
+  onChange: (visibility: Visibility) => void
+}) {
+  const look = VISIBILITY[value]
+  return (
+    <Menu
+      placement="bottom-end"
+      trigger={
+        <Button
+          size="sm"
+          icon={look.icon}
+          title={look.about}
+          aria-label={`${value}: who may see ${name}`}
+        >
+          {value} ▾
+        </Button>
+      }
+      items={VISIBILITIES.map((v) => ({
+        label: v === value ? `${v} (now)` : `make ${v}`,
+        icon: VISIBILITY[v].icon,
+        disabled: v === value,
+        onSelect: () => onChange(v),
+      }))}
+    />
   )
 }

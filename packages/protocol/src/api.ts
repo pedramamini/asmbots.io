@@ -577,6 +577,25 @@ export type UpdateBot = z.output<typeof UpdateBot>
 export const UpdatedBot = z.object({ bot: Bot })
 export type UpdatedBot = z.output<typeof UpdatedBot>
 
+/** Many of my bots at once, by id: as many as an account holds. */
+const BotIds = z.array(Id).check(z.minLength(1), z.maxLength(MAX_BOTS_PER_USER))
+
+/** `PATCH /api/me/bots`: one visibility for many of my bots, in one request. */
+export const UpdateBots = z.object({ ids: BotIds, visibility: Visibility })
+export type UpdateBots = z.output<typeof UpdateBots>
+
+/** `PATCH /api/me/bots`: the bots it changed; an id not mine, or deleted, is left out. */
+export const UpdatedBots = z.object({ bots: z.array(Bot) })
+export type UpdatedBots = z.output<typeof UpdatedBots>
+
+/** `POST /api/me/bots/delete`: many of my bots to delete, in one request. */
+export const DeleteBots = z.object({ ids: BotIds })
+export type DeleteBots = z.output<typeof DeleteBots>
+
+/** `POST /api/me/bots/delete`: the ids it deleted; an id not mine, or deleted, is left out. */
+export const DeletedBots = z.object({ deleted: z.array(Id) })
+export type DeletedBots = z.output<typeof DeletedBots>
+
 /** `POST /api/bots/:id/versions`: a new source for the bot. */
 export const NewBotVersion = z.object({ source: SourceText })
 export type NewBotVersion = z.output<typeof NewBotVersion>

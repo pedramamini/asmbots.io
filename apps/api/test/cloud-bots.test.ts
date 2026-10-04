@@ -5,8 +5,10 @@
 
 import { env } from 'cloudflare:workers'
 import {
+  AuditList,
   BotDetail,
   BotVersionDetail,
+  DeletedBots,
   MAX_BOTS_PER_USER,
   MAX_VERSIONS_PER_BOT,
   MyBotList,
@@ -17,6 +19,7 @@ import {
   SavedBotVersion,
   toBase64,
   UpdatedBot,
+  UpdatedBots,
   UserDetail,
 } from '@asmbots/protocol'
 import { describe, expect, it } from 'vitest'
@@ -275,6 +278,66 @@ describe('the best first', () => {
     const bytes = await env.REPLAYS.get(botBytesKey(open.version.bytesSha256))
     expect(bots[1]?.bytes).toBe(toBase64(new Uint8Array((await bytes?.arrayBuffer()) ?? [])))
     expect((await send(new Jar(), '/api/me/bots/arena')).status).toBe(401)
+  })
+})
+
+describe('bulk changes', () => {
+  it("PATCH /api/me/bots sets many of my bots at once, and leaves a stranger's", async () => {
+    const { jar, saved: a } = await withBot('bulk-owner', SPIN, 'public')
+    const made = await send(jar, '/api/bots', { method: 'POST', body: { name: 'B', source: HALT } })
+    const b = parse(SavedBot, await made.json(), 'the bot')
+    const { saved: theirs } = await withBot('bulk-stranger', SPIN, 'public')
+    const res = await send(jar, '/api/me/bots', {
+      method: 'PATCH',
+      body: { ids: [a.bot.id, b.bot.id, theirs.bot.id, a.bot.id], visibility: 'private' },
+    })
+    expect(res.status).toBe(200)
+    const { bots } = parse(UpdatedBots, await res.json(), 'the bots')
+    expect(bots.map((bot) => [bot.id, bot.visibility]).sort()).toEqual(
+      [
+        [a.bot.id, 'private'],
+        [b.bot.id, 'private'],
+      ].sort(),
+    )
+    const mine = await myBots(jar)
+    expect(mine.every((m) => m.bot.visibility === 'private')).toBe(true)
+    const stranger = parse(
+      BotDetail,
+      await (await send(new Jar(), `/api/bots/${theirs.bot.id}`)).json(),
+      '',
+    )
+    expect(stranger.bot.visibility).toBe('public')
+    const audit = await send(jar, '/api/me/audit')
+    const { entries } = parse(AuditList, await audit.json(), 'the audit')
+    expect(entries.filter((row) => row.action === 'bot.update')).toHaveLength(2)
+  })
+
+  it('POST /api/me/bots/delete deletes many of mine at once', async () => {
+    const { jar, saved: a } = await withBot('bulk-deleter')
+    const made = await send(jar, '/api/bots', { method: 'POST', body: { name: 'B', source: HALT } })
+    const b = parse(SavedBot, await made.json(), 'the bot')
+    const res = await send(jar, '/api/me/bots/delete', {
+      method: 'POST',
+      body: { ids: [a.bot.id, b.bot.id, 'no-such-bot'] },
+    })
+    expect(res.status).toBe(200)
+    const { deleted } = parse(DeletedBots, await res.json(), 'the ids')
+    expect(deleted.sort()).toEqual([a.bot.id, b.bot.id].sort())
+    expect(await myBots(jar)).toEqual([])
+    expect((await send(jar, `/api/bots/${a.bot.id}`)).status).toBe(404)
+  })
+
+  it('refuses an empty list, a bad visibility, and a stranger signed out', async () => {
+    const jar = new Jar()
+    await signIn(jar, 'bulk-refused')
+    const patch = (body: unknown) => send(jar, '/api/me/bots', { method: 'PATCH', body })
+    expect((await patch({ ids: [], visibility: 'private' })).status).toBe(400)
+    expect((await patch({ ids: ['x'], visibility: 'gone' })).status).toBe(400)
+    const out = await send(new Jar(), '/api/me/bots/delete', {
+      method: 'POST',
+      body: { ids: ['x'] },
+    })
+    expect(out.status).toBe(401)
   })
 })
 

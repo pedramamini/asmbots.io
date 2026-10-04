@@ -1324,6 +1324,69 @@ export function auditInsert(
     .bind(crypto.randomUUID(), userId, action, target)
 }
 
+/**
+ * One audit row for each of `ids` that is `userId`'s live bot: a statement whatever their number
+ * (`json_each`), so a bulk change costs a batch two statements. Runs before the change, while a
+ * bot to delete still counts as live.
+ */
+function auditBots(
+  db: D1Database,
+  userId: string,
+  action: AuditAction,
+  ids: readonly string[],
+): D1PreparedStatement {
+  const rows = ids.map((target) => ({ id: crypto.randomUUID(), target }))
+  return db
+    .prepare(
+      `INSERT INTO audit (id, user_id, action, target)
+       SELECT json_extract(j.value, '$.id'), ?1, ?2, b.id
+       FROM json_each(?3) j JOIN bots b ON b.id = json_extract(j.value, '$.target')
+       WHERE b.owner_id = ?1 AND b.deleted_at IS NULL`,
+    )
+    .bind(userId, action, JSON.stringify(rows))
+}
+
+/** Gives `ids` of `userId`'s live bots `visibility`, in one batch; the others are left. */
+export async function setBotsVisibility(
+  db: D1Database,
+  userId: string,
+  ids: readonly string[],
+  visibility: Visibility,
+): Promise<Bot[]> {
+  const unique = [...new Set(ids)]
+  const [, updated] = await db.batch([
+    auditBots(db, userId, 'bot.update', unique),
+    db
+      .prepare(
+        `UPDATE bots SET visibility = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+         WHERE owner_id = ? AND deleted_at IS NULL AND id IN (SELECT value FROM json_each(?))
+         RETURNING *`,
+      )
+      .bind(visibility, userId, JSON.stringify(unique)),
+  ])
+  return ((updated?.results ?? []) as BotRow[]).map(toBot)
+}
+
+/** Deletes `ids` of `userId`'s live bots, as `DELETE /api/bots/:id` does each; returns their ids. */
+export async function deleteBots(
+  db: D1Database,
+  userId: string,
+  ids: readonly string[],
+): Promise<string[]> {
+  const unique = [...new Set(ids)]
+  const [, deleted] = await db.batch([
+    auditBots(db, userId, 'bot.delete', unique),
+    db
+      .prepare(
+        `UPDATE bots SET deleted_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+         WHERE owner_id = ? AND deleted_at IS NULL AND id IN (SELECT value FROM json_each(?))
+         RETURNING id`,
+      )
+      .bind(userId, JSON.stringify(unique)),
+  ])
+  return ((deleted?.results ?? []) as { id: string }[]).map((row) => row.id)
+}
+
 /** The latest `limit` changes of `userId`, newest first. */
 export async function listAudit(
   db: D1Database,

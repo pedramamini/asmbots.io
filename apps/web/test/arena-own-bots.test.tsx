@@ -18,6 +18,7 @@ import {
   RouterProvider,
 } from '@tanstack/react-router'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { HttpResponse, http } from 'msw'
 import { useDom, window } from '../../../packages/ui/test/dom'
 import { ArenaPage } from '../src/features/arena/ArenaPage'
 import { GRID_PAGE } from '../src/features/arena/ArenaSetup'
@@ -167,11 +168,28 @@ describe('my bots, signed in', () => {
     expect(cards().sort()).toEqual(['Crowned', 'Drifter', 'Dwarf', 'Imp'])
     const chip = (name: string) =>
       within(list().getByRole('listitem', { name })).getByTitle(/^\w+:/)
-    expect(chip('Crowned').textContent).toBe('private')
-    expect(chip('Dwarf').textContent).toBe('public')
-    expect(chip('Drifter').textContent).toBe('unlisted')
+    // An account bot's visibility is a menu; a local one's, a chip.
+    expect(chip('Crowned').textContent).toBe('private ▾')
+    expect(chip('Dwarf').textContent).toBe('public ▾')
+    expect(chip('Drifter').textContent).toBe('unlisted ▾')
     expect(chip('Imp').textContent).toBe('local')
     expect(list().getByRole('listitem', { name: 'Crowned' }).textContent).toContain('king')
+  })
+
+  it("changes an account bot's visibility from its card, in one request", async () => {
+    const seen: unknown[] = []
+    server.use(
+      http.patch('*/api/me/bots', async ({ request }) => {
+        seen.push(await request.json())
+        return HttpResponse.json({ bots: [] })
+      }),
+    )
+    await renderArena()
+    openMine()
+    const crowned = await screen.findByRole('listitem', { name: 'Crowned' })
+    fireEvent.click(within(crowned).getByRole('button', { name: 'private: who may see Crowned' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'make public' }))
+    await waitFor(() => expect(seen).toEqual([{ ids: ['crowned'], visibility: 'public' }]))
   })
 
   it('fights a private account bot by its cloud ref', async () => {

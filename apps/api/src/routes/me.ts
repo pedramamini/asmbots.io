@@ -2,6 +2,8 @@ import {
   type ApiTokenList,
   type AuditList,
   type CreatedApiToken,
+  DeleteBots,
+  type DeletedBots,
   type EditorLayoutList,
   type EditorLayoutSaved,
   handleProblem,
@@ -12,6 +14,8 @@ import {
   NewApiToken,
   parse,
   SaveEditorLayout,
+  UpdateBots,
+  type UpdatedBots,
   UpdateEditorLayout,
   UpdateMe,
 } from '@asmbots/protocol'
@@ -24,6 +28,7 @@ import {
   countEditorLayouts,
   deleteAccount,
   deleteApiToken,
+  deleteBots,
   deleteEditorLayout,
   getUserRow,
   insertApiToken,
@@ -32,6 +37,7 @@ import {
   listEditorLayouts,
   listMyBots,
   saveEditorLayout,
+  setBotsVisibility,
   setUserAnonymous,
   setUserHandle,
   toUser,
@@ -61,6 +67,10 @@ async function gone(c: Context<AppEnv>): Promise<Response> {
  * name, and login are GitHub's, refreshed at each sign-in.
  * `GET /api/me/bots`: the signed-in user's bots, private ones too, each with its latest version.
  * `?class=` (a weight class slug) keeps only the bots whose latest version is in that class.
+ * `PATCH /api/me/bots` `{ ids, visibility }`: one visibility for many of the user's bots at once
+ * (up to `MAX_BOTS_PER_USER`), one request and one batch whatever their number → `{ bots }`, the
+ * bots it changed. `POST /api/me/bots/delete` `{ ids }` deletes many as `DELETE /api/bots/:id`
+ * does one → `{ deleted }`, their ids. An id not theirs, or deleted, is left out of either.
  * `GET /api/me/bots/arena`: the same bots as the arena fights them (`ownBotsOf`): each at its
  * latest version with its machine code, best hill place, and visibility, the best first.
  * `GET /api/me/audit?limit=`: the signed-in user's changes (`AUDIT_ACTIONS`), newest first; `limit`
@@ -81,6 +91,12 @@ async function gone(c: Context<AppEnv>): Promise<Response> {
  * What only a person on the site may do refuses an API token (`refuseToken`, 403): deleting the
  * account and the tokens routes, so a leaked token cannot make more tokens or lock its user out.
  */
+/** A bulk change's body: `MAX_BOTS_PER_USER` ids of up to 64 characters, quoted, and slack. */
+const BULK_BODY = 16 * 1024
+
+/** The signed-in user's id, after `requireUser`. */
+const sessionUser = (c: Context<AppEnv>) => c.get('session')?.userId ?? ''
+
 export const me = new Hono<AppEnv>()
   .get('/', requireUser, async (c) => {
     const row = await getUserRow(c.env.DB, c.get('session')?.userId ?? '')
@@ -90,6 +106,16 @@ export const me = new Hono<AppEnv>()
     const band = classParam(c.req.query('class'))
     const bots = await listMyBots(c.env.DB, c.get('session')?.userId ?? '', band)
     return c.json({ bots } satisfies MyBotList)
+  })
+  .patch('/bots', requireUser, limitBody(BULK_BODY), async (c) => {
+    const { ids, visibility } = parse(UpdateBots, await jsonBody(c), 'the request')
+    const bots = await setBotsVisibility(c.env.DB, sessionUser(c), ids, visibility)
+    return c.json({ bots } satisfies UpdatedBots)
+  })
+  .post('/bots/delete', requireUser, limitBody(BULK_BODY), async (c) => {
+    const { ids } = parse(DeleteBots, await jsonBody(c), 'the request')
+    const deleted = await deleteBots(c.env.DB, sessionUser(c), ids)
+    return c.json({ deleted } satisfies DeletedBots)
   })
   .get('/bots/arena', requireUser, async (c) => {
     c.header('Cache-Control', 'private, no-store')
