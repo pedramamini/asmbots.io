@@ -209,17 +209,21 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
         : []
   const ranks = ranksOf(catalog, records)
   // The players with the most bots, as pills, when there is more than one: the others are a search
-  // away (it reads owners too).
+  // away (it reads owners too). Each pill counts the player's bots that match the search in the
+  // weight class, so the count is what the pill lists.
   const owners = source === 'roster' ? ownersOf(catalog).slice(0, PLAYER_PILLS) : []
   const player = owners.some((o) => o.owner === owner) ? owner : 'all'
+  const shown = catalog.filter(
+    (bot) => matchesQuery(bot, query) && inWeight(bot.assembled.bytes.length, filter),
+  )
   const count = (n: number) => <span className="text-muted">{n}</span>
   const playerFilters = [
-    { value: 'all', label: <>all {count(catalog.length)}</> },
+    { value: 'all', label: <>all {count(shown.length)}</> },
     ...owners.map((o) => ({
       value: o.owner,
       label: (
         <>
-          {ownerAuthor(o.owner).name} {count(o.count)}
+          {ownerAuthor(o.owner).name} {count(shown.filter((bot) => ownerOf(bot) === o.owner).length)}
         </>
       ),
     })),
