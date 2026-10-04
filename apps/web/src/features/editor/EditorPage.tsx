@@ -96,6 +96,8 @@ import { isBlankBot, TEMPLATES, type TemplateId, templateSource } from './templa
 import { TEST_CONFIG, TEST_ROUNDS, tally, testBots, testedId, watchSetup } from './test-vs'
 import type { RestoredText } from './VersionsModal'
 
+/** The AI mode's chat: its own chunk, loaded as its panel first shows. */
+const AiPanel = lazy(() => import('./ai/AiPanel').then((m) => ({ default: m.AiPanel })))
 /** `layouts`: its own chunk, loaded when the dialog first opens. */
 const LayoutsModal = lazy(() => import('./LayoutsModal').then((m) => ({ default: m.LayoutsModal })))
 /** `versions`, with its diff: its own chunk, loaded when the dialog first opens. */
@@ -777,6 +779,30 @@ function Workbench({
     [view, replaceText, toast],
   )
 
+  // The AI mode writes a bot: in as one edit, as a template goes in.
+  const currentSource = useCallback(() => view?.state.doc.toString() ?? source, [view, source])
+  const aiWrite = useCallback(
+    (text: string) => {
+      if (view !== null && !doc.readOnly) replaceText(view, text)
+    },
+    [view, doc.readOnly, replaceText],
+  )
+  const aiWrote = useCallback(
+    (count: number) => {
+      if (view === null) return
+      toast('the ai put its bot in the editor.', {
+        variant: 'accent',
+        action: {
+          label: 'undo',
+          onClick: () => {
+            for (let i = 0; i < count; i++) undo(view)
+          },
+        },
+      })
+    },
+    [view, toast],
+  )
+
   const baseIdiom = useCallback(() => {
     if (view === null || doc.readOnly) return
     const idiom = SNIPPETS[0]
@@ -917,6 +943,27 @@ function Workbench({
               />
               <OutsideChip debug={debug} />
             </TileFrame>
+          ),
+          ai: (
+            <Suspense
+              fallback={
+                <TileFrame label="ai" title="ai">
+                  <div className="p-3" aria-busy="true">
+                    <Skeleton rows={4} />
+                  </div>
+                </TileFrame>
+              }
+            >
+              <AiPanel
+                signedIn={signedIn}
+                readOnly={doc.readOnly}
+                source={currentSource}
+                size={result?.size ?? null}
+                onWrite={aiWrite}
+                onWrote={aiWrote}
+                onSignIn={signIn}
+              />
+            </Suspense>
           ),
           help: (
             <HelpPanel

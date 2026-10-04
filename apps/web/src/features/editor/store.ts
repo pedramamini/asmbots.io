@@ -17,6 +17,7 @@ import {
   type PanelId,
   PRESETS,
   type PresetId,
+  removePanel,
   sanitizeLayout,
   setHidden,
 } from './layout/tree'
@@ -24,10 +25,11 @@ import {
 export const EDITOR_STORAGE_KEY = 'asmbots:editor'
 
 /**
- * The store's version. 2: the writing layout is the default. A layout kept from before that is the
- * old default, untouched, starts over as it; one the user made stays as they made it.
+ * The store's version. 2: the writing layout is the default. 3: the AI mode's layout is, and the
+ * phone's shows its chat. A layout kept from before either that is the old default, untouched,
+ * starts over as the new one; one the user made stays as they made it.
  */
-export const EDITOR_PREFS_VERSION = 2
+export const EDITOR_PREFS_VERSION = 3
 
 /** The debugger's preferences: how it runs, what it follows, and what it loads. */
 export interface DebugPrefs {
@@ -164,13 +166,53 @@ export const useEditorPrefs = create<EditorPrefsState>()(
 )
 
 /**
- * Stored prefs of `version` as this version reads them. Before 2, a layout that is the old default
- * as it came (every panel shown, no divider moved) goes, so the writing layout takes its place.
+ * Stored prefs of `version` as this version reads them. A layout that is an old default as it came
+ * (no panel moved, shown, or hidden, no divider moved) goes, so the new default takes its place:
+ * before 2, the one with every panel shown; before 3, the writing layout and the phone's from
+ * before the AI mode.
  */
 export function migrateEditorPrefs(stored: unknown, version: number): unknown {
-  if (version >= 2 || !isRecord(stored) || !isOldDefault(stored.layout)) return stored
-  const { layout: _old, ...rest } = stored
-  return rest
+  if (version >= 3 || !isRecord(stored)) return stored
+  const { layout, phoneLayout, ...rest } = stored
+  const oldWide =
+    (version < 2 && isOldDefault(layout)) || sameLayout(layout, withoutAi(PRESETS.writing()))
+  const oldPhone = sameLayout(phoneLayout, withoutAi(PRESETS.phone()))
+  return {
+    ...rest,
+    ...(oldWide || layout === undefined ? {} : { layout }),
+    ...(oldPhone || phoneLayout === undefined ? {} : { phoneLayout }),
+  }
+}
+
+/** A preset as it was before the AI mode: no `ai` panel. */
+function withoutAi(layout: Layout): Layout {
+  return {
+    root: removePanel(layout.root, 'ai') ?? layout.root,
+    hidden: layout.hidden.filter((id) => id !== 'ai'),
+  }
+}
+
+/**
+ * Whether a stored layout reads as `layout`: the same tree, the same weights, the same panels
+ * hidden. Both go through `sanitizeLayout`, so the panels added since sit where they would.
+ */
+function sameLayout(stored: unknown, layout: Layout): boolean {
+  const a = sanitizeLayout(stored)
+  const b = sanitizeLayout(layout)
+  if (a === null || b === null) return false
+  if ([...a.hidden].sort().join() !== [...b.hidden].sort().join()) return false
+  const same = (x: LayoutNode, y: LayoutNode): boolean => {
+    if (x.kind === 'panel' || y.kind === 'panel') {
+      return x.kind === 'panel' && y.kind === 'panel' && x.id === y.id
+    }
+    return (
+      x.dir === y.dir &&
+      x.children.length === y.children.length &&
+      x.weights.every((w, i) => Math.abs(w - (y.weights[i] ?? 0)) < 1e-6) &&
+      x.children.every((child, i) => same(child, y.children[i] as LayoutNode))
+    )
+  }
+  return same(a.root, b.root)
 }
 
 /** A layout as nested literals: a panel, or a split's direction and its `[child, weight]` parts. */
@@ -228,11 +270,13 @@ function isOldDefault(stored: unknown): boolean {
         same(node.children[i] as LayoutNode, child),
     )
   }
-  // `sanitizeLayout` adds the panels the old layout lacks (the help) at the end of the root.
+  // `sanitizeLayout` adds the panels the old layout lacks (the help, the AI chat) at the end of
+  // the root.
   const root = layout.root
   if (root.kind !== 'split') return false
-  const kept = root.children.length - 1
-  if (panelOf(root.children[kept]) !== 'help') return false
+  let kept = root.children.length
+  while (kept > 0 && LATER_PANELS.has(panelOf(root.children[kept - 1]) ?? 'source')) kept--
+  if (kept !== root.children.length - LATER_PANELS.size) return false
   const weights = root.weights.slice(0, kept)
   const total = weights.reduce((a, b) => a + b, 0)
   return same(
@@ -242,6 +286,9 @@ function isOldDefault(stored: unknown): boolean {
 }
 
 const panelOf = (node: LayoutNode | undefined) => (node?.kind === 'panel' ? node.id : null)
+
+/** The panels added since the first default: a store from before has none of them. */
+const LATER_PANELS: ReadonlySet<PanelId> = new Set(['help', 'ai'])
 
 /** Stored debugger preferences, each field that is well formed over the defaults; null for none. */
 export function sanitizeDebugPrefs(stored: unknown): DebugPrefs | null {

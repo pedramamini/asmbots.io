@@ -10,7 +10,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { HttpResponse, http } from 'msw'
 import { useDom, window } from '../../../packages/ui/test/dom'
 import { LayoutsModal } from '../src/features/editor/LayoutsModal'
-import { type Layout, PRESETS } from '../src/features/editor/layout/tree'
+import { type Layout, PRESETS, sanitizeLayout } from '../src/features/editor/layout/tree'
 import { answer, answerPost, renderAt, useApiServer } from './api-server'
 
 useDom()
@@ -75,7 +75,8 @@ describe('the layouts dialog', () => {
     expect(within(list).getAllByRole('img')[1]?.getAttribute('aria-label')).toContain('memory')
     expect(dialog.textContent).toContain('2 of 24')
     fireEvent.click(within(rows[1] as HTMLElement).getByRole('button', { name: 'load' }))
-    expect(applied).toEqual([[PRESETS.debugging(), 'wide debug']])
+    // As the editor reads a kept layout: its weights scaled again, so to the last bit.
+    expect(applied).toEqual([[sanitizeLayout(tree(PRESETS.debugging())), 'wide debug']])
     expect(closed).toHaveLength(1)
   })
 

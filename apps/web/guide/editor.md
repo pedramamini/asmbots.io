@@ -47,6 +47,19 @@ flowchart LR
 
 The bot library (`Library.tsx`, `b`) lists recent documents, my bots, and the roster.
 
+## AI mode
+
+The `ai` panel (`ai/AiPanel.tsx`, its own chunk: the route is at its budget) is a chat beside the
+source, and the default layout (`PRESETS.ai` in `layout/tree.ts`; `store.ts` version 3 moves a
+kept layout that is still the old `writing` or phone default to the new one).
+
+| Part | Where |
+| --- | --- |
+| The request | `ai/chat.ts`: `POST /api/ai/chat` with the turns (the newest 16 that say something), the editor's text, and the hill; the answer read as Server-Sent Events, one `AiEvent` (`@asmbots/protocol`'s `ai.ts`) each. |
+| The server | `apps/api/src/routes/ai.ts`: the model, its two tools (`write_bot`, `read_bot`), the competitors block, and the caps. See the API's README. |
+| Into the editor | A `source` event with bytes (`size > 0`) goes in at once through `replaceText`, one edit each; one with errors waits for the fix, and if no version assembles, the last goes in anyway. The toast's `undo` undoes every edit of the turn. |
+| The hill | `hillOfSize`: the bot's weight class from the last assemble (`main` for a lightweight); the select's pick holds after that. |
+
 ## Keymap
 
 The function keys go through one window listener (`debug/keys.ts`): they work in the editor and in

@@ -10,6 +10,7 @@ import { isRecord } from '../../../store/settings'
 /** The panels of the editor page, in the order the layout menu lists them. */
 export const PANEL_IDS = [
   'source',
+  'ai',
   'problems',
   'library',
   'help',
@@ -28,6 +29,7 @@ export type PanelId = (typeof PANEL_IDS)[number]
 /** A panel's name, as its menu and the layout menu say it. */
 export const PANEL_LABELS: Readonly<Record<PanelId, string>> = {
   source: 'source',
+  ai: 'ai',
   problems: 'problems',
   library: 'library',
   help: 'help',
@@ -129,6 +131,9 @@ const MACHINE_PANELS = [
   'arena',
 ] as const satisfies readonly PanelId[]
 
+/** The panels `writing` and `debugging` hide beside their own: the AI mode's chat. */
+const AI_PANELS = ['ai'] as const satisfies readonly PanelId[]
+
 /** What the phone's layout hides, in the order it stacks them under the help. */
 const PHONE_HIDDEN = [
   'debug',
@@ -148,12 +153,36 @@ const PHONE_HIDDEN = [
  * the trace under all.
  */
 export const PRESETS = {
-  /** The library, the source over its problems, and the help beside them; the machine hidden. */
+  /**
+   * The AI mode: its chat left of the source over its problems, and the help beside them; the
+   * library (left of the chat) and the machine hidden.
+   */
+  ai: (): Layout => ({
+    root: column(
+      [
+        row(
+          [panel('library'), 0.12],
+          [panel('ai'), 0.3],
+          [column([panel('source'), 0.8], [panel('problems'), 0.2]), 0.46],
+          [panel('help'), 0.24],
+          [debuggerColumn(), 0.45],
+        ),
+        0.74,
+      ],
+      [row([panel('arena'), 0.72], [panel('trace'), 0.28]), 0.26],
+    ),
+    hidden: ['library', ...MACHINE_PANELS],
+  }),
+  /**
+   * The library, the source over its problems, and the help beside them; the machine hidden, and
+   * the AI mode's chat, between the library and the source.
+   */
   writing: (): Layout => ({
     root: column(
       [
         row(
           [panel('library'), 0.13],
+          [panel('ai'), 0.3],
           [column([panel('source'), 0.8], [panel('problems'), 0.2]), 0.6],
           [panel('help'), 0.27],
           [debuggerColumn(), 0.45],
@@ -162,7 +191,7 @@ export const PRESETS = {
       ],
       [row([panel('arena'), 0.72], [panel('trace'), 0.28]), 0.26],
     ),
-    hidden: [...MACHINE_PANELS],
+    hidden: [...AI_PANELS, ...MACHINE_PANELS],
   }),
   /**
    * The source over its problems beside the debugger, its memory the widest panel; the arena strip
@@ -173,6 +202,7 @@ export const PRESETS = {
       [
         row(
           [panel('library'), 0.12],
+          [panel('ai'), 0.24],
           [column([panel('source'), 0.76], [panel('problems'), 0.24]), 0.36],
           [panel('help'), 0.2],
           [debuggerColumn(), 0.64],
@@ -181,14 +211,17 @@ export const PRESETS = {
       ],
       [row([panel('arena'), 0.7], [panel('trace'), 0.3]), 0.24],
     ),
-    hidden: ['library', 'help'],
+    hidden: ['library', ...AI_PANELS, 'help'],
   }),
   /**
-   * A phone's: one column, the source over its problems and the help; the rest hidden under them,
-   * the debug controls first, so a panel shown again takes a share of the column.
+   * A phone's: one column, the AI mode's chat over the source, its problems, and the help; the rest
+   * hidden under them, the debug controls first, so a panel shown again takes a share of the
+   * column.
    */
   phone: (): Layout => ({
     root: column(
+      // The shares of the phone's layout before the chat, so a kept one reads as it (`store.ts`).
+      [panel('ai'), 0.5],
       [panel('source'), 0.62],
       [panel('problems'), 0.14],
       [panel('help'), 0.24],
@@ -201,13 +234,14 @@ export const PRESETS = {
 export type PresetId = keyof typeof PRESETS
 
 export const PRESET_LABELS: Readonly<Record<PresetId, string>> = {
+  ai: 'ai',
   writing: 'writing',
   debugging: 'debugging',
   phone: 'phone',
 }
 
-/** The layout a first visit gets, and a store with none: the writing one. */
-export const DEFAULT_LAYOUT: Layout = PRESETS.writing()
+/** The layout a first visit gets, and a store with none: the AI mode's. */
+export const DEFAULT_LAYOUT: Layout = PRESETS.ai()
 
 /** `weights` scaled to add up to 1; all zero (or none) share alike. */
 export function scaled(weights: readonly number[]): number[] {

@@ -134,7 +134,8 @@ describe('editor prefs', () => {
     toggleLibrary()
     setLint(false)
     const { listing, layout, lint } = useEditorPrefs.getState()
-    expect([listing, layout.hidden.includes('library'), lint]).toEqual([false, true, false])
+    // The AI layout hides the library: the switch shows it.
+    expect([listing, layout.hidden.includes('library'), lint]).toEqual([false, false, false])
   })
 
   it('keeps the documents opened lately, the latest first, each once', () => {
@@ -177,8 +178,8 @@ describe('editor prefs', () => {
     expect(sanitizeEditorPrefs('junk')).toEqual({})
   })
 
-  it('starts the old default layout over as the writing one, and keeps one the user made', () => {
-    expect(DEFAULT_EDITOR_PREFS.layout).toEqual(PRESETS.writing())
+  it('starts the old default layout over as the AI one, and keeps one the user made', () => {
+    expect(DEFAULT_EDITOR_PREFS.layout).toEqual(PRESETS.ai())
     const old = { listing: false, layout: OLD_DEFAULT, recent: ['a'], drafts: {} }
     const migrated = migrateEditorPrefs(JSON.parse(JSON.stringify(old)), 1)
     expect(migrated).toEqual({ listing: false, recent: ['a'], drafts: {} })
@@ -191,6 +192,28 @@ describe('editor prefs', () => {
     expect(migrateEditorPrefs({ ...old, layout: hid }, 1)).toEqual({ ...old, layout: hid })
     // A store of this version keeps its layout.
     expect(migrateEditorPrefs(old, EDITOR_PREFS_VERSION)).toBe(old)
+  })
+
+  it('starts the writing and phone layouts of before the AI mode over, and keeps ones the user made', () => {
+    const old = { lint: false, layout: V2_WRITING, phoneLayout: V2_PHONE, recent: [], drafts: {} }
+    const migrated = migrateEditorPrefs(JSON.parse(JSON.stringify(old)), 2)
+    expect(migrated).toEqual({ lint: false, recent: [], drafts: {} })
+    // Read back, the new defaults take their place.
+    useEditorPrefs.setState({
+      ...structuredClone(DEFAULT_EDITOR_PREFS as never),
+      ...sanitizeEditorPrefs(migrated),
+    })
+    expect(useEditorPrefs.getState().layout).toEqual(PRESETS.ai())
+    expect(useEditorPrefs.getState().phoneLayout).toEqual(PRESETS.phone())
+    // A divider moved, or a panel shown: the user's, kept as it is.
+    const moved = structuredClone(V2_WRITING)
+    moved.root.weights = [0.6, 0.4]
+    const shown = { ...V2_PHONE, hidden: V2_PHONE.hidden.filter((id) => id !== 'arena') }
+    expect(migrateEditorPrefs({ ...old, layout: moved, phoneLayout: shown }, 2)).toEqual({
+      ...old,
+      layout: moved,
+      phoneLayout: shown,
+    })
   })
 
   it("keeps the debugger's preferences, each well-formed field over the defaults", () => {
@@ -218,18 +241,19 @@ describe('editor prefs', () => {
   })
 })
 
+const panel = (id: string) => ({ kind: 'panel', id })
+const split = (dir: string, ...parts: [object, number][]) => {
+  const sum = parts.reduce((total, [, w]) => total + w, 0)
+  return {
+    kind: 'split',
+    dir,
+    children: parts.map(([n]) => n),
+    weights: parts.map(([, w]) => w / sum),
+  }
+}
+
 /** The default layout before version 2, as that version's store wrote it. */
 const OLD_DEFAULT = (() => {
-  const panel = (id: string) => ({ kind: 'panel', id })
-  const split = (dir: string, ...parts: [object, number][]) => {
-    const sum = parts.reduce((total, [, w]) => total + w, 0)
-    return {
-      kind: 'split',
-      dir,
-      children: parts.map(([n]) => n),
-      weights: parts.map(([, w]) => w / sum),
-    }
-  }
   const machine = split(
     'column',
     [panel('debug'), 0.1],
@@ -308,3 +332,80 @@ describe('bot versions', () => {
     expect(await listVersions(other.id)).toEqual([])
   })
 })
+
+/** The debugger's panels in the layouts of version 2. */
+const V2_MACHINE = split(
+  'column',
+  [panel('debug'), 0.1],
+  [
+    split(
+      'row',
+      [split('column', [panel('registers'), 0.3], [panel('processes'), 0.7]), 0.4],
+      [
+        split(
+          'column',
+          [panel('memory'), 0.7],
+          [panel('watch'), 0.15],
+          [panel('breakpoints'), 0.15],
+        ),
+        0.6,
+      ],
+    ),
+    0.9,
+  ],
+)
+
+const V2_HIDDEN_MACHINE = [
+  'debug',
+  'registers',
+  'processes',
+  'watch',
+  'breakpoints',
+  'memory',
+  'trace',
+  'arena',
+]
+
+/** The writing layout of version 2, the default then, as that version's store wrote it. */
+const V2_WRITING = {
+  root: split(
+    'column',
+    [
+      split(
+        'row',
+        [panel('library'), 0.13],
+        [split('column', [panel('source'), 0.8], [panel('problems'), 0.2]), 0.6],
+        [panel('help'), 0.27],
+        [V2_MACHINE, 0.45],
+      ),
+      0.74,
+    ],
+    [split('row', [panel('arena'), 0.72], [panel('trace'), 0.28]), 0.26],
+  ),
+  hidden: V2_HIDDEN_MACHINE,
+}
+
+/** The phone's layout of version 2. */
+const V2_PHONE = (() => {
+  const below = [
+    'debug',
+    'registers',
+    'memory',
+    'processes',
+    'watch',
+    'breakpoints',
+    'trace',
+    'arena',
+    'library',
+  ]
+  return {
+    root: split(
+      'column',
+      [panel('source'), 0.62],
+      [panel('problems'), 0.14],
+      [panel('help'), 0.24],
+      ...below.map((id): [object, number] => [panel(id), 0.3]),
+    ),
+    hidden: below,
+  }
+})()

@@ -4,6 +4,7 @@
  * boxes on the page.
  */
 import { describe, expect, it } from 'bun:test'
+import { tileBoxes } from '../src/features/editor/layout/boxes'
 import {
   type Box,
   DEFAULT_LAYOUT,
@@ -31,7 +32,6 @@ import {
   TILE_MIN,
   zoneBox,
 } from '../src/features/editor/layout/tree'
-import { tileBoxes } from '../src/features/editor/layout/boxes'
 
 const leaf = (id: PanelId): LayoutNode => ({ kind: 'panel', id })
 const sorted = (ids: readonly PanelId[]) => [...ids].sort()
@@ -55,50 +55,58 @@ describe('the presets', () => {
     }
   })
 
-  it('start on the writing layout: the library, the source over its problems, and the help', () => {
-    expect(DEFAULT_LAYOUT).toEqual(PRESETS.writing())
-    expect(Object.keys(PRESETS)).toEqual(['writing', 'debugging', 'phone'])
+  const MACHINE = [
+    'debug',
+    'registers',
+    'processes',
+    'watch',
+    'breakpoints',
+    'memory',
+    'trace',
+    'arena',
+  ] as const
+
+  it('start on the AI layout: its chat, the source over its problems, and the help', () => {
+    expect(DEFAULT_LAYOUT).toEqual(PRESETS.ai())
+    expect(Object.keys(PRESETS)).toEqual(['ai', 'writing', 'debugging', 'phone'])
     const { root, hidden } = DEFAULT_LAYOUT
     expect(root.kind === 'split' && root.dir).toBe('column')
     expect(panelsOf(nodeAt(root, [0, 0]) as LayoutNode)).toEqual(['library'])
-    expect(panelsOf(nodeAt(root, [0, 1]) as LayoutNode)).toEqual(['source', 'problems'])
-    expect(panelsOf(nodeAt(root, [0, 2]) as LayoutNode)).toEqual(['help'])
+    expect(panelsOf(nodeAt(root, [0, 1]) as LayoutNode)).toEqual(['ai'])
+    expect(panelsOf(nodeAt(root, [0, 2]) as LayoutNode)).toEqual(['source', 'problems'])
+    expect(panelsOf(nodeAt(root, [0, 3]) as LayoutNode)).toEqual(['help'])
     // The machine is hidden in its place: the debugger right of the help, the strip under all.
-    expect(panelsOf(nodeAt(root, [0, 3]) as LayoutNode)).toContain('memory')
+    expect(panelsOf(nodeAt(root, [0, 4]) as LayoutNode)).toContain('memory')
     expect(panelsOf(nodeAt(root, [1]) as LayoutNode)).toEqual(['arena', 'trace'])
-    expect(sorted(hidden)).toEqual(
-      sorted([
-        'debug',
-        'registers',
-        'processes',
-        'watch',
-        'breakpoints',
-        'memory',
-        'trace',
-        'arena',
-      ]),
-    )
+    expect(sorted(hidden)).toEqual(sorted(['library', ...MACHINE]))
   })
 
-  it('debug with the source beside the machine, the library and the help hidden', () => {
+  it('write without the AI: the library, the source over its problems, and the help', () => {
+    const { root, hidden } = PRESETS.writing()
+    expect(panelsOf(nodeAt(root, [0, 0]) as LayoutNode)).toEqual(['library'])
+    expect(panelsOf(nodeAt(root, [0, 2]) as LayoutNode)).toEqual(['source', 'problems'])
+    expect(sorted(hidden)).toEqual(sorted(['ai', ...MACHINE]))
+  })
+
+  it('debug with the source beside the machine, the library, the AI, and the help hidden', () => {
     const { root, hidden } = PRESETS.debugging()
-    expect(sorted(hidden)).toEqual(['help', 'library'])
+    expect(sorted(hidden)).toEqual(['ai', 'help', 'library'])
     const top = nodeAt(root, [0])
     expect(top?.kind === 'split' && top.dir).toBe('row')
-    expect(panelsOf(nodeAt(root, [0, 1]) as LayoutNode)).toEqual(['source', 'problems'])
-    expect(panelsOf(nodeAt(root, [0, 3]) as LayoutNode)[0]).toBe('debug')
+    expect(panelsOf(nodeAt(root, [0, 2]) as LayoutNode)).toEqual(['source', 'problems'])
+    expect(panelsOf(nodeAt(root, [0, 4]) as LayoutNode)[0]).toBe('debug')
     expect(panelsOf(nodeAt(root, [1]) as LayoutNode)).toEqual(['arena', 'trace'])
   })
 
-  it('put a phone in one column: the source, its problems, and the help; the rest hidden', () => {
+  it('put a phone in one column: the AI, the source, its problems, and the help; the rest hidden', () => {
     const { root, hidden } = PRESETS.phone()
     expect(root.kind === 'split' && root.dir).toBe('column')
     expect(root.kind === 'split' && root.children.every((child) => child.kind === 'panel')).toBe(
       true,
     )
-    expect(panelsOf(root).slice(0, 4)).toEqual(['source', 'problems', 'help', 'debug'])
+    expect(panelsOf(root).slice(0, 5)).toEqual(['ai', 'source', 'problems', 'help', 'debug'])
     expect(sorted(hidden)).toEqual(
-      sorted(PANEL_IDS.filter((id) => !['source', 'problems', 'help'].includes(id))),
+      sorted(PANEL_IDS.filter((id) => !['ai', 'source', 'problems', 'help'].includes(id))),
     )
   })
 })
@@ -109,7 +117,7 @@ describe('moves', () => {
     tidy(root)
     expect(sorted(panelsOf(root))).toEqual(sorted(PANEL_IDS))
     // The source's column now starts with a row: the memory, then the source.
-    const pair = nodeAt(root, [0, 1, 0])
+    const pair = nodeAt(root, [0, 2, 0])
     expect(pair?.kind === 'split' && pair.dir).toBe('row')
     expect(panelsOf(pair as LayoutNode)).toEqual(['memory', 'source'])
     expect(pair?.kind === 'split' && pair.weights).toEqual([0.5, 0.5])
@@ -119,7 +127,7 @@ describe('moves', () => {
     // Below the source, in its column: one column of three, not a column in a column.
     const root = movePanel(DEFAULT_LAYOUT.root, 'trace', 'source', 'bottom')
     tidy(root)
-    expect(panelsOf(nodeAt(root, [0, 1]) as LayoutNode)).toEqual(['source', 'trace', 'problems'])
+    expect(panelsOf(nodeAt(root, [0, 2]) as LayoutNode)).toEqual(['source', 'trace', 'problems'])
   })
 
   it('swaps two panels on a drop in the middle', () => {

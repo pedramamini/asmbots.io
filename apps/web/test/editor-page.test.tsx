@@ -304,22 +304,25 @@ describe('the editor page', () => {
     await renderEditor()
     const view = await editorView()
     await waitFor(() => expect(view.dom.querySelector('.cm-listing-gutter')).not.toBeNull())
-    expect(screen.getByRole('region', { name: 'bot library' })).toBeTruthy()
-    act(() => void fireEvent.keyDown(document.body, { key: 'b' }))
+    // The AI layout hides the library.
     expect(screen.queryByRole('region', { name: 'bot library' })).toBeNull()
+    act(() => void fireEvent.keyDown(document.body, { key: 'b' }))
+    expect(screen.getByRole('region', { name: 'bot library' })).toBeTruthy()
     act(() => void fireEvent.keyDown(document.body, { key: 'l' }))
     expect(view.dom.querySelector('.cm-listing-gutter')).toBeNull()
     expect(useEditorPrefs.getState().listing).toBe(false)
-    expect(useEditorPrefs.getState().layout.hidden).toEqual([
-      ...PRESETS.writing().hidden,
-      'library',
-    ])
+    expect(useEditorPrefs.getState().layout.hidden).toEqual(
+      PRESETS.ai().hidden.filter((id) => id !== 'library'),
+    )
+    act(() => void fireEvent.keyDown(document.body, { key: 'b' }))
+    expect(screen.queryByRole('region', { name: 'bot library' })).toBeNull()
     fireEvent.click(toolbar().getByRole('button', { name: 'listing' }))
     expect(view.dom.querySelector('.cm-listing-gutter')).not.toBeNull()
   })
 
   it('opens my bots and the roster from the library', async () => {
     const bot = await saveLocalBot({ name: 'mine', source: source('imp') })
+    useEditorPrefs.getState().applyPreset('writing')
     const { router } = await renderEditor()
     await editorView()
     const library = () => within(screen.getByRole('region', { name: 'bot library' }))
@@ -361,7 +364,9 @@ describe('the editor page', () => {
     }))
     const { router } = await renderEditor('/editor', arena)
     await editorView()
-    fireEvent.click(within(newBot() as HTMLElement).getByRole('button', { name: 'start on your own' }))
+    fireEvent.click(
+      within(newBot() as HTMLElement).getByRole('button', { name: 'start on your own' }),
+    )
     fireEvent.click(toolbar().getByRole('button', { name: 'test vs ▾' }))
     // The opponents run A to Z, and the filter field narrows them.
     const names = screen.getAllByRole('menuitem').map((item) => item.textContent ?? '')
@@ -891,15 +896,15 @@ describe('the debugger', () => {
     expect(screen.getByRole('separator', { name: 'arena strip height' })).toBeTruthy()
     await panelMenu('arena strip', 'hide arena strip')
     await waitFor(() => expect(screen.queryByRole('region', { name: 'arena strip' })).toBeNull())
-    // The arena's setup opened the debugging layout: the library and the help hidden.
-    expect(useEditorPrefs.getState().layout.hidden).toEqual(['library', 'help', 'arena'])
+    // The arena's setup opened the debugging layout: the library, the AI, and the help hidden.
+    expect(useEditorPrefs.getState().layout.hidden).toEqual(['library', 'ai', 'help', 'arena'])
     expect(screen.queryByRole('separator', { name: 'arena strip height' })).toBeNull()
     expect(await editorView()).toBe(view)
     await layoutMenu('show arena strip')
     await waitFor(() =>
       expect(screen.getByRole('application', { name: 'debug arena' })).toBeTruthy(),
     )
-    expect(useEditorPrefs.getState().layout.hidden).toEqual(['library', 'help'])
+    expect(useEditorPrefs.getState().layout.hidden).toEqual(['library', 'ai', 'help'])
     expect(await editorView()).toBe(view)
   })
 
@@ -944,6 +949,7 @@ describe('the debugger', () => {
   })
 
   it('sizes two panels with the divider between them, from the keys', async () => {
+    useEditorPrefs.getState().applyPreset('writing')
     await renderEditor()
     const divider = screen.getByRole('separator', { name: 'library width' })
     const before = Number(divider.getAttribute('aria-valuenow'))
@@ -965,7 +971,7 @@ describe('the debugger', () => {
       const shown = [...document.querySelectorAll<HTMLElement>('[data-panel]')].map(
         (slot) => slot.dataset.panel,
       )
-      expect(shown).toEqual(['source', 'problems', 'help'])
+      expect(shown).toEqual(['ai', 'source', 'problems', 'help'])
       expect(screen.queryByRole('region', { name: 'bot library' })).toBeNull()
       await layoutMenu('show memory')
       await waitFor(() => expect(screen.getByRole('region', { name: 'memory' })).toBeTruthy())
@@ -978,18 +984,23 @@ describe('the debugger', () => {
     }
   })
 
-  it('puts the panels as a preset has them, the writing one first', async () => {
+  it('puts the panels as a preset has them, the AI one first', async () => {
     await renderEditor()
     expect(screen.queryByRole('region', { name: 'memory' })).toBeNull()
-    expect(screen.getByRole('region', { name: 'bot library' })).toBeTruthy()
+    expect(screen.queryByRole('region', { name: 'bot library' })).toBeNull()
+    expect(screen.getByRole('region', { name: 'ai' })).toBeTruthy()
     expect(screen.getByRole('region', { name: 'help' })).toBeTruthy()
     await layoutMenu('debugging layout')
     await waitFor(() => expect(screen.getByRole('region', { name: 'memory' })).toBeTruthy())
-    expect(screen.queryByRole('region', { name: 'bot library' })).toBeNull()
+    expect(screen.queryByRole('region', { name: 'ai' })).toBeNull()
     expect(screen.queryByRole('region', { name: 'help' })).toBeNull()
     await layoutMenu('writing layout')
     await waitFor(() => expect(screen.getByRole('region', { name: 'bot library' })).toBeTruthy())
+    expect(screen.queryByRole('region', { name: 'ai' })).toBeNull()
     expect(useEditorPrefs.getState().layout).toEqual(PRESETS.writing())
+    await layoutMenu('ai layout')
+    await waitFor(() => expect(screen.getByRole('region', { name: 'ai' })).toBeTruthy())
+    expect(useEditorPrefs.getState().layout).toEqual(PRESETS.ai())
   })
 
   it("keeps the debugger's seed, opponents, speed, run count, and lock for the next visit", async () => {

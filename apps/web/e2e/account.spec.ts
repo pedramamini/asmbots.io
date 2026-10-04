@@ -104,6 +104,9 @@ test('saves a bot in the account: v1, the same bytes again, v2, and the bot page
   await edit('\n  nop')
   await expect(page.getByText(/^saved .+: v2 in your account\.$/)).toBeVisible()
 
+  // The AI layout hides the library: show it.
+  const library = page.getByRole('button', { name: 'bot library' })
+  if ((await library.getAttribute('aria-pressed')) !== 'true') await library.click()
   const cloud = page.getByRole('region', { name: 'mine (cloud)' })
   // A new cloud bot is public: the library says so after its version.
   await expect(cloud.getByRole('button')).toHaveText([/ · v2 · public$/])
