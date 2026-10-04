@@ -95,6 +95,7 @@ import {
   withPreset,
 } from './setup/config'
 import type { Problems } from './setup/files'
+import { SourceButton } from './setup/SourceButton'
 import { type ArenaSetupSpec, type BotRef, formatRef } from './setup/url'
 import { copyShareLink } from './share'
 import { FightStep, RosterStep } from './tour'
@@ -106,6 +107,10 @@ const ProblemsModal = lazy(() =>
 
 /** The table view: its own chunk, loaded when `table` is first picked. */
 const BotTable = lazy(() => import('./setup/BotTable').then((m) => ({ default: m.BotTable })))
+/** A bot's source: a chunk loaded when one is first asked for. */
+const SourceModal = lazy(() =>
+  import('./setup/SourceModal').then((m) => ({ default: m.SourceModal })),
+)
 
 /** The paste box: its own chunk, loaded when `paste` is picked. */
 const PasteBox = lazy(() => import('./setup/PasteBox').then((m) => ({ default: m.PasteBox })))
@@ -178,12 +183,15 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
   const { setVisibility } = useBotChanges()
   const [source, setSource] = useState<Source>('roster')
   const [query, setQuery] = useState('')
-  const [weight, setWeight] = useState<WeightFilter>('all')
+  /** The picker's weight filter, when picked: null follows the arena's class. */
+  const [weight, setWeight] = useState<WeightFilter | null>(null)
   /** The roster's player filter: a handle, the house's for the roster's own bots, or `all`. */
   const [owner, setOwner] = useState('all')
   const [sort, setSort] = useState<BotSort>('rank')
   const [view, setView] = useState<View>('cards')
   const [problems, setProblems] = useState<Problems | null>(null)
+  /** The bot whose source is shown. */
+  const [viewing, setViewing] = useState<CatalogBot | null>(null)
   const [dragDepth, setDragDepth] = useState(0)
   const picker = useRef<HTMLInputElement>(null)
   // The setup as it stands, for the steps that finish after an await.
@@ -234,9 +242,10 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
       own,
     )
   }, [localBots.data, assemble, own])
-  // The arena's class, when it has one, holds the picker's weight filter to it.
+  // The arena's class, when it has one, sets the picker's weight filter until another is picked:
+  // the other classes still list, to read, but the arena does not take their bots.
   const locked = spec.config.weight !== 'all'
-  const filter: WeightFilter = locked ? spec.config.weight : weight
+  const filter: WeightFilter = weight ?? spec.config.weight
   // The bots the picker lists, in the sort's order: the search's, of the player, in the weight
   // class. The fills draw from them, `best fill` best ranked first. A bot's rank is its place among
   // the source's bots with a record. The roster is the house's bots and the players' public ones.
@@ -272,7 +281,7 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
     (bot) => matchesQuery(bot, query) && (player === 'all' || ownerOf(bot) === player),
   )
   const listed = searched.filter((bot) => inWeight(bot.assembled.bytes.length, filter))
-  // Each filter pill counts the search's bots in its class, and the other pills lock with a class.
+  // Each filter pill counts the search's bots in its class.
   const weightFilters = WEIGHT_FILTERS.map(({ value, label }) => ({
     value,
     label: (
@@ -283,8 +292,9 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
         </span>
       </>
     ),
-    disabled: locked && value !== filter,
   }))
+  // What the fills draw from: the bots listed the arena's class takes.
+  const fillFrom = listed.filter((bot) => inWeight(bot.assembled.bytes.length, spec.config.weight))
   const status = fightStatus(selection, spec)
   const full = spec.bots.length >= MAX_ARENA_BOTS
   // The tour's step: the roster until two bots are in, then the fight button.
@@ -292,10 +302,10 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
     tour === undefined ? null : selection.length >= MIN_ARENA_BOTS ? 'fight' : 'roster'
   const clearSearch = {
     label:
-      (locked || weight === 'all') && player === 'all' ? 'clear the search' : 'clear the filters',
+      filter === spec.config.weight && player === 'all' ? 'clear the search' : 'clear the filters',
     onClick: () => {
       setQuery('')
-      setWeight('all')
+      setWeight(null)
       setOwner('all')
     },
   }
@@ -371,6 +381,7 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
         authorOf={(bot) => catalogAuthor(bot, me)}
         room={MAX_ARENA_BOTS - spec.bots.length}
         onAdd={addMany}
+        onView={setViewing}
         mine={source === 'mine'}
         signedIn={signedIn}
         local={localBots.data ?? []}
@@ -383,8 +394,8 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
   const fill = (best: boolean) => {
     const room = MAX_ARENA_BOTS - latest.current.bots.length
     const refs = best
-      ? bestFill(sortBots(listed, 'rank', records), latest.current.bots, room)
-      : randomFill(listed, latest.current.bots, room)
+      ? bestFill(sortBots(fillFrom, 'rank', records), latest.current.bots, room)
+      : randomFill(fillFrom, latest.current.bots, room)
     add(refs)
     toast(
       `added ${refs.length} ${best ? 'best' : 'random'} ${refs.length === 1 ? 'bot' : 'bots'}.`,
@@ -393,7 +404,7 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
       },
     )
   }
-  const fillable = !full && listed.some((bot) => errorsOf(bot).length === 0)
+  const fillable = !full && fillFrom.some((bot) => errorsOf(bot).length === 0)
 
   const remove = (index: number) =>
     onSpecChange((s) => ({ ...s, bots: s.bots.filter((_, i) => i !== index) }))
@@ -409,6 +420,8 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
 
   /** Changes the config. A class takes out the picked bots of the others, and says so. */
   const configure = (change: Partial<ArenaConfig>) => {
+    // A new class sets the picker's filter to it.
+    if (change.weight !== undefined) setWeight(null)
     const { weight = 'all' } = change
     const out = new Set(outsideWeight(selection, weight).map((s) => s.index))
     onSpecChange((s) => ({
@@ -656,6 +669,7 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
                   full={full}
                   onAdd={addBot}
                   onErrors={showErrors}
+                  onView={setViewing}
                   empty={
                     <EmptyState action={clearSearch}>
                       no {kind}roster bot{matching}.
@@ -680,6 +694,7 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
                 full={full}
                 onAdd={addBot}
                 onErrors={showErrors}
+                onView={setViewing}
                 onVisibility={(bot, visibility) => {
                   const id = listingOf(bot)?.bot.botId
                   if (id !== undefined) void setVisibility([id], [bot.name], visibility)
@@ -758,9 +773,10 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
             <ConfigForm
               config={spec.config}
               onChange={configure}
-              onPreset={(preset: PresetName) =>
+              onPreset={(preset: PresetName) => {
+                setWeight(null)
                 onSpecChange((s) => ({ ...s, config: withPreset(s.config, preset) }))
-              }
+              }}
               maxSpacing={spacingCap}
               bots={selection.length}
               weight
@@ -811,6 +827,11 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
           <ProblemsModal problems={problems} onClose={() => setProblems(null)} />
         </Suspense>
       )}
+      {viewing !== null && (
+        <Suspense fallback={null}>
+          <SourceModal bot={viewing} onClose={() => setViewing(null)} />
+        </Suspense>
+      )}
     </div>
   )
 }
@@ -833,6 +854,8 @@ interface GridProps {
   full: boolean
   onAdd: (bot: CatalogBot) => void
   onErrors: (bot: CatalogBot) => void
+  /** Shows a bot's source. */
+  onView: (bot: CatalogBot) => void
   /** Gives one of my account bots a new visibility. */
   onVisibility?: ((bot: CatalogBot, visibility: Visibility) => void) | undefined
 }
@@ -853,6 +876,7 @@ function BotGrid({
   full,
   onAdd,
   onErrors,
+  onView,
   onVisibility,
   empty,
   coach,
@@ -881,6 +905,7 @@ function BotGrid({
             full={full}
             onAdd={() => onAdd(bot)}
             onErrors={() => onErrors(bot)}
+            onView={() => onView(bot)}
             onVisibility={onVisibility && ((visibility) => onVisibility(bot, visibility))}
             coach={index === 0 ? coach : undefined}
           />
@@ -931,6 +956,7 @@ function BotCard({
   full,
   onAdd,
   onErrors,
+  onView,
   onVisibility,
   coach,
 }: {
@@ -942,6 +968,7 @@ function BotCard({
   full: boolean
   onAdd: () => void
   onErrors: () => void
+  onView: () => void
   onVisibility?: ((visibility: Visibility) => void) | undefined
   coach?: ReactNode
 }) {
@@ -959,7 +986,7 @@ function BotCard({
       <Identicon value={bytes.length > 0 ? bytes : (bot.source ?? '')} size={32} />
       <div className="flex min-w-0 flex-1 flex-col">
         <p className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-bright">{bot.name}</span>
+          <SourceButton name={bot.name} onClick={onView} />
           {count > 0 && <Chip variant="accent">×{count}</Chip>}
         </p>
         {hill !== null && (
@@ -999,7 +1026,16 @@ function BotCard({
           </p>
         )}
       </div>
-      <div className="flex shrink-0 flex-col items-end gap-1">
+      <div className="flex shrink-0 items-center gap-1">
+        {visibility === null ? (
+          <Chip variant={bot.roster?.tier === 'showcase' ? 'accent' : 'neutral'}>
+            {bot.roster?.tier ?? ORIGIN_LABEL[bot.origin]}
+          </Chip>
+        ) : visibility === 'local' || onVisibility === undefined ? (
+          <VisibilityChip visibility={visibility} />
+        ) : (
+          <VisibilityMenu name={bot.name} value={visibility} onChange={onVisibility} />
+        )}
         {broken ? (
           <button
             type="button"
@@ -1020,15 +1056,6 @@ function BotCard({
             />
             {coach}
           </span>
-        )}
-        {visibility === null ? (
-          <Chip variant={bot.roster?.tier === 'showcase' ? 'accent' : 'neutral'}>
-            {bot.roster?.tier ?? ORIGIN_LABEL[bot.origin]}
-          </Chip>
-        ) : visibility === 'local' || onVisibility === undefined ? (
-          <VisibilityChip visibility={visibility} />
-        ) : (
-          <VisibilityMenu name={bot.name} value={visibility} onChange={onVisibility} />
         )}
       </div>
     </li>

@@ -181,6 +181,18 @@ describe('arena setup', () => {
     expect(within(dwarf).getByRole('button', { name: 'add Dwarf' })).toBeTruthy()
   })
 
+  it('shows a bot’s source when its name is pressed', async () => {
+    await renderArena()
+    const dwarf = screen.getByRole('listitem', { name: 'Dwarf' })
+    fireEvent.click(within(dwarf).getByRole('button', { name: 'Dwarf' }))
+    const modal = await screen.findByRole('dialog', { name: 'Dwarf · source' })
+    await waitFor(() =>
+      expect(modal.textContent).toContain('%strategy "Bomb every 4th byte, walking backward"'),
+    )
+    expect(within(modal).getByRole('button', { name: 'copy' })).toBeTruthy()
+    await settle()
+  })
+
   it('narrates the fight button as bots come, and the URL follows', async () => {
     const { router } = await renderArena()
     expect(fightButton().textContent).toBe('add 2 bots')
@@ -578,22 +590,31 @@ describe('an arena held to one weight class', () => {
       .getAllByRole('listitem')
       .map((card) => card.getAttribute('aria-label'))
 
-  it('reads the class from the URL, holds the filter to it, and blocks a bot outside it', async () => {
+  it('reads the class from the URL, sets the filter to it, and blocks a bot outside it', async () => {
     await renderArena('/arena?b=roster:imp,roster:mender,roster:dwarf&w=heavyweight')
     expect(classGroup().getByRole('radio', { name: 'heavy' }).getAttribute('aria-checked')).toBe(
       'true',
     )
     const heavy = filter().getByRole('radio', { name: /^heavy / })
     expect(heavy.getAttribute('aria-checked')).toBe('true')
-    const others = filter()
-      .getAllByRole('radio')
-      .filter((pill) => pill !== heavy)
-    expect(others.every((pill) => (pill as HTMLButtonElement).disabled)).toBe(true)
     expect(cardNames().sort()).toEqual(namesIn('heavyweight'))
     expect(fightButton().textContent).toBe('remove 2 bots outside heavyweight')
     // Sizes mix, but the class says what it takes: no open weight note.
     const bots = screen.getByRole('region', { name: 'bots' })
     expect(within(bots).queryByText('open weight: sizes mix')).toBeNull()
+    // The other classes still list, to read; the arena refuses their bots.
+    fireEvent.click(filter().getByRole('radio', { name: /^light / }))
+    expect(cardNames().sort()).toEqual(namesIn('lightweight'))
+    fireEvent.click(screen.getByRole('button', { name: 'add Imp' }))
+    expect(await screen.findByText('1 bot is not heavyweight: not added.')).toBeTruthy()
+    // A new class sets the filter to it.
+    fireEvent.click(classGroup().getByRole('radio', { name: 'middle' }))
+    expect(
+      filter()
+        .getByRole('radio', { name: /^middle / })
+        .getAttribute('aria-checked'),
+    ).toBe('true')
+    await settle()
   })
 
   it('takes out the picked bots of another class when a class is chosen, and says so', async () => {
@@ -604,13 +625,9 @@ describe('an arena held to one weight class', () => {
     expect(await screen.findByText('removed 1 bot outside lightweight.')).toBeTruthy()
     await waitFor(() => expect(search(router)).toEndWith('&spacing=1024&w=lightweight'))
     expect(fightButton().textContent).toBe('fight · 2 bots · 1 round')
-    // Back to all: the filter is free again, and the link has no class.
+    // Back to all: the filter lists every class again, and the link has no class.
     fireEvent.click(classGroup().getByRole('radio', { name: 'all' }))
-    expect(
-      filter()
-        .getAllByRole('radio')
-        .some((pill) => (pill as HTMLButtonElement).disabled),
-    ).toBe(false)
+    expect(filter().getByRole('radio', { name: /^all / }).getAttribute('aria-checked')).toBe('true')
     await waitFor(() => expect(search(router)).not.toContain('w='))
   })
 

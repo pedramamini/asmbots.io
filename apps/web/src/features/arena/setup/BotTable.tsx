@@ -28,6 +28,7 @@ import { botsNamed, useBotChanges } from '../../bots/bulk'
 import { VISIBILITIES, VISIBILITY, VisibilityChip } from '../../bots/visibility'
 import { WeightChip } from '../../hills/WeightChip'
 import { type CatalogBot, errorsOf, listingOf, visibilityOf } from './bots'
+import { SourceButton } from './SourceButton'
 import { formatRef } from './url'
 
 export interface BotTableProps {
@@ -40,6 +41,8 @@ export interface BotTableProps {
   room: number
   /** Adds bots to the fight. */
   onAdd: (bots: readonly CatalogBot[]) => void
+  /** Shows a bot's source. */
+  onView: (bot: CatalogBot) => void
   /** My bots: the visibility column, and the account's actions. */
   mine: boolean
   /** Whether the account's actions can run. */
@@ -73,6 +76,7 @@ export function BotTable({
   authorOf,
   room,
   onAdd,
+  onView,
   mine,
   signedIn,
   local,
@@ -183,7 +187,7 @@ export function BotTable({
               value={bot.assembled.bytes.length > 0 ? bot.assembled.bytes : (bot.source ?? '')}
               size={16}
             />
-            <span className="truncate text-bright">{bot.name}</span>
+            <SourceButton name={bot.name} onClick={() => onView(bot)} />
           </span>
         ),
         sortValue: (bot) => bot.name.toLowerCase(),
@@ -295,7 +299,7 @@ export function BotTable({
       className: 'w-8',
     })
     return list
-  }, [bots, chosen, all, records, ranks, authorOf, mine, room, onAdd])
+  }, [bots, chosen, all, records, ranks, authorOf, mine, room, onAdd, onView])
 
   if (bots.length === 0) return empty
   const fightable = picked.filter((bot) => errorsOf(bot).length === 0)
