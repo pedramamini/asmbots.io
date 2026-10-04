@@ -11,7 +11,7 @@ import {
   type TableColumn,
 } from '@asmbots/ui'
 import { Link } from '@tanstack/react-router'
-import { useState } from 'react'
+import { lazy, Suspense } from 'react'
 import { isNotFound } from '../../api/client'
 import { useBot, useBotVersion, useMe } from '../../api/queries'
 import { AuthorLink, ownerAuthor } from '../../app/author'
@@ -23,8 +23,11 @@ import { PageIntro } from '../../app/PageIntro'
 import { Placeholder } from '../../app/Placeholder'
 import { CELL_LINK, count, day, longAgo } from '../hills/links'
 import { BotActions } from './BotActions'
-import { useBotChanges } from './bulk'
-import { VisibilityPicker } from './visibility'
+
+/** The owner's visibility control: a chunk only the owner's page loads. */
+const OwnerVisibility = lazy(() =>
+  import('./OwnerVisibility').then((m) => ({ default: m.OwnerVisibility })),
+)
 
 const PLACEMENT_COLUMNS: TableColumn<BotPlacement>[] = [
   {
@@ -88,8 +91,6 @@ export function BotPage({ id }: { id: string }) {
   const source = useBotVersion(id, latest?.version ?? null)
   const link = useLinkAction()
   const { data: me } = useMe()
-  const { setVisibility } = useBotChanges()
-  const [busy, setBusy] = useState(false)
   if (isNotFound(bot.error)) {
     return (
       <Placeholder title="bots" status={id}>
@@ -139,15 +140,9 @@ export function BotPage({ id }: { id: string }) {
           </div>
           {latest?.strategy && <p className="text-body">{latest.strategy}</p>}
           {me?.user.id === record.ownerId && (
-            <VisibilityPicker
-              value={record.visibility}
-              busy={busy}
-              onChange={async (visibility) => {
-                setBusy(true)
-                await setVisibility([record.id], [record.name], visibility)
-                setBusy(false)
-              }}
-            />
+            <Suspense fallback={<Skeleton rows={2} />}>
+              <OwnerVisibility bot={record} />
+            </Suspense>
           )}
           <div className="flex flex-wrap gap-4">
             <Stat label="size" value={latest ? `${count(latest.size)} B` : '–'} />

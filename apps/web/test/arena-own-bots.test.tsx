@@ -26,7 +26,7 @@ import { validateArenaSearch } from '../src/features/arena/setup/search'
 import type { ArenaClient } from '../src/features/arena/worker/client'
 import { stringifySearch } from '../src/router'
 import { useBotRecords } from '../src/store/bot-records'
-import { clearLocalBots, saveLocalBot } from '../src/store/local-bots'
+import { clearLocalBots, getLocalBot, saveLocalBot } from '../src/store/local-bots'
 import { DEFAULT_SETTINGS, useSettings } from '../src/store/settings'
 import { answer, useApiServer } from './api-server'
 
@@ -216,5 +216,90 @@ describe('my bots, signed in', () => {
     fireEvent.click(screen.getByRole('button', { name: 'show 10 more' }))
     expect(cards()).toHaveLength(GRID_PAGE + 10)
     expect(screen.queryByRole('button', { name: /^show \d+ more$/ })).toBeNull()
+  })
+})
+
+describe('the table view', () => {
+  const openTable = () =>
+    fireEvent.click(
+      within(screen.getByRole('radiogroup', { name: 'view' })).getByRole('radio', {
+        name: 'table',
+      }),
+    )
+  const table = () => within(screen.getByRole('table', { name: 'bots to add' }))
+  const rowNames = () =>
+    table()
+      .getAllByRole('row')
+      .slice(1)
+      .map((row) => row.querySelector('.text-bright')?.textContent)
+
+  it('lists my bots as rows, the best first, with who may see each', async () => {
+    await saveLocalBot({ name: 'Imp', source: loadRoster().get('imp')?.source ?? '' })
+    await renderArena()
+    openMine()
+    openTable()
+    await waitFor(() => expect(rowNames()).toHaveLength(4))
+    expect(rowNames()[0]).toBe('Crowned')
+    const crowned = table().getAllByRole('row')[1] as HTMLElement
+    expect(crowned.textContent).toContain('king · main')
+    expect(crowned.textContent).toContain('1712')
+    expect(crowned.textContent).toContain('private')
+  })
+
+  it('changes who may see many bots in one request, and adds many to the fight', async () => {
+    const seen: unknown[] = []
+    server.use(
+      http.patch('*/api/me/bots', async ({ request }) => {
+        seen.push(await request.json())
+        return HttpResponse.json({ bots: [] })
+      }),
+    )
+    const router = await renderArena()
+    openMine()
+    openTable()
+    await waitFor(() => expect(rowNames()).toHaveLength(3))
+    fireEvent.click(table().getByRole('checkbox', { name: 'select all 3' }))
+    const bar = within(screen.getByRole('toolbar', { name: 'picked bots' }))
+    expect(bar.getByText('3 of 3 picked')).toBeTruthy()
+    fireEvent.click(bar.getByRole('button', { name: 'make private' }))
+    await waitFor(() =>
+      expect(seen).toEqual([
+        { ids: expect.arrayContaining(['crowned', 'tidal', 'drifter']), visibility: 'private' },
+      ]),
+    )
+    // The change let the rows go; pick two by their rows, then add them.
+    await waitFor(() => expect(bar.getByText('3 bots')).toBeTruthy())
+    fireEvent.click(table().getByRole('checkbox', { name: 'select Crowned' }))
+    fireEvent.click(table().getByRole('checkbox', { name: 'select Drifter' }))
+    fireEvent.click(bar.getByRole('button', { name: 'add 2 to the fight' }))
+    await waitFor(() =>
+      expect(router.state.location.searchStr).toContain('b=cloud:crowned,cloud:drifter'),
+    )
+  })
+
+  it('deletes the picked bots from my account and this browser, after asking', async () => {
+    const seen: unknown[] = []
+    server.use(
+      http.post('*/api/me/bots/delete', async ({ request }) => {
+        seen.push(await request.json())
+        return HttpResponse.json({ deleted: ['tidal'] })
+      }),
+    )
+    const local = await saveLocalBot({
+      name: 'Dwarf',
+      source: loadRoster().get('dwarf')?.source ?? '',
+      cloudId: 'tidal',
+    })
+    await renderArena()
+    openMine()
+    openTable()
+    await waitFor(() => expect(rowNames()).toContain('Dwarf'))
+    fireEvent.click(table().getByRole('checkbox', { name: 'select Dwarf' }))
+    fireEvent.click(screen.getByRole('button', { name: 'delete 1' }))
+    const dialog = within(await screen.findByRole('dialog', { name: 'delete Dwarf?' }))
+    expect(dialog.getByText(/1 from my account, 1 from this browser/)).toBeTruthy()
+    fireEvent.click(dialog.getByRole('button', { name: 'delete' }))
+    await waitFor(() => expect(seen).toEqual([{ ids: ['tidal'] }]))
+    await waitFor(async () => expect(await getLocalBot(local.id)).toBeUndefined())
   })
 })

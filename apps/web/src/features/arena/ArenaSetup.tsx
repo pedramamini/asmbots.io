@@ -104,6 +104,9 @@ const ProblemsModal = lazy(() =>
   import('./setup/Problems').then((m) => ({ default: m.ProblemsModal })),
 )
 
+/** The table view: its own chunk, loaded when `table` is first picked. */
+const BotTable = lazy(() => import('./setup/BotTable').then((m) => ({ default: m.BotTable })))
+
 /** The paste box: its own chunk, loaded when `paste` is picked. */
 const PasteBox = lazy(() => import('./setup/PasteBox').then((m) => ({ default: m.PasteBox })))
 
@@ -121,6 +124,14 @@ const SOURCES = [
   { value: 'mine', label: 'my bots' },
   { value: 'paste', label: 'paste' },
 ] as const satisfies readonly { value: Source; label: string }[]
+
+/** How the picker draws its bots: cards to browse, or a table to read and change many at once. */
+type View = 'cards' | 'table'
+
+const VIEWS = [
+  { value: 'cards', label: 'cards' },
+  { value: 'table', label: 'table' },
+] as const satisfies readonly { value: View; label: string }[]
 
 /** No account bots: signed out, or the list cannot be read. One array, so memos keep. */
 const NO_BOTS: readonly OwnBot[] = []
@@ -171,6 +182,7 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
   /** The roster's player filter: a handle, the house's for the roster's own bots, or `all`. */
   const [owner, setOwner] = useState('all')
   const [sort, setSort] = useState<BotSort>('rank')
+  const [view, setView] = useState<View>('cards')
   const [problems, setProblems] = useState<Problems | null>(null)
   const [dragDepth, setDragDepth] = useState(0)
   const picker = useRef<HTMLInputElement>(null)
@@ -336,6 +348,36 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
   /** Adds catalog bots the arena's class takes. */
   const addBot = (bot: CatalogBot) =>
     add(inClass([bot], (b) => b.assembled.bytes.length).map((b) => b.ref))
+
+  /** Adds the bots of a table's pick the arena's class takes, and says how many went in. */
+  const addMany = (bots: readonly CatalogBot[]) => {
+    const refs = inClass(bots, (b) => b.assembled.bytes.length).map((b) => b.ref)
+    if (refs.length === 0) return
+    const left = add(refs)
+    const added = refs.length - left
+    toast(
+      `added ${added} ${added === 1 ? 'bot' : 'bots'}${left > 0 ? `; ${left} did not fit` : ''}.`,
+      { variant: left > 0 ? 'warn' : 'accent' },
+    )
+  }
+
+  /** The table view of the bots listed, with `empty` when none is. */
+  const table = (empty: ReactNode) => (
+    <Suspense fallback={<p className="px-1 py-6 text-center text-muted">loading the table…</p>}>
+      <BotTable
+        bots={listed}
+        records={records}
+        ranks={ranks}
+        authorOf={(bot) => catalogAuthor(bot, me)}
+        room={MAX_ARENA_BOTS - spec.bots.length}
+        onAdd={addMany}
+        mine={source === 'mine'}
+        signedIn={signedIn}
+        local={localBots.data ?? []}
+        empty={empty}
+      />
+    </Suspense>
+  )
 
   /** Fills the selection to its cap from the bots listed: random picks, or the best ranked. */
   const fill = (best: boolean) => {
@@ -586,29 +628,45 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
                   onValueChange={setSort}
                   className="flex-wrap"
                 />
+                <span aria-hidden className="text-panel-status text-muted">
+                  view
+                </span>
+                <Segmented<View>
+                  label="view"
+                  options={VIEWS}
+                  value={view}
+                  onValueChange={setView}
+                />
               </div>
             )}
-            {source === 'roster' && (
-              <BotGrid
-                bots={listed}
-                records={records}
-                ranks={ranks}
-                me={me}
-                picked={spec.bots}
-                full={full}
-                onAdd={addBot}
-                onErrors={showErrors}
-                empty={
+            {source === 'roster' &&
+              (view === 'table' ? (
+                table(
                   <EmptyState action={clearSearch}>
                     no {kind}roster bot{matching}.
-                  </EmptyState>
-                }
-                coach={
-                  tour !== undefined &&
-                  tourStep === 'roster' && <RosterStep onDismiss={tour.onDismiss} />
-                }
-              />
-            )}
+                  </EmptyState>,
+                )
+              ) : (
+                <BotGrid
+                  bots={listed}
+                  records={records}
+                  ranks={ranks}
+                  me={me}
+                  picked={spec.bots}
+                  full={full}
+                  onAdd={addBot}
+                  onErrors={showErrors}
+                  empty={
+                    <EmptyState action={clearSearch}>
+                      no {kind}roster bot{matching}.
+                    </EmptyState>
+                  }
+                  coach={
+                    tour !== undefined &&
+                    tourStep === 'roster' && <RosterStep onDismiss={tour.onDismiss} />
+                  }
+                />
+              ))}
             {source === 'mine' && (
               <MineGrid
                 catalog={mine}
@@ -628,6 +686,7 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
                 }}
                 write={link('write a bot', '/editor')}
                 clearSearch={clearSearch}
+                table={view === 'table' ? table : undefined}
               />
             )}
             {source === 'paste' && (
@@ -984,6 +1043,7 @@ function MineGrid({
   empty,
   write,
   clearSearch,
+  table,
   ...grid
 }: GridProps & {
   /** The bots: null while the store is read, the assembler loads, or the account's list comes. */
@@ -997,6 +1057,8 @@ function MineGrid({
   /** The empty store's way on: the editor. */
   write: EmptyStateAction
   clearSearch: EmptyStateAction
+  /** The table view, when it is picked: drawn in place of the cards. */
+  table?: ((empty: ReactNode) => ReactNode) | undefined
 }) {
   if (catalog === null) return <p className="px-1 py-6 text-center text-muted">reading my bots…</p>
   if (catalog.length === 0) {
@@ -1006,13 +1068,9 @@ function MineGrid({
       </EmptyState>
     )
   }
-  return (
-    <BotGrid
-      {...grid}
-      bots={listed}
-      empty={<EmptyState action={clearSearch}>{empty}</EmptyState>}
-    />
-  )
+  const none = <EmptyState action={clearSearch}>{empty}</EmptyState>
+  if (table !== undefined) return table(none)
+  return <BotGrid {...grid} bots={listed} empty={none} />
 }
 
 /**
