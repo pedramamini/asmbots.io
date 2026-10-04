@@ -1024,7 +1024,8 @@ function BotCard({
       <div className="flex min-w-0 flex-1 flex-col">
         {/* The name row holds the card's chip and `+`, so the lines under it keep the card's width. */}
         <div className="flex min-w-0 items-center gap-2">
-          <SourceButton name={bot.name} onClick={onView} />
+          {/* Out of the Tab order: `+` is the card's stop, and the table's names keep theirs. */}
+          <SourceButton name={bot.name} onClick={onView} untabbed />
           {count > 0 && <Chip variant="accent">×{count}</Chip>}
           <div className="ml-auto flex shrink-0 items-center gap-1">
             {visibility === null ? (
