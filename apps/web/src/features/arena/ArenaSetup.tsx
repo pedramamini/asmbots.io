@@ -1022,10 +1022,43 @@ function BotCard({
     >
       <Identicon value={bytes.length > 0 ? bytes : (bot.source ?? '')} size={32} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <p className="flex min-w-0 items-center gap-2">
+        {/* The name row holds the card's chip and `+`, so the lines under it keep the card's width. */}
+        <div className="flex min-w-0 items-center gap-2">
           <SourceButton name={bot.name} onClick={onView} />
           {count > 0 && <Chip variant="accent">×{count}</Chip>}
-        </p>
+          <div className="ml-auto flex shrink-0 items-center gap-1">
+            {visibility === null ? (
+              <Chip variant={bot.roster?.tier === 'showcase' ? 'accent' : 'neutral'}>
+                {bot.roster?.tier ?? ORIGIN_LABEL[bot.origin]}
+              </Chip>
+            ) : visibility === 'local' || onVisibility === undefined ? (
+              <VisibilityChip visibility={visibility} />
+            ) : (
+              <VisibilityMenu name={bot.name} value={visibility} onChange={onVisibility} />
+            )}
+            {broken ? (
+              <button
+                type="button"
+                className="rounded-sm focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-accent"
+                onClick={onErrors}
+              >
+                <Chip variant="danger">errors</Chip>
+              </button>
+            ) : (
+              <span className="relative flex">
+                <IconButton
+                  icon={Plus}
+                  label={`add ${bot.name}`}
+                  size="sm"
+                  tooltip="left"
+                  disabled={full}
+                  onClick={onAdd}
+                />
+                {coach}
+              </span>
+            )}
+          </div>
+        </div>
         {hill !== null && (
           <p
             className="truncate text-data text-muted"
@@ -1061,38 +1094,6 @@ function BotCard({
           <p className="line-clamp-2 text-data text-muted" title={blurb}>
             {blurb}
           </p>
-        )}
-      </div>
-      <div className="flex shrink-0 items-center gap-1">
-        {visibility === null ? (
-          <Chip variant={bot.roster?.tier === 'showcase' ? 'accent' : 'neutral'}>
-            {bot.roster?.tier ?? ORIGIN_LABEL[bot.origin]}
-          </Chip>
-        ) : visibility === 'local' || onVisibility === undefined ? (
-          <VisibilityChip visibility={visibility} />
-        ) : (
-          <VisibilityMenu name={bot.name} value={visibility} onChange={onVisibility} />
-        )}
-        {broken ? (
-          <button
-            type="button"
-            className="rounded-sm focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-accent"
-            onClick={onErrors}
-          >
-            <Chip variant="danger">errors</Chip>
-          </button>
-        ) : (
-          <span className="relative flex">
-            <IconButton
-              icon={Plus}
-              label={`add ${bot.name}`}
-              size="sm"
-              tooltip="left"
-              disabled={full}
-              onClick={onAdd}
-            />
-            {coach}
-          </span>
         )}
       </div>
     </li>
