@@ -5,6 +5,10 @@
  */
 import { describe, expect, it } from 'bun:test'
 import type { AiEvent } from '@asmbots/protocol'
+import { ToastProvider } from '@asmbots/ui'
+import { history } from '@codemirror/commands'
+import { EditorState } from '@codemirror/state'
+import { EditorView } from '@codemirror/view'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { HttpResponse, http } from 'msw'
 import { useDom, window } from '../../../packages/ui/test/dom'
@@ -37,22 +41,23 @@ function answerChat(events: readonly AiEvent[], seen: unknown[] = []) {
   return seen
 }
 
+const MINE = '%name "Mine"\nstart: jmp start\n'
+
+/** The panel over an editor holding `MINE`; each text the panel put in it, in `wrote`. */
 function panel(props: Partial<AiPanelProps> = {}) {
+  const view = new EditorView({ state: EditorState.create({ doc: MINE, extensions: history() }) })
   const wrote: string[] = []
-  const done: number[] = []
+  const dispatch = view.dispatch.bind(view)
+  view.dispatch = ((...specs: Parameters<EditorView['dispatch']>) => {
+    dispatch(...specs)
+    wrote.push(view.state.doc.toString())
+  }) as EditorView['dispatch']
   render(
-    <AiPanel
-      signedIn
-      readOnly={false}
-      source={() => '%name "Mine"\nstart: jmp start\n'}
-      size={4}
-      onWrite={(source) => wrote.push(source)}
-      onWrote={(count) => done.push(count)}
-      onSignIn={() => {}}
-      {...props}
-    />,
+    <ToastProvider>
+      <AiPanel signedIn readOnly={false} view={view} size={4} onSignIn={() => {}} {...props} />
+    </ToastProvider>,
   )
-  return { wrote, done }
+  return { wrote, view }
 }
 
 const ask = (text: string) => {
@@ -93,18 +98,16 @@ describe('the AI panel', () => {
       { type: 'text', text: 'Spin.' },
       { type: 'done', costUsd: 0.02 },
     ])
-    const { wrote, done } = panel()
+    const { wrote, view } = panel()
     ask('a dwarf')
-    await waitFor(() => expect(done).toEqual([1]))
-    // Only the version that assembles went in.
+    // Only the version that assembles went in, and the toast's undo takes it back.
+    expect(await screen.findByText('the ai put its bot in the editor.')).toBeTruthy()
     expect(wrote).toEqual([DWARF])
     expect(seen).toEqual([
-      {
-        turns: [{ role: 'user', text: 'a dwarf' }],
-        source: '%name "Mine"\nstart: jmp start\n',
-        hill: 'main',
-      },
+      { turns: [{ role: 'user', text: 'a dwarf' }], source: MINE, hill: 'main' },
     ])
+    fireEvent.click(screen.getByRole('button', { name: 'undo' }))
+    expect(view.state.doc.toString()).toBe(MINE)
     const log = within(screen.getByRole('log', { name: 'ai chat' }))
     expect(log.getByText('It beats Spin.')).toBeTruthy()
     expect(log.getByText('wrote a dwarf · 12 B')).toBeTruthy()

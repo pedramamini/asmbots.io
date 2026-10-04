@@ -779,30 +779,6 @@ function Workbench({
     [view, replaceText, toast],
   )
 
-  // The AI mode writes a bot: in as one edit, as a template goes in.
-  const currentSource = useCallback(() => view?.state.doc.toString() ?? source, [view, source])
-  const aiWrite = useCallback(
-    (text: string) => {
-      if (view !== null && !doc.readOnly) replaceText(view, text)
-    },
-    [view, doc.readOnly, replaceText],
-  )
-  const aiWrote = useCallback(
-    (count: number) => {
-      if (view === null) return
-      toast('the ai put its bot in the editor.', {
-        variant: 'accent',
-        action: {
-          label: 'undo',
-          onClick: () => {
-            for (let i = 0; i < count; i++) undo(view)
-          },
-        },
-      })
-    },
-    [view, toast],
-  )
-
   const baseIdiom = useCallback(() => {
     if (view === null || doc.readOnly) return
     const idiom = SNIPPETS[0]
@@ -945,22 +921,12 @@ function Workbench({
             </TileFrame>
           ),
           ai: (
-            <Suspense
-              fallback={
-                <TileFrame label="ai" title="ai">
-                  <div className="p-3" aria-busy="true">
-                    <Skeleton rows={4} />
-                  </div>
-                </TileFrame>
-              }
-            >
+            <Suspense fallback={null}>
               <AiPanel
                 signedIn={signedIn}
                 readOnly={doc.readOnly}
-                source={currentSource}
+                view={view}
                 size={result?.size ?? null}
-                onWrite={aiWrite}
-                onWrote={aiWrote}
                 onSignIn={signIn}
               />
             </Suspense>

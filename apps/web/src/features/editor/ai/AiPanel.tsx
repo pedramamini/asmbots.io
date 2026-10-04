@@ -4,10 +4,13 @@
  * hands the errors back, and the model reads the chosen hill's best bots to say what the bot beats
  * and what it may lose to. Each clean version goes in as it comes, an edit undo takes back. Signed
  * out, the panel asks the user to sign in; a roster bot is read-only, so it asks for a fork.
- * Its own chunk: the editor's route is at its budget (`guide/budgets.md`).
+ * Its own chunk, with everything it does to the editor: the editor's route is at its budget
+ * (`guide/budgets.md`).
  */
 import { type AiEvent, type AiTurn, weightClassOf } from '@asmbots/protocol'
-import { Button, cx, Select } from '@asmbots/ui'
+import { Button, cx, Select, useToast } from '@asmbots/ui'
+import { isolateHistory, undo } from '@codemirror/commands'
+import type { EditorView } from '@codemirror/view'
 import { CornerDownLeft, LogIn, Square } from 'lucide-react'
 import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
 import { ApiRequestError } from '../../../api/client'
@@ -18,15 +21,22 @@ export interface AiPanelProps {
   signedIn: boolean
   /** A roster bot: nothing goes into the editor. */
   readOnly: boolean
-  /** The editor's text now. */
-  source: () => string
+  /** The editor: the source the model reads, and where each bot it writes goes. */
+  view: EditorView | null
   /** The bot's size at the last assemble, for the hill it fights on; null before one. */
   size: number | null
-  /** Puts a bot the model wrote in the editor, as one edit. */
-  onWrite: (source: string) => void
-  /** The turn is over, having put `count` bots in the editor. */
-  onWrote: (count: number) => void
   onSignIn: () => void
+}
+
+/** Puts `text` in `view` as one edit, which undo takes back (as a template goes in). */
+function write(view: EditorView, text: string) {
+  view.dispatch({
+    changes: { from: 0, to: view.state.doc.length, insert: text },
+    selection: { anchor: 0 },
+    scrollIntoView: true,
+    userEvent: 'input.replace',
+    annotations: isolateHistory.of('full'),
+  })
 }
 
 /** The hills a bot can be written for, by slug, as the select says them. */
@@ -71,15 +81,8 @@ function turnText(entry: Entry): string {
   return entry.writes.map((w) => `(wrote the bot: ${w.summary || 'a version'})`).join('\n')
 }
 
-export function AiPanel({
-  signedIn,
-  readOnly,
-  source,
-  size,
-  onWrite,
-  onWrote,
-  onSignIn,
-}: AiPanelProps) {
+export function AiPanel({ signedIn, readOnly, view, size, onSignIn }: AiPanelProps) {
+  const { toast } = useToast()
   const [entries, setEntries] = useState<Entry[]>([])
   const [draft, setDraft] = useState('')
   const [status, setStatus] = useState<string | null>(null)
@@ -103,7 +106,7 @@ export function AiPanel({
 
   const ask = async (words: string) => {
     const text = words.trim()
-    if (text === '' || running || readOnly || !signedIn) return
+    if (text === '' || running || readOnly || !signedIn || view === null) return
     const asked: Entry = { id: nextId.current++, role: 'user', text, writes: [], error: null }
     const reply: Entry = {
       id: nextId.current++,
@@ -124,7 +127,7 @@ export function AiPanel({
     const wrote: { applied: number; last: Write | null } = { applied: 0, last: null }
     try {
       await streamChat(
-        { turns, source: source(), hill },
+        { turns, source: view.state.doc.toString(), hill },
         (event) => {
           switch (event.type) {
             case 'text':
@@ -138,7 +141,7 @@ export function AiPanel({
               patch(reply.id, (e) => ({ ...e, writes: [...e.writes, event] }))
               // A version that assembles goes in now; one with errors waits for the fix.
               if (event.size > 0) {
-                onWrite(event.source)
+                write(view, event.source)
                 wrote.applied++
               }
               break
@@ -153,7 +156,7 @@ export function AiPanel({
       )
       // The model never got a version to assemble: the last one goes in, errors and all.
       if (wrote.applied === 0 && wrote.last !== null) {
-        onWrite(wrote.last.source)
+        write(view, wrote.last.source)
         wrote.applied++
       }
     } catch (error) {
@@ -167,7 +170,19 @@ export function AiPanel({
     } finally {
       abort.current = null
       setStatus(null)
-      if (wrote.applied > 0) onWrote(wrote.applied)
+      // The toast's undo takes back every bot of the turn.
+      const count = wrote.applied
+      if (count > 0) {
+        toast('the ai put its bot in the editor.', {
+          variant: 'accent',
+          action: {
+            label: 'undo',
+            onClick: () => {
+              for (let i = 0; i < count; i++) undo(view)
+            },
+          },
+        })
+      }
     }
   }
 

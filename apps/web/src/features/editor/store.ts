@@ -193,26 +193,18 @@ function withoutAi(layout: Layout): Layout {
 }
 
 /**
- * Whether a stored layout reads as `layout`: the same tree, the same weights, the same panels
- * hidden. Both go through `sanitizeLayout`, so the panels added since sit where they would.
+ * Whether a stored layout reads as `layout`: both made whole by `sanitizeLayout`, with the same
+ * panels hidden, their weights the same to 6 places (two sums of the same shares can differ in
+ * their last bit).
  */
 function sameLayout(stored: unknown, layout: Layout): boolean {
-  const a = sanitizeLayout(stored)
-  const b = sanitizeLayout(layout)
-  if (a === null || b === null) return false
-  if ([...a.hidden].sort().join() !== [...b.hidden].sort().join()) return false
-  const same = (x: LayoutNode, y: LayoutNode): boolean => {
-    if (x.kind === 'panel' || y.kind === 'panel') {
-      return x.kind === 'panel' && y.kind === 'panel' && x.id === y.id
-    }
-    return (
-      x.dir === y.dir &&
-      x.children.length === y.children.length &&
-      x.weights.every((w, i) => Math.abs(w - (y.weights[i] ?? 0)) < 1e-6) &&
-      x.children.every((child, i) => same(child, y.children[i] as LayoutNode))
-    )
+  const read = (l: unknown) => {
+    const whole = sanitizeLayout(l)
+    const round = (_: string, v: unknown) => (typeof v === 'number' ? Math.round(v * 1e6) : v)
+    return whole && JSON.stringify([whole.root, [...whole.hidden].sort()], round)
   }
-  return same(a.root, b.root)
+  const a = read(stored)
+  return a !== null && a === read(layout)
 }
 
 /** A layout as nested literals: a panel, or a split's direction and its `[child, weight]` parts. */
