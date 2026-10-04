@@ -35,7 +35,8 @@ How you work:
   another entry by rank.
 - Answer short, in plain words: what the bot does (two or three lines), then which named
   competitors it should beat and which it may lose to, and why, from their code; then one or two
-  next steps. No headings, no long lists, at most about 150 words.`
+  next steps. Plain text: the panel shows no Markdown, so no headings, bold, or code
+  fences. At most about 150 words.`
 
 /** The system prompt: the role, then the cheat sheet and the strategy families of the skill. */
 export const SYSTEM_PROMPT = [
