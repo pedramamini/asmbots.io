@@ -1,43 +1,26 @@
 /**
  * `POST /api/ai/chat`: the editor's AI mode (PRODUCT_SPEC §3). The signed-in user says what bot
- * they want; a model writes it with the `write_bot` tool, the Worker assembles each version and
- * answers with its errors until it is clean, and the model reads the hill's best bots (the
- * competitors block, `read_bot`) to say what the bot will beat. The answer streams as Server-Sent
- * Events, one `AiEvent` each. The model runs through the Anthropic API, or Cloudflare AI Gateway
- * when `AI_GATEWAY_URL` is set; each turn's cost counts against a daily cap (`ai/spend.ts`).
+ * they want; a model on Workers AI (`MODEL`, Qwen3) writes it in one `asm` code block, the Worker
+ * assembles it and, while it has errors, sends them back for the whole bot again, and the model
+ * reads the hill's best bots (the competitors block) to say what the bot will beat. A code block,
+ * not a tool call: a small open model writes one more reliably. The answer streams as Server-Sent
+ * Events, one `AiEvent` each; each turn's cost counts against a daily cap (`ai/spend.ts`).
  */
-import Anthropic from '@anthropic-ai/sdk'
-import type {
-  BetaContentBlockParam,
-  BetaMessageParam,
-  BetaRawMessageStreamEvent,
-  BetaTextBlockParam,
-  BetaTool,
-  BetaToolResultBlockParam,
-  BetaToolUseBlock,
-} from '@anthropic-ai/sdk/resources/beta/messages/messages'
 import { assemble, formatDiag, lint } from '@asmbots/asm'
 import { AiChatRequest, type AiEvent, type AiTurn, type Hill, parse } from '@asmbots/protocol'
 import { type Context, Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
-import {
-  competitorAt,
-  competitorLine,
-  competitorSource,
-  competitorsBlock,
-  listCompetitors,
-} from '../ai/competitors'
+import { competitorsBlock, listCompetitors } from '../ai/competitors'
 import { SYSTEM_PROMPT } from '../ai/prompt'
 import {
   addSpend,
   costOf,
   DEFAULT_DAILY_USD,
-  DEFAULT_MODEL,
   DEFAULT_USER_DAILY_USD,
   dollars,
-  MODEL_PRICES,
-  type Prices,
+  MODEL,
   spentToday,
+  type Usage,
 } from '../ai/spend'
 import { requireUser } from '../auth/session'
 import { jsonBody, limitBody } from '../body'
@@ -45,91 +28,106 @@ import { getHillBySlug } from '../db/queries'
 import type { AppEnv } from '../env'
 import { errorResponse, log } from '../middleware'
 
-/** The most model calls one turn makes: each write or read is one more. */
-export const MAX_STEPS = 6
+/** The times a turn sends the assembler's errors back for the bot again. */
+export const MAX_FIXES = 3
 
-/** The most tokens one model call writes, thinking and the bot's source with it. */
-const MAX_TOKENS = 16000
+/** The most tokens one model call writes, its thinking with them. The context is 32,768. */
+const MAX_TOKENS = 8192
 
 /** The most problems of one assemble the model and the panel read. */
 const MAX_PROBLEMS = 12
 
-/**
- * The models that refuse in categories (Claude Sonnet 5.5 and the Opus line): a refusal reruns on
- * the model the API picks for that category, in the same call (`fallbacks: "default"`).
- */
-const FALLBACK_MODELS: ReadonlySet<string> = new Set(['claude-sonnet-5-5', 'claude-opus-5-5'])
-const FALLBACK_BETA = 'server-side-fallback-2026-07-01'
+/** The most characters of the editor's source the model reads: past it, it writes a new bot. */
+export const MAX_SOURCE_CHARS = 12_000
 
-const TOOLS: BetaTool[] = [
-  {
-    name: 'write_bot',
-    description:
-      'Put a whole bot in the editor: the complete x16c source, never a fragment. The server ' +
-      'assembles it and answers with its size and every error and warning.',
-    strict: true,
-    input_schema: {
-      type: 'object',
-      properties: {
-        source: { type: 'string', description: 'The whole bot, with %name and %strategy.' },
-        summary: { type: 'string', description: 'One short line: what this version changes.' },
-      },
-      required: ['source', 'summary'],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: 'read_bot',
-    description:
-      "Read a bot on the hill by its rank: its record, its %strategy, and its source when it's public.",
-    strict: true,
-    input_schema: {
-      type: 'object',
-      properties: { rank: { type: 'integer', description: 'The rank: 1 is the king.' } },
-      required: ['rank'],
-      additionalProperties: false,
-    },
-  },
-]
+/** The most characters of the conversation before the user's last words: the oldest go first. */
+export const MAX_HISTORY_CHARS = 12_000
+
+/** A message as Workers AI's chat models take it. */
+export interface ChatMessage {
+  readonly role: 'system' | 'user' | 'assistant'
+  readonly content: string
+}
+
+/** What a chat model answers: an OpenAI-style completion. */
+interface Completion {
+  choices?: { message?: { content?: string | null } }[]
+  usage?: Usage
+}
 
 /** The editor's source as the user's turn opens with it. */
 export function sourceText(source: string): string {
-  return source.trim() === ''
-    ? 'The editor is empty.'
-    : `The editor's source now:\n\`\`\`asm\n${source}\n\`\`\``
+  if (source.trim() === '') return 'The editor is empty.'
+  if (source.length > MAX_SOURCE_CHARS) {
+    return `The editor holds a bot of ${source.length} characters, too big to show: write a new one.`
+  }
+  return `The editor's source now:\n\`\`\`asm\n${source}\n\`\`\``
 }
 
 /**
- * The conversation as the model reads it: turns of one role in a row joined, a leading answer
- * dropped, and the editor's source before the user's last words.
+ * The conversation as the model reads it: the system prompt and the competitors, turns of one
+ * role in a row joined, a leading answer dropped, the oldest past `MAX_HISTORY_CHARS` dropped,
+ * and the editor's source before the user's last words.
  */
-export function toMessages(turns: readonly AiTurn[], source: string): BetaMessageParam[] {
+export function toMessages(
+  turns: readonly AiTurn[],
+  source: string,
+  competitors: string,
+): ChatMessage[] {
   const joined: { role: AiTurn['role']; text: string }[] = []
   for (const turn of turns) {
     const last = joined.at(-1)
-    if (last === undefined && turn.role === 'assistant') continue
     if (last?.role === turn.role) last.text += `\n\n${turn.text}`
     else joined.push({ role: turn.role, text: turn.text })
   }
-  return joined.map(({ role, text }, i) =>
-    i === joined.length - 1
-      ? {
-          role,
-          content: [
-            { type: 'text', text: sourceText(source) },
-            { type: 'text', text },
-          ],
-        }
-      : { role, content: text },
-  )
+  const asked = joined.pop()
+  let room = MAX_HISTORY_CHARS
+  const kept: typeof joined = []
+  for (const turn of joined.reverse()) {
+    room -= turn.text.length
+    if (room < 0) break
+    kept.unshift(turn)
+  }
+  while (kept[0]?.role === 'assistant') kept.shift()
+  return [
+    { role: 'system', content: `${SYSTEM_PROMPT}\n\n${competitors}` },
+    ...kept.map(({ role, text }) => ({ role, content: text })),
+    { role: 'user', content: `${sourceText(source)}\n\n${asked?.text ?? ''}` },
+  ]
 }
 
-/** What one `write_bot` did: the event for the panel, and the answer for the model. */
-export function writeBot(
+/**
+ * An answer split: its words for the panel, as plain text, and the bot in its last code block that
+ * has a `%name`, or null. Qwen3's thinking, when it lands in the text, goes.
+ */
+export function splitAnswer(content: string): { words: string; source: string | null } {
+  const text = content.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/^[\s\S]*<\/think>/, '')
+  const blocks = [...text.matchAll(/```[a-z0-9]*[ \t]*\n([\s\S]*?)```/gi)]
+  const code =
+    blocks
+      .map((m) => m[1] ?? '')
+      .filter((block) => block.includes('%name'))
+      .at(-1) ?? null
+  // The panel shows plain text: no code, and no Markdown emphasis or heading marks.
+  const words = text
+    .replace(/```[\s\S]*?(```|$)/g, '')
+    .replace(/(\*\*|__)(.+?)\1/g, '$2')
+    .replace(/^#{1,6}[ \t]+/gm, '')
+    .replace(/[ \t]+$/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+  return { words, source: code === null ? null : `${code.trimEnd()}\n` }
+}
+
+/**
+ * A bot the model wrote, assembled: the event for the panel, and what to send back to the model
+ * for a fix (null when the bot assembles and fits the hill).
+ */
+export function checkBot(
   source: string,
   summary: string,
   hill: Hill,
-): { event: AiEvent & { type: 'source' }; answer: string } {
+): { event: AiEvent & { type: 'source' }; fix: string | null } {
   const out = assemble(source)
   const errors = out.diagnostics.filter((d) => d.severity === 'error')
   const warnings = errors.length === 0 ? lint(source, out) : []
@@ -144,16 +142,12 @@ export function writeBot(
     const line = formatDiag(d)
     return d.fix ? `${line} (fix: ${d.fix})` : line
   })
-  const answer =
+  const fix =
     errors.length > 0
-      ? `It does not assemble. ${errors.length} ${errors.length === 1 ? 'error' : 'errors'}:\n${problems.join('\n')}`
-      : [
-          `It assembles: ${size} bytes.`,
-          outside && `But ${outside}: fit it.`,
-          warnings.length > 0 && `Warnings:\n${problems.join('\n')}`,
-        ]
-          .filter(Boolean)
-          .join('\n')
+      ? `The assembler says the bot does not assemble:\n${problems.join('\n')}`
+      : outside === null
+        ? null
+        : `The bot assembles, but ${outside}.`
   return {
     event: {
       type: 'source',
@@ -162,131 +156,65 @@ export function writeBot(
       size,
       errors: errors.length > 0 ? problems : outside === null ? [] : [outside],
     },
-    answer,
+    fix:
+      fix === null
+        ? null
+        : `${fix}\nSend the whole bot again, fixed, in one \`\`\`asm block, and one line on what you changed.`,
   }
-}
-
-/** A tool input field, checked: a strict tool's input still arrives as the model wrote it. */
-function field<T>(input: unknown, key: string, is: (v: unknown) => v is T): T | null {
-  if (typeof input !== 'object' || input === null) return null
-  const value = (input as Record<string, unknown>)[key]
-  return is(value) ? value : null
-}
-const isString = (v: unknown): v is string => typeof v === 'string'
-const isRank = (v: unknown): v is number => Number.isInteger(v) && (v as number) >= 1
-
-/** What a model error says to the user. */
-function failure(error: unknown): string {
-  if (error instanceof Anthropic.RateLimitError) return 'the model is busy: try again in a minute.'
-  if (error instanceof Anthropic.APIError && (error.status ?? 0) >= 500) {
-    return 'the model is down for a moment: try again.'
-  }
-  return 'the model did not answer: try again.'
 }
 
 /** What one turn needs, and what it has spent so far, US dollars: a failure keeps the count. */
 interface Turn {
   readonly request: AiChatRequest
   readonly hill: Hill
-  readonly model: string
-  readonly prices: Prices
   readonly signal: AbortSignal
   spent: number
 }
 
-/** The turn: the model's calls, its tools, and the events, until it is done or out of steps. */
+/** The turn: the model's answer, then a fix while the bot has errors, `MAX_FIXES` at most. */
 async function converse(
   c: Context<AppEnv>,
+  ai: Ai,
   send: (event: AiEvent) => Promise<void>,
   turn: Turn,
 ): Promise<void> {
-  const { request, hill, model, prices, signal } = turn
-  const env = c.env
-  const client = new Anthropic({
-    apiKey: env.ANTHROPIC_API_KEY,
-    ...(env.AI_GATEWAY_URL ? { baseURL: env.AI_GATEWAY_URL } : {}),
-    maxRetries: 1,
-  })
-  const competitors = await listCompetitors(env.DB, hill)
-  const system: BetaTextBlockParam[] = [
-    { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
-    {
-      type: 'text',
-      text: competitorsBlock(hill, competitors),
-      cache_control: { type: 'ephemeral' },
-    },
-  ]
-  const messages = toMessages(request.turns, request.source)
-  const haiku = model.startsWith('claude-haiku')
-  let said = false
-  for (let step = 0; step < MAX_STEPS; step++) {
-    const last = step === MAX_STEPS - 1
-    const run = client.beta.messages.stream(
-      {
-        model,
-        max_tokens: MAX_TOKENS,
-        system,
-        tools: TOOLS,
-        // The last call answers in words: no tool runs after it.
-        ...(last ? { tool_choice: { type: 'none' as const } } : {}),
-        messages,
-        ...(haiku ? {} : { output_config: { effort: 'medium' as const } }),
-        ...(FALLBACK_MODELS.has(model) ? { betas: [FALLBACK_BETA], fallbacks: 'default' } : {}),
-      },
+  const { request, hill, signal } = turn
+  const competitors = competitorsBlock(hill, await listCompetitors(c.env.DB, hill))
+  const base = toMessages(request.turns, request.source, competitors)
+  const call = async (messages: readonly ChatMessage[]) => {
+    const out = (await ai.run(
+      MODEL,
+      { messages: [...messages], max_tokens: MAX_TOKENS },
       { signal },
+    )) as Completion
+    turn.spent += costOf(out.usage)
+    return out.choices?.[0]?.message?.content ?? ''
+  }
+  await send({ type: 'status', text: 'writing the bot' })
+  const first = splitAnswer(await call(base))
+  if (first.source === null) {
+    await send({ type: 'text', text: first.words || 'the model wrote no bot: say it another way.' })
+    return
+  }
+  let source = first.source
+  let checked = checkBot(source, 'the bot', hill)
+  await send(checked.event)
+  for (let n = 1; n <= MAX_FIXES && checked.fix !== null; n++) {
+    await send({ type: 'status', text: `fixing (${n} of ${MAX_FIXES})` })
+    // Each fix reads the first ask, its last bot, and the errors: the context stays small.
+    const fixed = splitAnswer(
+      await call([
+        ...base,
+        { role: 'assistant', content: `\`\`\`asm\n${source}\`\`\`` },
+        { role: 'user', content: checked.fix },
+      ]),
     )
-    const writes: Promise<void>[] = []
-    run.on('streamEvent', (event: BetaRawMessageStreamEvent) => {
-      if (event.type === 'content_block_start') {
-        const block = event.content_block
-        if (block.type === 'text' && said) writes.push(send({ type: 'text', text: '\n\n' }))
-        if (block.type === 'tool_use') {
-          const text = block.name === 'write_bot' ? 'writing the bot' : 'reading the hill'
-          writes.push(send({ type: 'status', text }))
-        }
-      } else if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-        said = true
-        writes.push(send({ type: 'text', text: event.delta.text }))
-      }
-    })
-    const message = await run.finalMessage()
-    await Promise.all(writes)
-    turn.spent += costOf(message.usage, prices)
-    if (message.stop_reason === 'refusal') {
-      await send({ type: 'error', message: 'the model would not answer that: say it another way.' })
-      break
-    }
-    const uses = message.content.filter((b): b is BetaToolUseBlock => b.type === 'tool_use')
-    // A tool input cut off at `max_tokens` is not the bot the model meant: run no tool of it.
-    if (message.stop_reason !== 'tool_use' || uses.length === 0) break
-    messages.push({ role: 'assistant', content: message.content as BetaContentBlockParam[] })
-    const results: BetaToolResultBlockParam[] = []
-    for (const use of uses) {
-      results.push({ type: 'tool_result', tool_use_id: use.id, ...(await runTool(use)) })
-    }
-    messages.push({ role: 'user', content: results })
+    if (fixed.source === null) break
+    source = fixed.source
+    checked = checkBot(source, fixed.words.split('\n')[0]?.slice(0, 80) || `fix ${n}`, hill)
+    await send(checked.event)
   }
-
-  async function runTool(use: BetaToolUseBlock): Promise<{ content: string; is_error?: boolean }> {
-    if (use.name === 'write_bot') {
-      const source = field(use.input, 'source', isString)
-      if (source === null) return { content: 'write_bot needs `source`.', is_error: true }
-      const summary = field(use.input, 'summary', isString) ?? ''
-      await send({ type: 'status', text: 'assembling' })
-      const { event, answer } = writeBot(source, summary, hill)
-      await send(event)
-      return { content: answer }
-    }
-    if (use.name === 'read_bot') {
-      const rank = field(use.input, 'rank', isRank)
-      if (rank === null) return { content: 'read_bot needs a `rank` of 1 or more.', is_error: true }
-      const bot = await competitorAt(env.DB, hill, rank)
-      if (bot === null) return { content: `The hill has no entry at rank ${rank}.` }
-      await send({ type: 'status', text: `reading ${bot.name}` })
-      return { content: `${competitorLine(bot)}\n${competitorSource(bot)}` }
-    }
-    return { content: `no tool ${use.name}`, is_error: true }
-  }
+  if (first.words !== '') await send({ type: 'text', text: first.words })
 }
 
 export const ai = new Hono<AppEnv>().post(
@@ -297,13 +225,9 @@ export const ai = new Hono<AppEnv>().post(
     const request = parse(AiChatRequest, await jsonBody(c), 'the request')
     const env = c.env
     const userId = c.get('session')?.userId ?? ''
-    if (!env.ANTHROPIC_API_KEY) {
+    const model = env.AI
+    if (model === undefined) {
       return errorResponse(c, 'unavailable', 'the AI mode is not set up on this server')
-    }
-    const model = env.AI_MODEL || DEFAULT_MODEL
-    const prices = MODEL_PRICES[model]
-    if (prices === undefined) {
-      return errorResponse(c, 'unavailable', `the AI mode does not know the model ${model}`)
     }
     const spent = await spentToday(env.KV, userId)
     if (spent.site >= dollars(env.AI_DAILY_USD, DEFAULT_DAILY_USD)) {
@@ -327,16 +251,16 @@ export const ai = new Hono<AppEnv>().post(
       const abort = new AbortController()
       stream.onAbort(() => abort.abort())
       const send = (event: AiEvent) => stream.writeSSE({ data: JSON.stringify(event) })
-      const turn: Turn = { request, hill, model, prices, signal: abort.signal, spent: 0 }
+      const turn: Turn = { request, hill, signal: abort.signal, spent: 0 }
       try {
-        await converse(c, send, turn)
+        await converse(c, model, send, turn)
       } catch (error) {
         if (!abort.signal.aborted) {
           log('warn', 'ai.failed', {
             requestId: c.get('requestId'),
             error: error instanceof Error ? error.message : String(error),
           })
-          await send({ type: 'error', message: failure(error) })
+          await send({ type: 'error', message: 'the model did not answer: try again.' })
         }
       }
       await addSpend(env.KV, userId, turn.spent)

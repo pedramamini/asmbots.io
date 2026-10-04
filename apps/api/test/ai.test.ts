@@ -1,17 +1,24 @@
 /**
- * The editor's AI mode (`POST /api/ai/chat`), with the Anthropic API stubbed out: the Worker runs
- * in this isolate, so a spy on `fetch` answers its calls with a scripted stream. A turn streams the
- * model's words, assembles each bot it writes and hands the errors back, reads the hill's best
- * bots, and counts its cost against the day's caps.
+ * The editor's AI mode (`POST /api/ai/chat`), with Workers AI faked: the test hands the Worker an
+ * `AI` binding whose answers it scripts. A turn writes a bot, assembles it and sends the errors back
+ * until it is clean, reads the hill's best bots, and counts its cost against the day's caps.
  */
 import { env } from 'cloudflare:workers'
 import type { AiEvent } from '@asmbots/protocol'
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { SYSTEM_PROMPT } from '../src/ai/prompt'
-import { costOf, MODEL_PRICES, spentToday } from '../src/ai/spend'
+import { costOf, MODEL, spentToday } from '../src/ai/spend'
 import { applySeed, buildSeed, type SeedHill } from '../src/db/seed'
 import type { Env } from '../src/env'
-import { toMessages, writeBot } from '../src/routes/ai'
+import {
+  type ChatMessage,
+  checkBot,
+  MAX_FIXES,
+  MAX_SOURCE_CHARS,
+  sourceText,
+  splitAnswer,
+  toMessages,
+} from '../src/routes/ai'
 import { errorOf, FAKE, send, signIn } from './fake-auth'
 import { Jar } from './jar'
 
@@ -49,8 +56,6 @@ const HILL: SeedHill = {
   scoring: 'duel',
 }
 
-const ON: Env = { ...FAKE, ANTHROPIC_API_KEY: 'test-key' }
-
 beforeAll(async () => {
   await applySeed(
     env,
@@ -64,80 +69,27 @@ beforeAll(async () => {
   )
 })
 
-afterEach(() => vi.restoreAllMocks())
+const USAGE = { prompt_tokens: 10_000, completion_tokens: 3_000 }
 
-/** A scripted model call: its blocks, in order, and why it stopped. */
-interface Reply {
-  readonly blocks: readonly ({ text: string } | { tool: string; input: object })[]
-  readonly stop: 'end_turn' | 'tool_use' | 'refusal'
-}
-
-/** The Messages API's stream of `reply`. */
-function sse(reply: Reply): string {
-  const events: object[] = [
-    {
-      type: 'message_start',
-      message: {
-        id: 'msg_test',
-        type: 'message',
-        role: 'assistant',
-        model: 'claude-sonnet-5-5',
-        content: [],
-        stop_reason: null,
-        stop_sequence: null,
-        usage: { input_tokens: 1000, output_tokens: 1, cache_read_input_tokens: 5000 },
-      },
+/**
+ * A Workers AI binding that answers with `replies` in order (a string is the answer's content, an
+ * Error is thrown); what each call asked, in `calls`.
+ */
+function fakeAi(...replies: (string | Error)[]) {
+  const calls: { model: string; messages: ChatMessage[]; max_tokens: number }[] = []
+  const binding = {
+    run: async (model: string, inputs: { messages: ChatMessage[]; max_tokens: number }) => {
+      calls.push({ model, ...inputs })
+      const reply = replies[calls.length - 1]
+      if (reply === undefined) throw new Error('the model was called once too often')
+      if (reply instanceof Error) throw reply
+      return { choices: [{ message: { role: 'assistant', content: reply } }], usage: USAGE }
     },
-  ]
-  reply.blocks.forEach((block, index) => {
-    if ('text' in block) {
-      events.push({ type: 'content_block_start', index, content_block: { type: 'text', text: '' } })
-      events.push({
-        type: 'content_block_delta',
-        index,
-        delta: { type: 'text_delta', text: block.text },
-      })
-    } else {
-      events.push({
-        type: 'content_block_start',
-        index,
-        content_block: { type: 'tool_use', id: `toolu_${index}`, name: block.tool, input: {} },
-      })
-      events.push({
-        type: 'content_block_delta',
-        index,
-        delta: { type: 'input_json_delta', partial_json: JSON.stringify(block.input) },
-      })
-    }
-    events.push({ type: 'content_block_stop', index })
-  })
-  events.push({
-    type: 'message_delta',
-    delta: { stop_reason: reply.stop, stop_sequence: null },
-    usage: { output_tokens: 2000 },
-  })
-  events.push({ type: 'message_stop' })
-  return events
-    .map((e) => `event: ${(e as { type: string }).type}\ndata: ${JSON.stringify(e)}\n\n`)
-    .join('')
+  }
+  return { vars: { ...FAKE, AI: binding as unknown as Ai } satisfies Env, calls }
 }
 
-/** Answers the Worker's calls to the Messages API with `replies`, in order; the bodies it sent. */
-function stubModel(...replies: Reply[]): { bodies: Record<string, unknown>[]; urls: string[] } {
-  const bodies: Record<string, unknown>[] = []
-  const urls: string[] = []
-  const real = globalThis.fetch
-  vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
-    const url = input instanceof Request ? input.url : String(input)
-    if (!url.includes('/v1/messages')) return real(input, init)
-    urls.push(url)
-    bodies.push(JSON.parse(String(init?.body)))
-    const reply = replies[bodies.length - 1]
-    if (reply === undefined) throw new Error('the model was called once too often')
-    return new Response(sse(reply), { headers: { 'Content-Type': 'text/event-stream' } })
-  })
-  return { bodies, urls }
-}
+const asm = (source: string) => `\`\`\`asm\n${source}\`\`\``
 
 /** The events of a streamed answer. */
 async function eventsOf(res: Response): Promise<AiEvent[]> {
@@ -156,7 +108,7 @@ async function user(as: string): Promise<Jar> {
   return jar
 }
 
-const chat = (jar: Jar, body: object, vars: Env = ON) =>
+const chat = (jar: Jar, body: object, vars: Env) =>
   send(jar, '/api/ai/chat', { method: 'POST', body, vars })
 
 const ASK = {
@@ -165,129 +117,126 @@ const ASK = {
   hill: 'ai-hill',
 }
 
+const sources = (events: AiEvent[]) => events.flatMap((e) => (e.type === 'source' ? [e] : []))
+
 describe('POST /api/ai/chat', () => {
   it('needs a signed-in user', async () => {
-    const res = await chat(new Jar(), ASK)
+    const res = await chat(new Jar(), ASK, fakeAi().vars)
     expect(res.status).toBe(401)
   })
 
-  it('answers 503 when the server has no key', async () => {
-    const res = await chat(await user('ai-nokey'), ASK, FAKE)
+  it('answers 503 when the server has no Workers AI', async () => {
+    const { AI: _, ...none } = FAKE
+    const res = await chat(await user('ai-nobinding'), ASK, none)
     expect(res.status).toBe(503)
     expect((await errorOf(res)).message).toMatch(/not set up/)
   })
 
   it('refuses a conversation that does not end with the user', async () => {
-    const res = await chat(await user('ai-shape'), {
-      ...ASK,
-      turns: [...ASK.turns, { role: 'assistant', text: 'done' }],
-    })
+    const res = await chat(
+      await user('ai-shape'),
+      { ...ASK, turns: [...ASK.turns, { role: 'assistant', text: 'done' }] },
+      fakeAi().vars,
+    )
     expect(res.status).toBe(400)
   })
 
   it('answers 404 for a hill that does not exist', async () => {
-    const res = await chat(await user('ai-nohill'), { ...ASK, hill: 'nowhere' })
+    const res = await chat(await user('ai-nohill'), { ...ASK, hill: 'nowhere' }, fakeAi().vars)
     expect(res.status).toBe(404)
   })
 
   it('writes a bot, assembles it, and says what it beats', async () => {
-    const model = stubModel(
-      {
-        blocks: [
-          { text: 'A dwarf, then.' },
-          { tool: 'write_bot', input: { source: DWARF, summary: 'a stride-4 dwarf' } },
-        ],
-        stop: 'tool_use',
-      },
-      { blocks: [{ text: 'It should beat Spin: Spin sits still.' }], stop: 'end_turn' },
+    const ai = fakeAi(
+      `<think>a dwarf, stride 4</think>A dwarf, then.\n\n${asm(DWARF)}\n\nIt should beat Spin: Spin sits still.`,
     )
     const jar = await user('ai-writer')
-    const events = await eventsOf(await chat(jar, { ...ASK, source: SPIN }))
+    const events = await eventsOf(await chat(jar, { ...ASK, source: SPIN }, ai.vars))
 
-    const source = events.find((e) => e.type === 'source')
-    expect(source).toMatchObject({
-      type: 'source',
-      source: DWARF,
-      summary: 'a stride-4 dwarf',
-      errors: [],
-    })
-    expect(source?.type === 'source' && source.size).toBeGreaterThan(0)
+    expect(sources(events)).toEqual([
+      expect.objectContaining({ source: DWARF, summary: 'the bot', errors: [] }),
+    ])
+    expect(sources(events)[0]?.size).toBeGreaterThan(0)
     const text = events.flatMap((e) => (e.type === 'text' ? [e.text] : [])).join('')
     expect(text).toBe('A dwarf, then.\n\nIt should beat Spin: Spin sits still.')
     expect(events).toContainEqual({ type: 'status', text: 'writing the bot' })
+
+    // One call: Qwen3, the system prompt with the hill's best bots and their source, and the
+    // editor's source before the user's words.
+    expect(ai.calls).toHaveLength(1)
+    const [call] = ai.calls
+    expect(call?.model).toBe(MODEL)
+    const [system, asked] = call?.messages ?? []
+    expect(system?.role).toBe('system')
+    expect(system?.content).toContain('x16c cheat sheet')
+    expect(system?.content).toContain('The hill: AI hill')
+    expect(system?.content).toContain('mov word [di], 0')
+    expect(asked?.content).toContain("The editor's source now")
+    expect(asked?.content).toContain('jmp $')
+    expect(asked?.content).toMatch(/a dwarf that bombs every 4 bytes$/)
+
     const done = events.at(-1)
-    expect(done?.type).toBe('done')
-
-    // The first call: the model, the cached system with the hill's best bots and their source, and
-    // the editor's source before the user's words.
-    const [first, second] = model.bodies
-    expect(first?.model).toBe('claude-sonnet-5-5')
-    expect(first?.fallbacks).toBe('default')
-    const system = JSON.stringify(first?.system)
-    expect(system).toContain('x16c cheat sheet')
-    expect(system).toContain('The hill: AI hill')
-    expect(system).toContain('mov word [di], 0')
-    const asked = JSON.stringify(first?.messages)
-    expect(asked).toContain("The editor's source now")
-    expect(asked).toContain('jmp $')
-    expect(model.urls[0]).toMatch(/beta=true/)
-    // The second call carries the assembler's answer.
-    expect(JSON.stringify(second?.messages)).toContain('It assembles')
-
-    // Two calls at 1,000 input, 5,000 cached, 2,000 output tokens each.
-    const call = costOf(
-      { input_tokens: 1000, output_tokens: 2000, cache_read_input_tokens: 5000 },
-      MODEL_PRICES['claude-sonnet-5-5'] as NonNullable<(typeof MODEL_PRICES)[string]>,
-    )
-    expect(done?.type === 'done' && done.costUsd).toBeCloseTo(2 * call, 6)
+    expect(done).toEqual({ type: 'done', costUsd: costOf(USAGE) })
     const userId = (await (await send(jar, '/api/me')).json<{ user: { id: string } }>()).user.id
-    expect((await spentToday(env.KV, userId)).user).toBeCloseTo(2 * call, 6)
+    expect((await spentToday(env.KV, userId)).user).toBeCloseTo(costOf(USAGE), 9)
   })
 
-  it('hands the assembler errors back until the bot is clean', async () => {
-    const model = stubModel(
-      {
-        blocks: [{ tool: 'write_bot', input: { source: BROKEN, summary: 'first try' } }],
-        stop: 'tool_use',
-      },
-      {
-        blocks: [{ tool: 'write_bot', input: { source: DWARF, summary: 'fixed' } }],
-        stop: 'tool_use',
-      },
-      { blocks: [{ text: 'Fixed.' }], stop: 'end_turn' },
+  it('sends the assembler errors back until the bot is clean', async () => {
+    const ai = fakeAi(
+      `Here it is.\n${asm(BROKEN)}`,
+      `Used bx, which addresses memory.\n${asm(DWARF)}`,
     )
-    const events = await eventsOf(await chat(await user('ai-fixer'), ASK))
-    const sources = events.filter((e) => e.type === 'source')
-    expect(sources).toHaveLength(2)
-    expect(sources[0]?.type === 'source' && sources[0].errors.length).toBeGreaterThan(0)
-    expect(sources[1]).toMatchObject({ errors: [] })
-    expect(JSON.stringify(model.bodies[1]?.messages)).toContain('does not assemble')
+    const events = await eventsOf(await chat(await user('ai-fixer'), ASK, ai.vars))
+    const [broken, fixed] = sources(events)
+    expect(broken?.size).toBe(0)
+    expect(broken?.errors.length).toBeGreaterThan(0)
+    expect(fixed).toMatchObject({
+      source: DWARF,
+      summary: 'Used bx, which addresses memory.',
+      errors: [],
+    })
+    expect(events).toContainEqual({ type: 'status', text: `fixing (1 of ${MAX_FIXES})` })
+    // The fix reads the first ask, the broken bot, and the errors.
+    const fix = ai.calls[1]?.messages ?? []
+    expect(fix.at(-2)).toEqual({ role: 'assistant', content: asm(BROKEN) })
+    expect(fix.at(-1)?.content).toMatch(/does not assemble[\s\S]*Send the whole bot again/)
+    expect(events.find((e) => e.type === 'text')).toEqual({ type: 'text', text: 'Here it is.' })
   })
 
-  it('reads a competitor by rank', async () => {
-    const model = stubModel(
-      { blocks: [{ tool: 'read_bot', input: { rank: 2 } }], stop: 'tool_use' },
-      { blocks: [{ text: 'Read it.' }], stop: 'end_turn' },
+  it(`stops after ${MAX_FIXES} fixes`, async () => {
+    const ai = fakeAi(...Array.from({ length: MAX_FIXES + 1 }, () => asm(BROKEN)))
+    const events = await eventsOf(await chat(await user('ai-stuck'), ASK, ai.vars))
+    expect(ai.calls).toHaveLength(MAX_FIXES + 1)
+    expect(sources(events)).toHaveLength(MAX_FIXES + 1)
+    expect(events.at(-1)?.type).toBe('done')
+  })
+
+  it('says so when the model writes no bot', async () => {
+    const events = await eventsOf(
+      await chat(await user('ai-nobot'), ASK, fakeAi('What size should it be?').vars),
     )
-    const events = await eventsOf(await chat(await user('ai-reader'), ASK))
-    expect(events.some((e) => e.type === 'status' && e.text.startsWith('reading '))).toBe(true)
-    const answer = JSON.stringify(model.bodies[1]?.messages)
-    expect(answer).toMatch(/#2 (Dwarf|Spin) by system/)
+    expect(sources(events)).toEqual([])
+    expect(events).toContainEqual({ type: 'text', text: 'What size should it be?' })
   })
 
-  it('says so when the model refuses', async () => {
-    stubModel({ blocks: [], stop: 'refusal' })
-    const events = await eventsOf(await chat(await user('ai-refused'), ASK))
-    expect(events.find((e) => e.type === 'error')).toMatchObject({ message: /another way/ })
+  it('says so when the model fails', async () => {
+    const events = await eventsOf(
+      await chat(await user('ai-down'), ASK, fakeAi(new Error('3040: out of capacity')).vars),
+    )
+    expect(events.find((e) => e.type === 'error')).toMatchObject({ message: /try again/ })
+    expect(events.at(-1)).toEqual({ type: 'done', costUsd: 0 })
   })
 
   it('stops a user at their daily cap', async () => {
-    const res = await chat(await user('ai-capped'), ASK, { ...ON, AI_USER_DAILY_USD: '0' })
+    const res = await chat(await user('ai-capped'), ASK, {
+      ...fakeAi().vars,
+      AI_USER_DAILY_USD: '0',
+    })
     expect(res.status).toBe(429)
   })
 
   it('stops everyone at the site cap', async () => {
-    const res = await chat(await user('ai-site'), ASK, { ...ON, AI_DAILY_USD: '0' })
+    const res = await chat(await user('ai-site'), ASK, { ...fakeAi().vars, AI_DAILY_USD: '0' })
     expect(res.status).toBe(503)
   })
 })
@@ -299,7 +248,7 @@ describe('the AI mode', () => {
     expect(SYSTEM_PROMPT).not.toContain('## Examples')
   })
 
-  it('joins turns of one role and puts the source before the last words', () => {
+  it('joins turns of one role, drops the oldest past the room, and asks last', () => {
     const messages = toMessages(
       [
         { role: 'assistant', text: 'hello' },
@@ -309,24 +258,52 @@ describe('the AI mode', () => {
         { role: 'user', text: 'd' },
       ],
       '',
+      'COMPETITORS',
     )
-    expect(messages).toEqual([
+    expect(messages.slice(1)).toEqual([
       { role: 'user', content: 'a\n\nb' },
       { role: 'assistant', content: 'c' },
-      {
-        role: 'user',
-        content: [
-          { type: 'text', text: 'The editor is empty.' },
-          { type: 'text', text: 'd' },
-        ],
-      },
+      { role: 'user', content: 'The editor is empty.\n\nd' },
     ])
+    expect(messages[0]?.content).toMatch(/COMPETITORS$/)
+    const long = 'x'.repeat(8000)
+    const cut = toMessages(
+      [
+        { role: 'user', text: long },
+        { role: 'assistant', text: long },
+        { role: 'user', text: 'next' },
+      ],
+      '',
+      '',
+    )
+    // The two old turns do not fit together, and an answer never leads.
+    expect(cut.map((m) => m.role)).toEqual(['system', 'user'])
   })
 
-  it('tells the model when a bot is outside the hill’s band', () => {
-    const hill = { config: { maxBotBytes: 4, minBotBytes: 1 } } as Parameters<typeof writeBot>[2]
-    const { event, answer } = writeBot(DWARF, '', hill)
-    expect(answer).toMatch(/outside the hill's band of 1 to 4/)
+  it('shows a source too big to read as a size, not text', () => {
+    expect(sourceText('x'.repeat(MAX_SOURCE_CHARS + 1))).toMatch(/too big to show/)
+  })
+
+  it('splits an answer into its words and the last bot', () => {
+    expect(splitAnswer(`<think>hm</think>One.\n${asm(SPIN)}\nTwo.\n${asm(DWARF)}`)).toEqual({
+      words: 'One.\n\nTwo.',
+      source: DWARF,
+    })
+    expect(splitAnswer('## Plan\n**Beats:** imps.  \nLoses to __paper__.')).toEqual({
+      words: 'Plan\nBeats: imps.\nLoses to paper.',
+      source: null,
+    })
+    // Thinking whose opening tag the model left out; a block with no bot in it.
+    expect(splitAnswer('plan</think>Just words.\n```\nmov ax, 1\n```')).toEqual({
+      words: 'Just words.',
+      source: null,
+    })
+  })
+
+  it('asks for a fix when a bot is outside the hill’s band', () => {
+    const hill = { config: { maxBotBytes: 4, minBotBytes: 1 } } as Parameters<typeof checkBot>[2]
+    const { event, fix } = checkBot(DWARF, '', hill)
+    expect(fix).toMatch(/outside the hill's band of 1 to 4/)
     expect(event.errors[0]).toMatch(/outside/)
   })
 })

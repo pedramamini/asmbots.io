@@ -13,7 +13,6 @@
     "seed:remote": "bun run scripts/seed.ts --remote"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "0.131.0",
     "@asmbots/asm": "workspace:*",
     "@asmbots/bots": "workspace:*",
     "@asmbots/engine": "workspace:*",

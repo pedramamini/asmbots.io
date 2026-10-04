@@ -8,11 +8,14 @@ import type { Hill } from '@asmbots/protocol'
 /** The entries the competitors block lists. */
 export const LISTED = 10
 
-/** The entries, from the king down, whose public source the block carries whole. */
+/** The entries, from the king down, whose public source the block carries. */
 export const WITH_SOURCE = 3
 
-/** The most characters of one competitor's source the model reads; past it, the rest is cut. */
-export const MAX_COMPETITOR_SOURCE = 6000
+/**
+ * The most characters of one competitor's source the model reads; past it, the rest is cut. The
+ * model's context is 32,768 tokens: three of these are about 2,500 of them.
+ */
+export const MAX_COMPETITOR_SOURCE = 2500
 
 export interface Competitor {
   readonly rank: number
@@ -39,7 +42,7 @@ interface CompetitorRow {
   source: string | null
 }
 
-const COMPETITOR_SQL = `SELECT e.rank, b.name, u.handle, v.size, v.strategy, e.wins, e.ties, e.losses,
+const COMPETITORS_SQL = `SELECT e.rank, b.name, u.handle, v.size, v.strategy, e.wins, e.ties, e.losses,
   CASE WHEN b.visibility = 'public' AND b.deleted_at IS NULL THEN v.source END AS source
   FROM hill_entries e
   JOIN bot_versions v ON v.id = e.bot_version_id
@@ -50,19 +53,10 @@ const COMPETITOR_SQL = `SELECT e.rank, b.name, u.handle, v.size, v.strategy, e.w
 /** The hill's top `LISTED` entries, the king first. */
 export async function listCompetitors(db: D1Database, hill: Hill): Promise<Competitor[]> {
   const { results } = await db
-    .prepare(`${COMPETITOR_SQL} ORDER BY e.rank LIMIT ?`)
+    .prepare(`${COMPETITORS_SQL} ORDER BY e.rank LIMIT ?`)
     .bind(hill.id, LISTED)
     .all<CompetitorRow>()
   return results
-}
-
-/** The entry at `rank`, or null. */
-export async function competitorAt(
-  db: D1Database,
-  hill: Hill,
-  rank: number,
-): Promise<Competitor | null> {
-  return db.prepare(`${COMPETITOR_SQL} AND e.rank = ?`).bind(hill.id, rank).first<CompetitorRow>()
 }
 
 /** A competitor's line: `#1 Strigoi by caesium, 498 B, 41-3-6: hold-two-laps vampire`. */

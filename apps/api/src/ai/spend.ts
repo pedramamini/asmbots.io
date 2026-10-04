@@ -9,48 +9,29 @@
 export interface Prices {
   readonly input: number
   readonly output: number
-  readonly cacheRead: number
-  /** A five-minute cache write: 1.25 times the input. */
-  readonly cacheWrite: number
 }
 
-const price = (input: number, output: number, cacheRead: number): Prices => ({
-  input,
-  output,
-  cacheRead,
-  cacheWrite: input * 1.25,
-})
+/** The model the AI mode runs on Workers AI: Qwen3 30B A3B, a mixture of experts, cheap and fast. */
+export const MODEL = '@cf/qwen/qwen3-30b-a3b-fp8'
 
-/** The models the AI mode may run, and what each costs. */
-export const MODEL_PRICES: Readonly<Record<string, Prices>> = {
-  'claude-haiku-4-5': price(1, 5, 0.1),
-  'claude-sonnet-5-5': price(2, 10, 0.2),
-  'claude-opus-5-5': price(4, 20, 0.2),
-}
+/** What `MODEL` costs past Workers AI's free 10,000 neurons a day (its pricing page, 2026-10). */
+export const PRICES: Prices = { input: 0.051, output: 0.335 }
 
-/** The model when `AI_MODEL` names none. */
-export const DEFAULT_MODEL = 'claude-sonnet-5-5'
+/** The caps when the vars set none, US dollars a day: a turn costs about half a cent. */
+export const DEFAULT_DAILY_USD = 1
+export const DEFAULT_USER_DAILY_USD = 0.1
 
-/** The caps when the vars set none, US dollars a day. */
-export const DEFAULT_DAILY_USD = 5
-export const DEFAULT_USER_DAILY_USD = 0.5
-
-/** A response's token counts, as the API's `usage` has them. */
+/** A response's token counts, as Workers AI's `usage` has them. */
 export interface Usage {
-  readonly input_tokens: number
-  readonly output_tokens: number
-  readonly cache_read_input_tokens?: number | null
-  readonly cache_creation_input_tokens?: number | null
+  readonly prompt_tokens?: number | undefined
+  readonly completion_tokens?: number | undefined
 }
 
 /** What `usage` cost on `prices`, US dollars. */
-export function costOf(usage: Usage, prices: Prices): number {
-  const perToken = (n: number | null | undefined, rate: number) => ((n ?? 0) * rate) / 1_000_000
+export function costOf(usage: Usage | undefined, prices: Prices = PRICES): number {
   return (
-    perToken(usage.input_tokens, prices.input) +
-    perToken(usage.output_tokens, prices.output) +
-    perToken(usage.cache_read_input_tokens, prices.cacheRead) +
-    perToken(usage.cache_creation_input_tokens, prices.cacheWrite)
+    ((usage?.prompt_tokens ?? 0) * prices.input + (usage?.completion_tokens ?? 0) * prices.output) /
+    1_000_000
   )
 }
 

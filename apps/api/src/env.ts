@@ -49,15 +49,8 @@ export interface Env {
    * no alarm fires on its own, and step the alarms with `runDurableObjectAlarm`.
    */
   RUNNER_ALARM_DELAY_MS?: string
-  /** The editor's AI mode (`routes/ai.ts`): a secret. Unset: the mode answers 503. */
-  ANTHROPIC_API_KEY?: string
-  /**
-   * The Anthropic endpoint through Cloudflare AI Gateway, for its logs, cache, and spend charts:
-   * `https://gateway.ai.cloudflare.com/v1/<account>/<gateway>/anthropic`. Unset: the API's own.
-   */
-  AI_GATEWAY_URL?: string
-  /** The model the AI mode runs, one of `ai/spend.ts`' `MODEL_PRICES`; unset: Claude Sonnet 5.5. */
-  AI_MODEL?: string
+  /** Workers AI: the editor's AI mode (`routes/ai.ts`). Unset (the tests, `wrangler dev --local`): 503. */
+  AI?: Ai
   /** The most the AI mode spends a UTC day, the whole site and each user, US dollars. */
   AI_DAILY_USD?: string
   AI_USER_DAILY_USD?: string

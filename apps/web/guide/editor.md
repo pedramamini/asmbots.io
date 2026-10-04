@@ -56,7 +56,7 @@ kept layout that is still the old `writing` or phone default to the new one).
 | Part | Where |
 | --- | --- |
 | The request | `ai/chat.ts`: `POST /api/ai/chat` with the turns (the newest 16 that say something), the editor's text, and the hill; the answer read as Server-Sent Events, one `AiEvent` (`@asmbots/protocol`'s `ai.ts`) each. |
-| The server | `apps/api/src/routes/ai.ts`: the model, its two tools (`write_bot`, `read_bot`), the competitors block, and the caps. See the API's README. |
+| The server | `apps/api/src/routes/ai.ts`: Qwen3 on Workers AI, the bot in a code block, the fix loop, the competitors block, and the caps. See the API's README. |
 | Into the editor | A `source` event with bytes (`size > 0`) goes in at once through `replaceText`, one edit each; one with errors waits for the fix, and if no version assembles, the last goes in anyway. The toast's `undo` undoes every edit of the turn. |
 | The hill | `hillOfSize`: the bot's weight class from the last assemble (`main` for a lightweight); the select's pick holds after that. |
 
