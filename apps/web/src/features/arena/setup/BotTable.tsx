@@ -28,7 +28,6 @@ import { botsNamed, useBotChanges } from '../../bots/bulk'
 import { VISIBILITIES, VISIBILITY, VisibilityChip } from '../../bots/visibility'
 import { WeightChip } from '../../hills/WeightChip'
 import { type CatalogBot, errorsOf, listingOf, visibilityOf } from './bots'
-import { SourceButton } from './SourceButton'
 import { formatRef } from './url'
 
 export interface BotTableProps {
@@ -41,8 +40,11 @@ export interface BotTableProps {
   room: number
   /** Adds bots to the fight. */
   onAdd: (bots: readonly CatalogBot[]) => void
-  /** Shows a bot's source. */
-  onView: (bot: CatalogBot) => void
+  /**
+   * A bot's name: the setup's button that shows its source. Passed in, since a module this chunk
+   * shared with the route would pull the route's code apart.
+   */
+  nameOf: (bot: CatalogBot) => ReactNode
   /** My bots: the visibility column, and the account's actions. */
   mine: boolean
   /** Whether the account's actions can run. */
@@ -75,7 +77,7 @@ export function BotTable({
   authorOf,
   room,
   onAdd,
-  onView,
+  nameOf,
   mine,
   signedIn,
   local,
@@ -186,7 +188,7 @@ export function BotTable({
               value={bot.assembled.bytes.length > 0 ? bot.assembled.bytes : (bot.source ?? '')}
               size={16}
             />
-            <SourceButton name={bot.name} onClick={() => onView(bot)} />
+            {nameOf(bot)}
           </span>
         ),
         sortValue: (bot) => bot.name.toLowerCase(),
@@ -298,7 +300,7 @@ export function BotTable({
       className: 'w-8',
     })
     return list
-  }, [bots, chosen, all, records, ranks, authorOf, mine, room, onAdd, onView])
+  }, [bots, chosen, all, records, ranks, authorOf, mine, room, onAdd, nameOf])
 
   if (bots.length === 0) return empty
   const fightable = picked.filter((bot) => errorsOf(bot).length === 0)

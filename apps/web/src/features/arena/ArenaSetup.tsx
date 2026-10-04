@@ -20,6 +20,7 @@ import {
   Slider,
   useToast,
 } from '@asmbots/ui'
+import { Link as RouterLink } from '@tanstack/react-router'
 import { Dices, FileUp, Link, Plus, Save, Swords, Trophy, X } from 'lucide-react'
 import {
   type ChangeEvent,
@@ -27,6 +28,7 @@ import {
   lazy,
   type ReactNode,
   Suspense,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -34,7 +36,14 @@ import {
 } from 'react'
 import { useOwnBots } from '../../api/own-bots'
 import { useMe, usePublicBots } from '../../api/queries'
-import { type Author, AuthorLink, ByAuthor, ownerAuthor, sourceAuthor } from '../../app/author'
+import {
+  type Author,
+  AuthorLink,
+  ByAuthor,
+  CELL_LINK,
+  ownerAuthor,
+  sourceAuthor,
+} from '../../app/author'
 import { ARENA_ABOUT, ArenaKinds } from '../../app/intros/arena'
 import { ROUTE_SEARCH } from '../../app/keys'
 import { useLinkAction } from '../../app/link-action'
@@ -60,6 +69,7 @@ import {
   BOT_SORTS,
   type BotSort,
   bestFill,
+  botSource,
   type CatalogBot,
   carriesFiles,
   cloudMap,
@@ -372,6 +382,11 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
     )
   }
 
+  /** A bot's name in the table: a press shows its source. */
+  const nameOf = (bot: CatalogBot) => (
+    <SourceButton name={bot.name} onClick={() => setViewing(bot)} />
+  )
+
   /** The table view of the bots listed, with `empty` when none is. */
   const table = (empty: ReactNode) => (
     <Suspense fallback={<p className="px-1 py-6 text-center text-muted">loading the table…</p>}>
@@ -382,7 +397,7 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
         authorOf={(bot) => catalogAuthor(bot, me)}
         room={MAX_ARENA_BOTS - spec.bots.length}
         onAdd={addMany}
-        onView={setViewing}
+        nameOf={nameOf}
         mine={source === 'mine'}
         signedIn={signedIn}
         local={localBots.data ?? []}
@@ -830,10 +845,31 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
       )}
       {viewing !== null && (
         <Suspense fallback={null}>
-          <SourceModal bot={viewing} onClose={() => setViewing(null)} />
+          <SourceView bot={viewing} onClose={() => setViewing(null)} />
         </Suspense>
       )}
     </div>
+  )
+}
+
+/** The source modal of `bot`: how to read its text, and its page when the reader may open it. */
+function SourceView({ bot, onClose }: { bot: CatalogBot; onClose: () => void }) {
+  const listing = listingOf(bot)
+  const load = useCallback(() => botSource(bot), [bot])
+  return (
+    <SourceModal
+      name={bot.name}
+      load={load}
+      hidden={listing?.visibility ?? 'not public'}
+      page={
+        listing === undefined || listing.visibility === 'private' ? null : (
+          <RouterLink to="/bots/$id" params={{ id: listing.bot.botId }} className={CELL_LINK}>
+            its bot page
+          </RouterLink>
+        )
+      }
+      onClose={onClose}
+    />
   )
 }
 

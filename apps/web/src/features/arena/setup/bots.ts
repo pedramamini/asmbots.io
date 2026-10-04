@@ -664,6 +664,24 @@ export async function replaySources(fight: ArenaFight): Promise<string[]> {
   )
 }
 
+/**
+ * `bot`'s source, for the picker's source view: a local or shared bot's text, a roster bot's from
+ * the roster's sources, a server bot's from the server at the version listed (empty when the
+ * server does not give it).
+ */
+export async function botSource(bot: CatalogBot): Promise<string> {
+  if (bot.source !== null) return bot.source
+  if (bot.ref.kind === 'roster') {
+    const { loadLargeSources, rosterSource } = await import('./roster-source')
+    await loadLargeSources()
+    return rosterSource(bot.ref.slug)
+  }
+  const listing = listingOf(bot)
+  if (listing === undefined) return ''
+  const { cloudSource } = await import('./cloud-source')
+  return cloudSource(listing.bot.botId, listing.bot.version)
+}
+
 /** Whether a drag carries files: what a drop zone takes. */
 export function carriesFiles(event: { dataTransfer: DataTransfer | null }): boolean {
   return Array.from(event.dataTransfer?.types ?? []).includes('Files')
