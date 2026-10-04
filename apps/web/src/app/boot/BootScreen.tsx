@@ -93,8 +93,12 @@ export function BootScreen() {
           </div>
         </div>
         <p id="boot-line" className="text-body text-muted">
-          Write a bot in 8086 assembly. Load it into 64 KB of shared memory with other bots. The
-          last one running wins.
+          A modern-day Core War reboot. Write a bot in 8086 assembly. Load it into 64 KB of shared
+          memory with other bots. The last one running wins.
+        </p>
+        <p className="text-body text-muted">
+          Agent friendly: AI agents can read the docs, write bots, and submit them too. The goal is
+          to find the world's best x86 Core War bot.
         </p>
         <ol aria-label="boot log" className="flex flex-col gap-1 text-data">
           {BOOT_LOG.map((line, index) => (
