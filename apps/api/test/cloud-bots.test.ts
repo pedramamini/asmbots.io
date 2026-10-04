@@ -6,6 +6,7 @@
 import { env } from 'cloudflare:workers'
 import {
   AuditList,
+  BotActivity,
   BotDetail,
   BotVersionDetail,
   DeletedBots,
@@ -251,6 +252,52 @@ async function placeOnHill(slug: string, versionId: string, rank: number, rating
     ).bind(slug, versionId, rank, rating),
   ])
 }
+
+describe('GET /api/bots/:id/activity', () => {
+  it('gives a bot’s matches newest first, its hill events oldest first, and its machine code', async () => {
+    const { jar, saved: mine } = await withBot('active', SPIN, 'private')
+    const { saved: rival } = await withBot('active-rival', HALT)
+    const result = (points: number[]) =>
+      JSON.stringify({ points, survivors: [0], resultHash: '0'.repeat(16) })
+    const run = (sql: string, ...values: unknown[]) => env.DB.prepare(sql).bind(...values)
+    await env.DB.batch([
+      run(
+        `INSERT INTO hills (id, slug, name, size, rounds, config_json)
+         VALUES ('h-act', 'h-act', 'activity', 10, 1, '{"maxBotBytes":512}')`,
+      ),
+      run(
+        `INSERT INTO hill_history (id, hill_id, event, bot_version_id, rank, score, delta, at) VALUES
+           ('ev-1', 'h-act', 'entered', ?1, 3, 10, NULL, '2026-09-01T00:00:00.000Z'),
+           ('ev-2', 'h-act', 'entered', ?1, 1, 20, 2, '2026-09-02T00:00:00.000Z')`,
+        mine.version.id,
+      ),
+      run(
+        `INSERT INTO matches (id, hill_id, a_version_id, b_version_id, participants_json, rounds,
+           seed, result_json, finished_at)
+         VALUES ('m-act-1', 'h-act', ?1, ?2, ?3, 1, 1, ?4, '2026-09-01T00:00:00.000Z'),
+           ('m-act-2', 'h-act', ?2, ?1, ?5, 1, 1, ?6, '2026-09-02T00:00:00.000Z')`,
+        mine.version.id,
+        rival.version.id,
+        JSON.stringify([mine.version.id, rival.version.id]),
+        result([3, 0]),
+        JSON.stringify([rival.version.id, mine.version.id]),
+        result([1, 1]),
+      ),
+    ])
+    const res = await send(jar, `/api/bots/${mine.bot.id}/activity`)
+    const activity = parse(BotActivity, await res.json(), 'the activity')
+    expect(activity.matches.map((m) => m.match.id)).toEqual(['m-act-2', 'm-act-1'])
+    expect(activity.matches[0]?.bots.map((b) => b?.owner)).toEqual(['active-rival', 'active'])
+    expect(activity.events.map((e) => [e.event.rank, e.hill.name])).toEqual([
+      [3, 'activity'],
+      [1, 'activity'],
+    ])
+    const bytes = await env.REPLAYS.get(botBytesKey(mine.version.bytesSha256))
+    expect(activity.bytes).toBe(toBase64(new Uint8Array((await bytes?.arrayBuffer()) ?? [])))
+    // Private: only its owner reads it.
+    expect((await send(new Jar(), `/api/bots/${mine.bot.id}/activity`)).status).toBe(404)
+  })
+})
 
 describe('the best first', () => {
   it('GET /api/bots lists a bot with a hill place before a newer one without', async () => {

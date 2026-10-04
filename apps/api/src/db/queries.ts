@@ -8,6 +8,7 @@ import {
   type AuditAction,
   type AuditEntry,
   type Bot,
+  type BotHillEvent,
   type BotLabel,
   type BotPlacement,
   type BotVersion,
@@ -781,6 +782,58 @@ export async function listBotLabels(
     .bind(JSON.stringify([...new Set(versionIds)]))
     .all<BotLabelRow>()
   return new Map(results.map((row) => [row.version_id, toBotLabel(row)]))
+}
+
+/**
+ * A bot's finished matches, any version's, on any hill or tournament: the newest `limit`, newest
+ * first. Found as `countBotFights` counts them.
+ */
+export async function listBotMatches(
+  db: D1Database,
+  botId: string,
+  limit: number,
+): Promise<Match[]> {
+  const { results } = await db
+    .prepare(
+      `WITH mine AS (SELECT id FROM bot_versions WHERE bot_id = ?1)
+       SELECT * FROM matches WHERE id IN (
+         SELECT id FROM matches WHERE a_version_id IN (SELECT id FROM mine)
+         UNION
+         SELECT id FROM matches WHERE b_version_id IN (SELECT id FROM mine)
+         UNION
+         SELECT m.id FROM matches m WHERE m.a_version_id IS NULL
+           AND EXISTS (
+             SELECT 1 FROM json_each(m.participants_json) WHERE value IN (SELECT id FROM mine)
+           )
+       ) AND finished_at IS NOT NULL
+       ORDER BY finished_at DESC LIMIT ?2`,
+    )
+    .bind(botId, clampLimit(limit))
+    .all<MatchRow>()
+  return results.map(toMatch)
+}
+
+/** A bot's hill events, any version's, each with its hill: the newest `limit`, oldest first. */
+export async function listBotHillEvents(
+  db: D1Database,
+  botId: string,
+  limit: number,
+): Promise<BotHillEvent[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT * FROM (
+         SELECT e.*, e.rowid AS seq, h.slug AS hill_slug, h.name AS hill_name, h.size AS hill_size
+         FROM hill_history e JOIN bot_versions v ON v.id = e.bot_version_id
+         JOIN hills h ON h.id = e.hill_id
+         WHERE v.bot_id = ? ORDER BY e.at DESC, e.rowid DESC LIMIT ?
+       ) ORDER BY at, seq`,
+    )
+    .bind(botId, clampLimit(limit))
+    .all<HillHistoryRow & { hill_slug: string; hill_name: string; hill_size: number }>()
+  return results.map((row) => ({
+    event: toHillEvent(row),
+    hill: { slug: row.hill_slug, name: row.hill_name, size: row.hill_size },
+  }))
 }
 
 /** Where a bot's versions stand, hill by hill. */

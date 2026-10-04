@@ -1,11 +1,13 @@
 import { assemble } from '@asmbots/asm'
 import {
   type Bot,
+  type BotActivity,
   type BotDetail,
   type BotVersionDetail,
   ImportBotsRequest,
   type ImportBotsResult,
   type ImportedBot,
+  MAX_BOT_ACTIVITY,
   MAX_BOTS_PER_USER,
   MAX_PUBLIC_BOTS,
   MAX_VERSIONS_PER_BOT,
@@ -37,6 +39,9 @@ import {
   getBotVersionRow,
   getLatestBotVersionRow,
   getUser,
+  listBotHillEvents,
+  listBotLabels,
+  listBotMatches,
   listBotPlacements,
   listBotSlugs,
   listBotVersions,
@@ -329,6 +334,34 @@ async function botDetail(c: Context<AppEnv>, bot: Bot): Promise<BotDetail> {
   return { bot, owner, versions, placements, fights }
 }
 
+/**
+ * A bot's activity, for its page's charts: its newest matches with their entrants' labels, its hill
+ * events, and its latest version's machine code. A private bot's owner alone gets here
+ * (`visibleBot`); its machine code fights in the arena anyway (`GET /api/bots`).
+ */
+async function botActivity(c: Context<AppEnv>, bot: Bot): Promise<BotActivity> {
+  const [matches, events, latest] = await Promise.all([
+    listBotMatches(c.env.DB, bot.id, MAX_BOT_ACTIVITY),
+    listBotHillEvents(c.env.DB, bot.id, MAX_BOT_ACTIVITY),
+    getLatestBotVersionRow(c.env.DB, bot.id),
+  ])
+  const [labels, object] = await Promise.all([
+    listBotLabels(
+      c.env.DB,
+      matches.flatMap((m) => m.participants),
+    ),
+    latest === null ? null : c.env.REPLAYS.get(botBytesKey(latest.bytes_sha256)),
+  ])
+  return {
+    matches: matches.map((match) => ({
+      match,
+      bots: match.participants.map((id) => labels.get(id) ?? null),
+    })),
+    events,
+    bytes: object === null ? null : toBase64(new Uint8Array(await object.arrayBuffer())),
+  }
+}
+
 /** The path's bot's share card in `format`: a public or unlisted bot's, else a 404. */
 const card = (format: CardFormat) => async (c: Context<AppEnv>) => {
   const id = c.req.param('id') ?? ''
@@ -427,6 +460,9 @@ export const bots = new Hono<AppEnv>()
     return c.json(await publicBotsOf(c.env, Date.now()))
   })
   .get('/:id', async (c) => c.json(await botDetail(c, await visibleBot(c, c.req.param('id')))))
+  .get('/:id/activity', async (c) =>
+    c.json(await botActivity(c, await visibleBot(c, c.req.param('id')))),
+  )
   .get('/:id/og.svg', card('svg'))
   .get('/:id/og.png', card('png'))
   .get('/:id/versions/:v', async (c) => {

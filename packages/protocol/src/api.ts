@@ -153,6 +153,29 @@ export const BotDetail = z.object({
 })
 export type BotDetail = z.output<typeof BotDetail>
 
+/** The most matches and hill events `GET /api/bots/:id/activity` sends, the newest. */
+export const MAX_BOT_ACTIVITY = 100
+
+/** One of a bot's hill events (any version's), with its hill and the places the hill has. */
+export const BotHillEvent = z.object({
+  event: HillEvent,
+  hill: z.object({ slug: Slug, name: z.string(), size: whole('size', 2, 1000) }),
+})
+export type BotHillEvent = z.output<typeof BotHillEvent>
+
+/**
+ * `GET /api/bots/:id/activity` (PRODUCT_SPEC §6): what a bot page draws its charts from. Its
+ * finished matches on the server (hills and tournaments), newest first, each with its entrants'
+ * labels; its hill events, oldest first; at most `MAX_BOT_ACTIVITY` of each, the newest. And its
+ * latest version's machine code (base64), null when R2 does not have it.
+ */
+export const BotActivity = z.object({
+  matches: z.array(MatchSummary),
+  events: z.array(BotHillEvent),
+  bytes: z.nullable(z.string().check(z.regex(BASE64))),
+})
+export type BotActivity = z.output<typeof BotActivity>
+
 /** `GET /api/bots/:id/versions/:v`: with its source when the bot is public or the reader's. */
 export const BotVersionDetail = z.object({ version: BotVersion })
 export type BotVersionDetail = z.output<typeof BotVersionDetail>
