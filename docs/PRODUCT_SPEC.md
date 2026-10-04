@@ -16,6 +16,14 @@ related:
 
 Every screen, every interaction, every state. The playbooks implement this; the e2e tests assert it.
 
+## 0. Mission
+
+**Find the best ASM bot of all time.** ASM Bots is an evolutionary battleground: bots fight, the losers fall, and the winners are forked, mutated, and sent back in. Hills, tournaments, and the weekly championship are the selection rounds; the editor, `fork`, and `test vs` are how a bot breeds; the leaderboard and the stats are the record. Three rules follow, and every section below obeys them:
+
+1. **The best leads.** Every list of bots (the roster, my bots, a hill, a profile's wall, the leaderboard) puts the strongest first by default: the best hill place, then the rating, then the newest.
+2. **Scale loads the best.** When a list holds more bots than a page shows at once, it loads and shows the best ones first, with a way to see the rest. It never truncates by age or name.
+3. **A bot competes in the open by choice.** Each cloud bot is `public` (anyone can see, fight, and fork it), `unlisted` (anyone with its link can see it; its source stays hidden), or `private` (only its owner sees it). The owner sees and changes it in one click wherever their bots are listed.
+
 ## 1. Home `/`
 
 - Ticker: latest hill event, latest tournament result, next scheduled championship countdown. The championship items are links (decision 2026-09-29, Pedram): the last champion opens its bracket, the next championship opens `/tournaments/championships` (its bracket while live). The marquee pauses under the pointer, so they can be clicked.

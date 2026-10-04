@@ -54,7 +54,7 @@ The limits count per account when you are signed in: 60 writes a minute, 20 bot 
 
 | route | does |
 |---|---|
-| `POST /api/bots` | `{ name, source, visibility? }` makes a bot at version 1 → 201 `{ bot, version }`. The server assembles the source. `visibility` is `public`, `unlisted`, or `private` (the default) |
+| `POST /api/bots` | `{ name, source, visibility? }` makes a bot at version 1 → 201 `{ bot, version }`. The server assembles the source. `visibility` is `public` (the default), `unlisted`, or `private` |
 | `POST /api/bots/:id/versions` | `{ source }` saves the next version → 201 `{ bot, version, created: true }`. The same bytes as the latest version make none: 200 with `created: false` |
 | `PATCH /api/bots/:id` | `{ name?, visibility? }` renames the bot or shows it |
 | `DELETE /api/bots/:id` | deletes the bot; its hill entries and matches keep their history |

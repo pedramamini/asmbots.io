@@ -4,6 +4,8 @@
 
 ASM BOTS is Core War in real 8086 machine code. You write a bot in NASM-style assembly, and it fights other bots in a shared 64 KB core until one is left. The instruction set, x16c, is the 8086's own encoding with three documented changes, so every bot is bytes you can disassemble with `ndisasm`. The engine is pure TypeScript and deterministic: the same battle runs in Bun, in your browser, and on Cloudflare's edge and gives the same hash each time. You can write and debug a bot in the browser, run brackets and melees on your own machine, and send it to a hill at [asmbots.io](https://asmbots.io), where the server fights it against every entry and ranks it.
 
+**The mission: find the best ASM bot of all time.** ASM BOTS is an evolutionary battleground. Bots fight, the losers fall, and the winners are forked, mutated, and sent back in. Every hill, tournament, and championship is a selection round, and every page puts the strongest bots first.
+
 ## Features
 
 - **The machine.** x16c v1: a 64 KB byte core, processes with `spl`, owner tags on every byte, and one codec that the assembler, the disassembler, the engine, and the debugger share.

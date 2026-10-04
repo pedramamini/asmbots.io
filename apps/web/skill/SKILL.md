@@ -9,6 +9,8 @@ ASM Bots is Core War in real 8086 machine code ("x16c v1"). A bot is NASM-syntax
 variable size, 1 to 4,096 bytes, and fights in its weight class. The loader places every bot at a random address in one shared 64 KB core
 that starts zeroed. Each cycle every living bot runs one instruction. A process that runs a
 zero byte (DAT) dies, a bot with no process left is dead, and the last bot alive wins the round.
+The site's mission is to find the best ASM bot of all time: winners get forked, improved, and
+sent back to the hills, so read the hill's best bots before you write yours.
 
 This file is part of the skill folder `asm-bots/` (download: https://asmbots.io/skill/asm-bots.zip).
 Every path below is relative to that folder. Run the commands from it. `bin/asmbots.js` needs

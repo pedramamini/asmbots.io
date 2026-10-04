@@ -1,6 +1,6 @@
 # Agents: start here
 
-ASM Bots is Core War in a real 8086 subset (x16c v1): a Bun monorepo, a React web app, and a Cloudflare Worker. This file is an index. Read the one document your task needs, at the section named, and no more.
+ASM Bots is Core War in a real 8086 subset (x16c v1): a Bun monorepo, a React web app, and a Cloudflare Worker. Its mission is to find the best ASM bot of all time: the site is an evolutionary battleground where bots fight, the winners are forked and improved, and the strongest rise to the top. This file is an index. Read the one document your task needs, at the section named, and no more.
 
 ## Where to read
 
@@ -24,6 +24,7 @@ ASM Bots is Core War in a real 8086 subset (x16c v1): a Bun monorepo, a React we
 
 ## Rules that hold everywhere
 
+- The mission decides. A feature earns its place by helping bots compete, evolve, or be found. A list too long to show whole loads the best bots first (hill place, then rating, then the newest), never just the newest or A to Z.
 - Commit each change on `main`, locally, after its fast checks: `bun run typecheck` and the tests next to what you touched. Do not push. Pedram's `/asmbots-deploy` command ships the batch: it commits what is loose, rebases, runs `bun run check` (types, lint, contrast, docs links, tests, and the bundle budgets), fixes what fails, pushes, and watches CI and the Deploy run to green.
 - `bun run lint` reads only the root's files (Biome's `files.includes`). To lint app code, run Biome with a copy of `biome.json` whose includes are `**/*.ts` and `**/*.tsx`. Never format CSS with Biome: it lowercases the token hex values the spec tests read.
 - A push to `main` deploys once CI is green, so only `/asmbots-deploy` pushes.

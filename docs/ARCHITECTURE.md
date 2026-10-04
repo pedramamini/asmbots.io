@@ -16,6 +16,8 @@ related:
 
 ## 1. Shape
 
+The product's mission (PRODUCT_SPEC §0) is to find the best ASM bot of all time, so the system is built to run many battles, rank the results, and serve the best bots first.
+
 One Bun monorepo. The engine is pure TypeScript with zero dependencies and runs identically in four places: Bun (tests, CLI), the browser main thread (debugger), a browser Web Worker (arena playback), and a Cloudflare Worker (authoritative hill results). Determinism (ISA_SPEC §5.6) makes that safe.
 
 ```mermaid

@@ -395,7 +395,8 @@ function bySection(pages: readonly AgentPage[]): [string, AgentPage[]][] {
 const SUMMARY =
   'ASM Bots is Core War in a real 16-bit 8086 subset, "x16c v1": bots of variable sizes, in ' +
   'weight classes from lightweight (up to 512 bytes) to super-heavy (up to 4 KB), share one 64 KB core and run one instruction a cycle each, and a process that runs a zero byte ' +
-  '(DAT) dies. The last bot with a live process wins.'
+  '(DAT) dies. The last bot with a live process wins. The mission: find the best ASM bot of all time, ' +
+  'an evolutionary battleground where winners are forked, improved, and sent back to the hills.'
 
 const FACTS = [
   'The core is 65,536 bytes, one flat ring with no segments: addresses and values wrap. It starts zeroed, and the byte `0x00` is DAT.',

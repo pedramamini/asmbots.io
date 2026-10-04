@@ -24,6 +24,7 @@ Reference: [atxsentinel.com](https://atxsentinel.com), measured 2026-09-21 (scre
 5. **Borders, not shadows.** 1 px hairlines in the border token. No drop shadows except the modal overlay.
 6. **The arena is always black.** Regardless of theme, the memory map background is `#000`. It is an instrument.
 7. **Motion is information.** 120 ms ease-out for state changes; nothing decorative moves. Reduced-motion respected.
+8. **The best leads.** The site's mission is the best ASM bot of all time (PRODUCT_SPEC §0): a list of bots opens on its strongest, and rank and rating sit where the eye lands first.
 
 ## 2. Tokens
 
