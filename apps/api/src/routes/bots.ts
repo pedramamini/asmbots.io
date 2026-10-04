@@ -11,7 +11,9 @@ import {
   MAX_VERSIONS_PER_BOT,
   NewBot,
   NewBotVersion,
+  type OwnBotList,
   PUBLIC_BOTS_TTL_SECONDS,
+  type PublicBot,
   type PublicBotList,
   parse,
   type SavedBot,
@@ -38,8 +40,11 @@ import {
   listBotPlacements,
   listBotSlugs,
   listBotVersions,
+  listOwnBots,
   listPublicBests,
   listPublicBots,
+  type PublicBestRow,
+  type PublicBotRow,
   toBot,
   toBotLabel,
   toBotVersion,
@@ -345,32 +350,58 @@ export function publicBotsOf(env: Env, now: number): Promise<PublicBotList> {
       listPublicBots(env.DB, MAX_PUBLIC_BOTS),
       listPublicBests(env.DB),
     ])
-    const listed = await Promise.all(
-      rows.map(async (row): Promise<PublicBotList['bots'][number] | null> => {
-        const object = await env.REPLAYS.get(botBytesKey(row.bytes_sha256))
-        if (object === null) return null
-        const best = bests.get(row.bot_id)
-        return {
-          bot: toBotLabel(row),
-          strategy: row.strategy,
-          bytes: toBase64(new Uint8Array(await object.arrayBuffer())),
-          updatedAt: row.updated_at,
-          best:
-            best === undefined
-              ? null
-              : {
-                  hill: { slug: best.hill_slug, name: best.hill_name },
-                  rank: best.rank,
-                  rating: best.rating,
-                  wins: best.wins,
-                  ties: best.ties,
-                  losses: best.losses,
-                },
-        }
-      }),
-    )
-    return { bots: listed.filter((bot) => bot !== null) }
+    return { bots: await withBytes(env, rows, bests, () => ({})) }
   })
+}
+
+/**
+ * `ownerId`'s bots as the arena fights them, every visibility, the best first: each with its
+ * latest version's machine code from R2. Not cached: an owner's change shows at once.
+ */
+export async function ownBotsOf(env: Env, ownerId: string): Promise<OwnBotList> {
+  const [rows, bests] = await Promise.all([
+    listOwnBots(env.DB, ownerId),
+    listPublicBests(env.DB, ownerId),
+  ])
+  return { bots: await withBytes(env, rows, bests, (row) => ({ visibility: row.visibility })) }
+}
+
+/**
+ * The listed bots of `rows`, in order: each with its machine code from R2 and its best hill place,
+ * and what `extra` adds. A bot whose bytes R2 does not have is left out.
+ */
+async function withBytes<Row extends PublicBotRow, Extra extends object>(
+  env: Env,
+  rows: readonly Row[],
+  bests: ReadonlyMap<string, PublicBestRow>,
+  extra: (row: Row) => Extra,
+): Promise<(PublicBot & Extra)[]> {
+  const listed = await Promise.all(
+    rows.map(async (row): Promise<(PublicBot & Extra) | null> => {
+      const object = await env.REPLAYS.get(botBytesKey(row.bytes_sha256))
+      if (object === null) return null
+      const best = bests.get(row.bot_id)
+      return {
+        bot: toBotLabel(row),
+        strategy: row.strategy,
+        bytes: toBase64(new Uint8Array(await object.arrayBuffer())),
+        updatedAt: row.updated_at,
+        best:
+          best === undefined
+            ? null
+            : {
+                hill: { slug: best.hill_slug, name: best.hill_name },
+                rank: best.rank,
+                rating: best.rating,
+                wins: best.wins,
+                ties: best.ties,
+                losses: best.losses,
+              },
+        ...extra(row),
+      }
+    }),
+  )
+  return listed.filter((bot) => bot !== null)
 }
 
 /** The most a request that carries one source may be: `MAX_SOURCE_TEXT` UTF-16 units as UTF-8. */

@@ -157,7 +157,7 @@ export type BotDetail = z.output<typeof BotDetail>
 export const BotVersionDetail = z.object({ version: BotVersion })
 export type BotVersionDetail = z.output<typeof BotVersionDetail>
 
-/** The most bots `GET /api/bots` lists: the latest changed. */
+/** The most bots `GET /api/bots` lists: the best (PRODUCT_SPEC §0), then the latest changed. */
 export const MAX_PUBLIC_BOTS = 500
 
 /** How long the API keeps the public bots before it reads them again, s. */
@@ -186,11 +186,23 @@ export const PublicBot = z.object({
 export type PublicBot = z.output<typeof PublicBot>
 
 /**
- * `GET /api/bots`: the public bots of every player (not the house's, which are the roster), the
- * latest changed first, at most `MAX_PUBLIC_BOTS`.
+ * `GET /api/bots`: the public bots of every player (not the house's, which are the roster), at
+ * most `MAX_PUBLIC_BOTS`: the best first (the best hill rank, then the best rating), then the
+ * latest changed, so a list too long to send whole keeps its best bots (PRODUCT_SPEC §0).
  */
 export const PublicBotList = z.object({ bots: z.array(PublicBot) })
 export type PublicBotList = z.output<typeof PublicBotList>
+
+/** One of the reader's own bots as the arena fights it: a `PublicBot`, and who may see it. */
+export const OwnBot = z.extend(PublicBot, { visibility: Visibility })
+export type OwnBot = z.output<typeof OwnBot>
+
+/**
+ * `GET /api/me/bots/arena`: the signed-in user's bots, every visibility, each at its latest
+ * version with its machine code: in `GET /api/bots`' order (the best first).
+ */
+export const OwnBotList = z.object({ bots: z.array(OwnBot) })
+export type OwnBotList = z.output<typeof OwnBotList>
 
 /** A user's best place on a hill: their highest-ranked bot version there. */
 export const HillBest = z.object({

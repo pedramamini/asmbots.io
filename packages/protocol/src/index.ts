@@ -59,6 +59,8 @@ export {
   NewApiToken,
   NewBot,
   NewBotVersion,
+  OwnBot,
+  OwnBotList,
   PUBLIC_BOTS_TTL_SECONDS,
   PublicBot,
   PublicBotList,

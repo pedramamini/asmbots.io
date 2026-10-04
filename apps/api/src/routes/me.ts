@@ -41,6 +41,7 @@ import {
 import type { AppEnv } from '../env'
 import { errorResponse, log } from '../middleware'
 import { classParam, idParam, wholeParam } from '../params'
+import { ownBotsOf } from './bots'
 
 function meBody(row: UserRow): Me {
   return { user: toUser(row, true), onboarded: row.onboarded_at !== null }
@@ -60,6 +61,8 @@ async function gone(c: Context<AppEnv>): Promise<Response> {
  * name, and login are GitHub's, refreshed at each sign-in.
  * `GET /api/me/bots`: the signed-in user's bots, private ones too, each with its latest version.
  * `?class=` (a weight class slug) keeps only the bots whose latest version is in that class.
+ * `GET /api/me/bots/arena`: the same bots as the arena fights them (`ownBotsOf`): each at its
+ * latest version with its machine code, best hill place, and visibility, the best first.
  * `GET /api/me/audit?limit=`: the signed-in user's changes (`AUDIT_ACTIONS`), newest first; `limit`
  * is 1..100, 50 when left out.
  * `DELETE /api/me`: deletes the account (`deleteAccount`) and ends every session it has. 204.
@@ -87,6 +90,10 @@ export const me = new Hono<AppEnv>()
     const band = classParam(c.req.query('class'))
     const bots = await listMyBots(c.env.DB, c.get('session')?.userId ?? '', band)
     return c.json({ bots } satisfies MyBotList)
+  })
+  .get('/bots/arena', requireUser, async (c) => {
+    c.header('Cache-Control', 'private, no-store')
+    return c.json(await ownBotsOf(c.env, c.get('session')?.userId ?? ''))
   })
   .get('/audit', requireUser, async (c) => {
     const limit = wholeParam(c.req.query('limit'), 'the limit', 1, 100, 50)

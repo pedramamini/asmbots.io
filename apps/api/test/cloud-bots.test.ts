@@ -10,6 +10,7 @@ import {
   MAX_BOTS_PER_USER,
   MAX_VERSIONS_PER_BOT,
   MyBotList,
+  OwnBotList,
   PublicBotList,
   parse,
   SavedBot,
@@ -19,6 +20,7 @@ import {
   UserDetail,
 } from '@asmbots/protocol'
 import { describe, expect, it } from 'vitest'
+import { PUBLIC_BOTS_KEY } from '../src/routes/bots'
 import { botBytesKey } from '../src/storage'
 import { errorOf, HALT, me, SPIN, send, signIn } from './fake-auth'
 import { Jar } from './jar'
@@ -225,6 +227,54 @@ describe('GET /api/bots', () => {
         best: null,
       },
     ])
+  })
+})
+
+/** Puts `versionId` on a new hill `slug` at `rank`, rated `rating`. */
+async function placeOnHill(slug: string, versionId: string, rank: number, rating: number) {
+  const config = { coreSize: 65536, maxCycles: 100000, maxProcesses: 64, minSpacing: 512 }
+  await env.DB.batch([
+    env.DB.prepare(
+      `INSERT INTO hills (id, slug, name, size, rounds, config_json) VALUES (?1, ?1, ?1, 10, 1, ?2)`,
+    ).bind(slug, JSON.stringify({ ...config, maxBotBytes: 512 })),
+    env.DB.prepare(
+      'INSERT INTO hill_entries (hill_id, bot_version_id, rank, rating) VALUES (?, ?, ?, ?)',
+    ).bind(slug, versionId, rank, rating),
+  ])
+}
+
+describe('the best first', () => {
+  it('GET /api/bots lists a bot with a hill place before a newer one without', async () => {
+    const { saved: placed } = await withBot('best-first-a')
+    await placeOnHill('best-first', placed.version.id, 2, 1600)
+    const { saved: newer } = await withBot('best-first-b', HALT)
+    // The list is cached a minute: an earlier test's read would hide these bots.
+    await env.KV.delete(PUBLIC_BOTS_KEY)
+    const { bots } = parse(PublicBotList, await (await send(new Jar(), '/api/bots')).json(), '')
+    const ids = bots.map((b) => b.bot.botId)
+    expect(ids.indexOf(placed.bot.id)).toBeLessThan(ids.indexOf(newer.bot.id))
+    expect(bots.find((b) => b.bot.botId === placed.bot.id)?.best?.rank).toBe(2)
+  })
+
+  it('GET /api/me/bots/arena: mine, every visibility, with bytes, the best first', async () => {
+    const { jar, saved: open } = await withBot('own-lister', SPIN, 'public')
+    const hidden = await send(jar, '/api/bots', {
+      method: 'POST',
+      body: { name: 'Halt', source: HALT, visibility: 'private' },
+    })
+    const closed = parse(SavedBot, await hidden.json(), 'the bot')
+    await placeOnHill('own-best', closed.version.id, 1, 1700)
+    await withBot('own-lister-rival')
+    const res = await send(jar, '/api/me/bots/arena')
+    expect(res.headers.get('Cache-Control')).toBe('private, no-store')
+    const { bots } = parse(OwnBotList, await res.json(), 'my arena bots')
+    expect(bots.map((b) => [b.bot.botId, b.visibility, b.best?.rank ?? null])).toEqual([
+      [closed.bot.id, 'private', 1],
+      [open.bot.id, 'public', null],
+    ])
+    const bytes = await env.REPLAYS.get(botBytesKey(open.version.bytesSha256))
+    expect(bots[1]?.bytes).toBe(toBase64(new Uint8Array((await bytes?.arrayBuffer()) ?? [])))
+    expect((await send(new Jar(), '/api/me/bots/arena')).status).toBe(401)
   })
 })
 
