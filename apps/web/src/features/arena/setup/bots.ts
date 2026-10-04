@@ -17,8 +17,10 @@ import { type BattleConfigInput, CORE_SIZE, Pcg32, PlacementError, place } from 
 import {
   fromBase64,
   HOUSE_HANDLE,
+  type OwnBot,
   type PublicBot,
   type PublicBotList,
+  type Visibility,
   weightClassOf,
 } from '@asmbots/protocol'
 import { roundOrder, roundSeed } from '@asmbots/tourney'
@@ -60,8 +62,28 @@ export interface CatalogBot {
   readonly assembled: AssembledBot
   /** A roster bot's entry: its tier, family, and blurb. */
   readonly roster?: RosterEntry | undefined
-  /** A public bot's listing: its owner, its version, and its best hill place. */
-  readonly cloud?: PublicBot | undefined
+  /**
+   * A server bot's listing: its owner, its version, and its best hill place; and who may see it,
+   * for one of my own (`OwnBot`).
+   */
+  readonly cloud?: PublicBot | OwnBot | undefined
+  /** A local bot's account bot (`LocalBot.cloudId`), when it is kept in my account. */
+  readonly account?: OwnBot | undefined
+}
+
+/** A bot's server listing: a server bot's own, or the account bot a local bot is kept as. */
+export function listingOf(bot: CatalogBot): PublicBot | OwnBot | undefined {
+  return bot.cloud ?? bot.account
+}
+
+/**
+ * Who may see one of my bots (PRODUCT_SPEC §0): its account bot's visibility, or `local` for one
+ * kept in this browser only. Null for a bot not mine to change: the roster's, a player's, a link's.
+ */
+export function visibilityOf(bot: CatalogBot): Visibility | 'local' | null {
+  const listing = listingOf(bot)
+  if (listing !== undefined && 'visibility' in listing) return listing.visibility
+  return bot.origin === 'local' ? 'local' : null
 }
 
 /** The errors of a bot's assembly: a bot with any makes no bytes (ISA §6.5). */
@@ -102,7 +124,7 @@ export function rosterCatalog(): readonly CatalogBot[] {
 const TIER_ORDER = ['showcase', 'solid', 'test'] as const
 
 /** A player's public bot: prebuilt, as the server lists it with its bytes. */
-export function cloudCatalog(bot: PublicBot): CatalogBot {
+export function cloudCatalog(bot: PublicBot | OwnBot): CatalogBot {
   const { botId, name, owner, author } = bot.bot
   return {
     ref: { kind: 'cloud', id: botId },
@@ -137,6 +159,41 @@ export function cloudMap(
 /** A local bot, assembled. */
 export function localCatalog(bot: LocalBot, assemble: Assemble): CatalogBot {
   return sourceBot({ kind: 'local', id: bot.id }, 'local', bot.source, bot.name, assemble)
+}
+
+/**
+ * My bots (PRODUCT_SPEC §2): this browser's, each with the account bot it is kept as, and then my
+ * account's bots that no local bot holds, prebuilt as the server lists them. A bot is listed once:
+ * the local copy wins, since it holds what I last wrote.
+ */
+export function mineCatalog(
+  local: readonly CatalogBot[],
+  links: ReadonlyMap<string, string>,
+  own: readonly OwnBot[],
+): CatalogBot[] {
+  const byId = new Map(own.map((bot) => [bot.bot.botId, bot]))
+  const held = new Set<string>()
+  const mine = local.map((bot): CatalogBot => {
+    const cloudId = bot.ref.kind === 'local' ? links.get(bot.ref.id) : undefined
+    const account = cloudId === undefined ? undefined : byId.get(cloudId)
+    if (account === undefined) return bot
+    held.add(account.bot.botId)
+    return { ...bot, account }
+  })
+  return [...mine, ...own.filter((bot) => !held.has(bot.bot.botId)).map(cloudCatalog)]
+}
+
+/**
+ * The server bots `BotSources` resolves `cloud:` refs from: the public ones and my own (a private
+ * one too). Null while either list loads.
+ */
+export function withOwn(
+  cloud: ReadonlyMap<string, CatalogBot> | null,
+  own: readonly OwnBot[] | null,
+): ReadonlyMap<string, CatalogBot> | null {
+  if (cloud === null || own === null) return null
+  if (own.length === 0) return cloud
+  return new Map([...cloud, ...own.map((bot) => [bot.bot.botId, cloudCatalog(bot)] as const)])
 }
 
 /** A bot a share link carries, assembled. */
@@ -177,9 +234,10 @@ export function matchesQuery(bot: CatalogBot, query: string): boolean {
     entry?.family,
     entry?.tier,
     entry?.blurb,
-    bot.cloud?.bot.owner,
-    bot.cloud?.strategy,
-    bot.cloud?.best?.hill.name,
+    listingOf(bot)?.bot.owner,
+    listingOf(bot)?.strategy,
+    listingOf(bot)?.best?.hill.name,
+    visibilityOf(bot),
   ]
     .join(' ')
     .toLowerCase()
@@ -235,10 +293,10 @@ export const BOT_SORTS = [
   { value: 'size', label: 'size' },
 ] as const satisfies readonly { value: BotSort; label: string }[]
 
-/** A public bot's best hill place before another's: the better rank, then the higher rating. */
+/** A server bot's best hill place before another's: the better rank, then the higher rating. */
 function byHill(a: CatalogBot, b: CatalogBot): number {
-  const x = a.cloud?.best ?? null
-  const y = b.cloud?.best ?? null
+  const x = listingOf(a)?.best ?? null
+  const y = listingOf(b)?.best ?? null
   if (x === null || y === null) return x === y ? 0 : x === null ? 1 : -1
   return x.rank - y.rank || y.rating - x.rating
 }
@@ -254,7 +312,7 @@ export function sortBots(
   records: Readonly<Record<string, BotRecord>>,
 ): CatalogBot[] {
   const score = (bot: CatalogBot) => rankScore(records[formatRef(bot.ref)])
-  const changed = (bot: CatalogBot) => bot.cloud?.updatedAt ?? ''
+  const changed = (bot: CatalogBot) => listingOf(bot)?.updatedAt ?? ''
   const compare: Record<BotSort, (a: CatalogBot, b: CatalogBot) => number> = {
     rank: (a, b) => score(b) - score(a) || byHill(a, b),
     hill: byHill,

@@ -19,7 +19,7 @@ weight class, none takes any size), and a share link carries the same query (`@a
 `encodeShare`) and its local bots' sources in `#src=` (deflated JSON, base64url).
 `setup/search.ts`, the route's `validateSearch`, imports no code, since it rides the entry chunk.
 `setup/config.ts` has the limits, the presets, and the class (`ArenaConfig.weight`, which no preset
-sets), and `setup/bots.ts` the roster, the local and shared bots, the bots outside the class
+sets), and `setup/bots.ts` the roster, the local and shared bots, my bots (`mineCatalog`: the local bots with their account bots, then the account's others from `api/own-bots.ts`; `visibilityOf`, drawn by `features/bots/visibility.tsx`), the bots outside the class
 (`outsideWeight`), the ranking (`byRank`, `ranksOf`, `bestFill`), and the fight button's words.
 The ranking reads `store/bot-records.ts` (localStorage); `battle/rate.ts`, a chunk with Glicko-2
 that `ArenaBattle` loads as a match ends, counts the match there once per match key. Click-only parts load as their own chunks, since

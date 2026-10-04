@@ -1,4 +1,4 @@
-import { HOUSE_HANDLE, type Me, weightClassOf } from '@asmbots/protocol'
+import { HOUSE_HANDLE, type Me, type OwnBot, weightClassOf } from '@asmbots/protocol'
 import {
   Button,
   Chip,
@@ -26,6 +26,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { useOwnBots } from '../../api/own-bots'
 import { useMe, usePublicBots } from '../../api/queries'
 import { type Author, AuthorLink, ByAuthor, ownerAuthor, sourceAuthor } from '../../app/author'
 import { ARENA_ABOUT, ArenaKinds } from '../../app/intros/arena'
@@ -36,6 +37,7 @@ import { useRouteStat } from '../../app/slots'
 import { type BotRecord, gamesOf, useBotRecords } from '../../store/bot-records'
 import { type LocalBot, useLocalBotActions, useLocalBots } from '../../store/local-bots'
 import { type ArenaConfig, useSettings } from '../../store/settings'
+import { VisibilityChip } from '../bots/visibility'
 import {
   inWeight,
   WEIGHT_FILTERS,
@@ -57,9 +59,11 @@ import {
   errorsOf,
   fightSeed,
   fightStatus,
+  listingOf,
   localCatalog,
   matchesQuery,
   maxSpacing,
+  mineCatalog,
   outsideWeight,
   ownerOf,
   ownersOf,
@@ -71,6 +75,8 @@ import {
   sharedSources,
   sizesOf,
   sortBots,
+  visibilityOf,
+  withOwn,
 } from './setup/bots'
 import { ConfigForm } from './setup/ConfigForm'
 import {
@@ -108,6 +114,9 @@ const SOURCES = [
   { value: 'mine', label: 'my bots' },
   { value: 'paste', label: 'paste' },
 ] as const satisfies readonly { value: Source; label: string }[]
+
+/** No account bots: signed out, or the list cannot be read. One array, so memos keep. */
+const NO_BOTS: readonly OwnBot[] = []
 
 /** The most players the roster's player filter names: the ones with the most bots. */
 const PLAYER_PILLS = 6
@@ -173,9 +182,16 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
   const publicBots = usePublicBots(
     source === 'roster' || spec.bots.some((ref) => ref.kind === 'cloud'),
   )
+  // My account's bots, private ones too: listed in my bots, and a `cloud:` ref's bot when it is
+  // mine. Signed out, there are none.
+  const signedIn = me !== null && me !== undefined
+  const ownBots = useOwnBots(
+    signedIn && (source === 'mine' || spec.bots.some((ref) => ref.kind === 'cloud')),
+  )
+  const own = !signedIn || ownBots.isError ? NO_BOTS : (ownBots.data?.bots ?? null)
   const cloud = useMemo(
-    () => cloudMap(publicBots.data, publicBots.isError),
-    [publicBots.data, publicBots.isError],
+    () => withOwn(cloudMap(publicBots.data, publicBots.isError), own),
+    [publicBots.data, publicBots.isError, own],
   )
   const selection = useMemo(
     () => resolveSelection(spec.bots, { local, shared, assemble, cloud }),
@@ -187,14 +203,17 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
     if (spec.config.minSpacing <= spacingCap) return
     onSpecChange((s) => ({ ...s, config: withConfig(s.config, { minSpacing: spacingCap }) }))
   }, [spacingCap, spec.config.minSpacing, onSpecChange])
-  // My bots, assembled: null until the store is read and the assembler has loaded.
-  const mine = useMemo(
-    () =>
-      assemble === null || localBots.data === undefined
-        ? null
-        : localBots.data.map((bot) => localCatalog(bot, assemble)),
-    [localBots.data, assemble],
-  )
+  // My bots: this browser's, assembled, and my account's. Null until the store is read, the
+  // assembler has loaded, and the account's list has come.
+  const mine = useMemo(() => {
+    if (assemble === null || localBots.data === undefined || own === null) return null
+    const links = new Map(localBots.data.flatMap((b) => (b.cloudId ? [[b.id, b.cloudId]] : [])))
+    return mineCatalog(
+      localBots.data.map((bot) => localCatalog(bot, assemble)),
+      links,
+      own,
+    )
+  }, [localBots.data, assemble, own])
   // The arena's class, when it has one, holds the picker's weight filter to it.
   const locked = spec.config.weight !== 'all'
   const filter: WeightFilter = locked ? spec.config.weight : weight
@@ -223,7 +242,8 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
       value: o.owner,
       label: (
         <>
-          {ownerAuthor(o.owner).name} {count(shown.filter((bot) => ownerOf(bot) === o.owner).length)}
+          {ownerAuthor(o.owner).name}{' '}
+          {count(shown.filter((bot) => ownerOf(bot) === o.owner).length)}
         </>
       ),
     })),
@@ -465,7 +485,13 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
           className="col-span-12 lg:col-span-8"
           data-tour="arena-roster"
           title={SOURCES.find((s) => s.value === source)?.label}
-          status={source === 'roster' ? rosterStatus : undefined}
+          status={
+            source === 'roster'
+              ? rosterStatus
+              : source === 'mine' && mine !== null
+                ? `${mine.length} bots`
+                : undefined
+          }
           actions={
             <>
               {source !== 'paste' && (
@@ -577,8 +603,8 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
             )}
             {source === 'mine' && (
               <MineGrid
-                bots={localBots.data}
                 catalog={mine}
+                signedIn={signedIn}
                 listed={listed}
                 empty={`none of my ${kind}bots${matching}.`}
                 records={records}
@@ -738,7 +764,13 @@ interface GridProps {
   onErrors: (bot: CatalogBot) => void
 }
 
-/** Bot cards, three across on a wide screen. */
+/**
+ * The most cards a grid draws at first (PRODUCT_SPEC §0, scale loads the best): the list's first,
+ * which the default sort makes its best; `show more` draws the next as many.
+ */
+export const GRID_PAGE = 60
+
+/** Bot cards, three across on a wide screen: the first `GRID_PAGE`, then more on request. */
 function BotGrid({
   bots,
   records,
@@ -758,24 +790,36 @@ function BotGrid({
   coach?: ReactNode
 }) {
   const counts = pickCounts(picked)
+  const [shown, setShown] = useState(GRID_PAGE)
   if (bots.length === 0) return empty
+  const more = Math.min(GRID_PAGE, bots.length - shown)
   return (
-    <ul aria-label="bots to add" className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-      {bots.map((bot, index) => (
-        <BotCard
-          key={formatRef(bot.ref)}
-          bot={bot}
-          record={records[formatRef(bot.ref)]}
-          rank={ranks.get(formatRef(bot.ref))}
-          author={catalogAuthor(bot, me)}
-          count={counts.get(formatRef(bot.ref)) ?? 0}
-          full={full}
-          onAdd={() => onAdd(bot)}
-          onErrors={() => onErrors(bot)}
-          coach={index === 0 ? coach : undefined}
-        />
-      ))}
-    </ul>
+    <>
+      <ul aria-label="bots to add" className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        {bots.slice(0, shown).map((bot, index) => (
+          <BotCard
+            key={formatRef(bot.ref)}
+            bot={bot}
+            record={records[formatRef(bot.ref)]}
+            rank={ranks.get(formatRef(bot.ref))}
+            author={catalogAuthor(bot, me)}
+            count={counts.get(formatRef(bot.ref)) ?? 0}
+            full={full}
+            onAdd={() => onAdd(bot)}
+            onErrors={() => onErrors(bot)}
+            coach={index === 0 ? coach : undefined}
+          />
+        ))}
+      </ul>
+      {more > 0 && (
+        <p className="flex items-center justify-center gap-3 text-data text-muted">
+          {shown} of {bots.length}, in this order
+          <Button size="sm" onClick={() => setShown((n) => n + GRID_PAGE)}>
+            show {more} more
+          </Button>
+        </p>
+      )}
+    </>
   )
 }
 
@@ -828,7 +872,8 @@ function BotCard({
   const broken = errorsOf(bot).length > 0
   const weight = broken ? null : weightClassOf(bytes.length)
   const blurb = bot.roster?.blurb ?? bot.assembled.strategy
-  const hill = bot.cloud?.best ?? null
+  const hill = listingOf(bot)?.best ?? null
+  const visibility = visibilityOf(bot)
   return (
     <li
       aria-label={bot.name}
@@ -899,27 +944,32 @@ function BotCard({
             {coach}
           </span>
         )}
-        <Chip variant={bot.roster?.tier === 'showcase' ? 'accent' : 'neutral'}>
-          {bot.roster?.tier ?? ORIGIN_LABEL[bot.origin]}
-        </Chip>
+        {visibility === null ? (
+          <Chip variant={bot.roster?.tier === 'showcase' ? 'accent' : 'neutral'}>
+            {bot.roster?.tier ?? ORIGIN_LABEL[bot.origin]}
+          </Chip>
+        ) : (
+          <VisibilityChip visibility={visibility} />
+        )}
       </div>
     </li>
   )
 }
 
-/** The local bots as cards, or the one sentence that says there are none. */
+/** My bots, this browser's and my account's, as cards; or the one sentence that says there are none. */
 function MineGrid({
-  bots,
   catalog,
+  signedIn,
   listed,
   empty,
   write,
   clearSearch,
   ...grid
 }: GridProps & {
-  bots: readonly LocalBot[] | undefined
-  /** The bots, assembled: null while the assembler loads. */
+  /** The bots: null while the store is read, the assembler loads, or the account's list comes. */
   catalog: readonly CatalogBot[] | null
+  /** Whether the account's bots are in it. */
+  signedIn: boolean
   /** The ones that match the search and the weight class. */
   listed: readonly CatalogBot[]
   /** What shows when none does. */
@@ -928,10 +978,13 @@ function MineGrid({
   write: EmptyStateAction
   clearSearch: EmptyStateAction
 }) {
-  if (bots === undefined || (catalog === null && bots.length > 0))
-    return <p className="px-1 py-6 text-center text-muted">reading my bots…</p>
-  if (bots.length === 0) {
-    return <EmptyState action={write}>no bots in this browser yet.</EmptyState>
+  if (catalog === null) return <p className="px-1 py-6 text-center text-muted">reading my bots…</p>
+  if (catalog.length === 0) {
+    return (
+      <EmptyState action={write}>
+        {signedIn ? 'no bots in this browser or my account yet.' : 'no bots in this browser yet.'}
+      </EmptyState>
+    )
   }
   return (
     <BotGrid
