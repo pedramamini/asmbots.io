@@ -6,8 +6,12 @@
   "name": "asmbots",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-15",
-  // The share cards' font (src/og/fonts): a `.ttf` import is its bytes, an ArrayBuffer.
-  "rules": [{ "type": "Data", "globs": ["**/*.ttf"], "fallthrough": true }],
+  // The share cards' font (src/og/fonts): a `.ttf` import is its bytes, an ArrayBuffer. The AI
+  // mode's prompt (src/ai/prompt.ts): a `.md` import is its text.
+  "rules": [
+    { "type": "Data", "globs": ["**/*.ttf"], "fallthrough": true },
+    { "type": "Text", "globs": ["**/*.md"], "fallthrough": true }
+  ],
   // Production domain: a Workers Custom Domain on the asmbots.io zone (same Cloudflare account).
   "routes": [{ "pattern": "asmbots.io", "custom_domain": true }],
   "assets": {

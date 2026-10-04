@@ -10,8 +10,9 @@ export default defineConfig(async () => {
   const migrations = await readD1Migrations('src/db/migrations')
   return {
     plugins: [
-      // The roster's `.asm` sources, for the goldens (`test/goldens.test.ts`).
-      textImport(),
+      // The roster's `.asm` sources, for the goldens (`test/goldens.test.ts`), and the skill the
+      // AI mode's prompt reads (`src/ai/prompt.ts`).
+      textImport((file) => file.endsWith('.md')),
       cloudflareTest({
         wrangler: { configPath: './wrangler.jsonc' },
         // Never a remote binding: a binding marked `remote` would run the tests on production data.

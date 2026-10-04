@@ -4,6 +4,14 @@
  * runs in the browser, the Worker, and Bun: no Node built-ins.
  */
 export {
+  AiChatRequest,
+  type AiEvent,
+  AiTurn,
+  MAX_AI_SOURCE_CHARS,
+  MAX_AI_TURN_CHARS,
+  MAX_AI_TURNS,
+} from './ai'
+export {
   AdminJob,
   AdminRoom,
   AdminStats,

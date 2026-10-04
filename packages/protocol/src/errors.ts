@@ -12,6 +12,8 @@ export const ERROR_STATUS = {
   unprocessable: 422,
   rate_limited: 429,
   internal: 500,
+  /** A service the route needs is off: the AI mode with no key, or past its day's spend. */
+  unavailable: 503,
 } as const
 export type ErrorCode = keyof typeof ERROR_STATUS
 

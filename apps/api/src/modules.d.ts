@@ -8,6 +8,12 @@ declare module '*.wasm' {
   export default module
 }
 
+/** A Markdown file's text (the `Text` rule in `wrangler.jsonc`): the AI mode's prompt reads the skill. */
+declare module '*.md' {
+  const text: string
+  export default text
+}
+
 declare module '*.ttf' {
   const bytes: ArrayBuffer
   export default bytes

@@ -98,13 +98,14 @@ Commit the migration; it will run automatically on the next deploy.
 
 ## Rotating Secrets
 
-Three secrets are managed via `wrangler secret put`. They are stored in Cloudflare Workers Secrets (encrypted, not visible in any UI after set):
+Four secrets are managed via `wrangler secret put`. They are stored in Cloudflare Workers Secrets (encrypted, not visible in any UI after set):
 
 | Secret | For | Where |
 | --- | --- | --- |
 | `GITHUB_CLIENT_ID` | GitHub OAuth | OAuth app at https://github.com/settings/developers |
 | `GITHUB_CLIENT_SECRET` | GitHub OAuth | OAuth app at https://github.com/settings/developers |
 | `SESSION_SECRET` | Signs session cookies | Keychain service `asmbots/prod` |
+| `ANTHROPIC_API_KEY` | The editor's AI mode; unset, it answers 503 | Anthropic Console, Keychain service `asmbots/prod` |
 
 ### Update a secret
 

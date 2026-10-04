@@ -54,6 +54,17 @@ export const TOURNAMENT_LIMIT: RateLimit = {
   counts: (status) => status === 201,
 }
 
+/**
+ * `POST /api/ai/chat`: turns of the editor's AI mode a user takes an hour. Only a turn that ran
+ * (200) counts. Each one's cost also counts against a daily cap in dollars (`ai/spend.ts`).
+ */
+export const AI_LIMIT: RateLimit = {
+  scope: 'ai',
+  limit: 30,
+  windowSeconds: 60 * 60,
+  counts: (status) => status === 200,
+}
+
 /** The client's IP as Cloudflare saw it; `unknown` only outside Cloudflare's edge. */
 export function clientIp(request: Request): string {
   return request.headers.get('CF-Connecting-IP') ?? 'unknown'

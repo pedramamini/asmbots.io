@@ -32,6 +32,9 @@ Copy `.dev.vars.example` to `.dev.vars` (git-ignored) for `wrangler dev`. Produc
 | --- | --- |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | GitHub sign-in (OAuth app) |
 | `SESSION_SECRET` | Signs the session cookie |
+| `ANTHROPIC_API_KEY` | The editor's AI mode (`POST /api/ai/chat`). Unset: the route answers 503 `unavailable` |
+
+The AI mode's vars, all optional: `AI_MODEL` (`claude-sonnet-5-5`; `claude-haiku-4-5` and `claude-opus-5-5` too, the prices in `src/ai/spend.ts`), `AI_GATEWAY_URL` (Cloudflare AI Gateway's Anthropic endpoint, `https://gateway.ai.cloudflare.com/v1/<account>/<gateway>/anthropic`, for its logs and spend charts; unset, the Anthropic API's own), `AI_DAILY_USD` (the site's spend a UTC day, 5) and `AI_USER_DAILY_USD` (each user's, 0.5).
 
 ## Bindings (`wrangler.jsonc`)
 
@@ -81,6 +84,7 @@ Rate limits (`src/rate-limit.ts`, fixed one-minute windows in KV) count a signed
 | Every `/api/auth/*` request, reads too (a sign-in is two) | 10 |
 | `POST /api/hills/:slug/submit`: submissions made (201) only, so a refused one costs nothing | 5 an hour |
 | `POST /api/tournaments`: tournaments made (201) only | 5 an hour |
+| `POST /api/ai/chat`: turns that ran (200) only; each turn's cost also counts against the day's caps in dollars (`src/ai/spend.ts`, KV `ai:spend:<day>` and `ai:spend:<day>:u:<user>`) | 30 an hour |
 
 The audit log (D1 `audit`: `id, user_id, action, target, at`) gets a row in the same batch as each change: `bot.create` (per imported bot too), `bot.update`, `bot.version` (target `<bot id>/v<n>`; a save of the same bytes makes none), `bot.delete`, `hill.submit` (target the submission id), `tournament.create` and `tournament.enter` (target the tournament id), `token.create` and `token.delete` (target the API token id) (`auditInsert` in `src/db/queries.ts`).
 
@@ -121,6 +125,7 @@ Test sign-in: with the var `DEV_FAKE_AUTH=1` (`wrangler dev --var DEV_FAKE_AUTH:
 | `DELETE /api/me/layouts/:id` | 204; 404 when it is not theirs |
 | `GET /api/version` | `{ version, isa, live }` (`live`: the `LiveRoom` protocol version) |
 | `POST /api/assemble` | `{ source }` → `{ bytes, size, diagnostics, sha256 }`; `bytes: null` when the source has errors |
+| `POST /api/ai/chat` | `{ turns: [{ role, text }], source, hill }`, signed in: a turn of the editor's AI mode (PRODUCT_SPEC §3). The model (`AI_MODEL`) reads a cached system prompt (the role, then the skill's cheat sheet and strategy families from `apps/web/skill/SKILL.md`) and the hill's top 10 with the public source of its top 3 (`src/ai/competitors.ts`); the editor's source opens the user's last turn. Its tools: `write_bot` (the server assembles and lints the whole bot and answers with its size, errors, and warnings, and whether it fits the hill's band) and `read_bot` (an entry by rank; a private bot's source stays its owner's). At most 6 model calls a turn, the last one words only. Answers `text/event-stream`, one `AiEvent` (`packages/protocol/src/ai.ts`) a `data:` line: `text`, `status`, `source`, then `done` with the turn's cost or `error`. 401 signed out, 404 for no hill, 429 past the user's day, 503 with no key or past the site's day |
 | `GET /api/bots` | The bots of every player, every visibility, not the house's (those are the roster), each at its latest version: `{ bots: [{ bot, strategy, bytes, updatedAt, best, visibility }] }`, `bytes` its machine code in base64 from R2, `best` its best hill place (any version's) or null. Every bot fights in the arena: a private bot's machine code is listed, its source and page are not. The best first (the best hill rank of any version, then the best rating), then the latest changed, at most 500, so a cut keeps the best (PRODUCT_SPEC §0). From KV (`bots:arena`) while younger than 60 s; `Cache-Control: public, max-age=60`. The arena's roster lists them |
 | `POST /api/bots` | `{ name, source, visibility? }`, signed in: assembled here (422 with the first error when it does not), made a bot at version 1 (public by default, bytes in R2) → 201 `{ bot, version }`. 409 past 200 bots an account (deleted ones do not count) |
 | `PATCH /api/bots/:id` | `{ name?, visibility? }` (at least one), the owner only: 403 to another who can see it, 404 to one who cannot. The slug stays → `{ bot }` |

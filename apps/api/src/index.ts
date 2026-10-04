@@ -12,6 +12,7 @@ import { scheduled } from './cron'
 import type { AppEnv, Env } from './env'
 import { appCors, errorResponse, isApi, onError, requestLog, securityHeaders } from './middleware'
 import {
+  AI_LIMIT,
   ASSEMBLE_LIMIT,
   AUTH_LIMIT,
   BOTS_LIMIT,
@@ -22,6 +23,7 @@ import {
   WRITE_LIMIT,
 } from './rate-limit'
 import { admin } from './routes/admin'
+import { ai } from './routes/ai'
 import { assembler } from './routes/assemble'
 import { bots } from './routes/bots'
 import { championships } from './routes/championships'
@@ -55,6 +57,7 @@ app.use('/api/auth/*', refuseToken)
 app.use('/api/admin/*', refuseToken)
 app.on(['POST', 'PUT', 'PATCH', 'DELETE'], '/api/*', rateLimit(WRITE_LIMIT))
 app.use('/api/auth/*', rateLimit(AUTH_LIMIT))
+app.post('/api/ai/*', rateLimit(AI_LIMIT))
 app.post('/api/assemble', rateLimit(ASSEMBLE_LIMIT))
 // `/api/bots/*` covers `/api/bots` too: a second pattern for it would count each request twice.
 app.post('/api/bots/*', rateLimit(BOTS_LIMIT))
@@ -67,6 +70,7 @@ app.route('/api/version', version)
 app.route('/api/auth', auth)
 app.route('/api/me', me)
 app.route('/api/admin', admin)
+app.route('/api/ai', ai)
 app.route('/api/assemble', assembler)
 app.route('/api/bots', bots)
 app.route('/api/championships', championships)
