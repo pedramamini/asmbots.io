@@ -83,6 +83,7 @@ describe('the schema', () => {
       'hill_entries_rank',
       'hill_history_hill_at',
       'hill_history_submission',
+      'hill_history_version',
       'hill_submissions_active',
       'hill_submissions_hill',
       'hill_submissions_user',
