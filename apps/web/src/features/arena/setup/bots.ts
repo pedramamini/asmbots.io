@@ -77,12 +77,12 @@ export function listingOf(bot: CatalogBot): PublicBot | OwnBot | undefined {
 }
 
 /**
- * Who may see one of my bots (PRODUCT_SPEC §0): its account bot's visibility, or `local` for one
- * kept in this browser only. Null for a bot not mine to change: the roster's, a player's, a link's.
+ * Who may see a bot (PRODUCT_SPEC §0): a server bot's visibility, mine or a player's, or `local`
+ * for one kept in this browser only. Null for the roster's and a link's.
  */
 export function visibilityOf(bot: CatalogBot): Visibility | 'local' | null {
   const listing = listingOf(bot)
-  if (listing !== undefined && 'visibility' in listing) return listing.visibility
+  if (listing !== undefined) return listing.visibility
   return bot.origin === 'local' ? 'local' : null
 }
 

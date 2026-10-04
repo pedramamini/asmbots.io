@@ -213,23 +213,29 @@ describe('visibility', () => {
 })
 
 describe('GET /api/bots', () => {
-  it('lists the public bots with their bytes, not a private one, cached a minute', async () => {
+  it('lists every bot, a private one too, with its bytes and visibility, cached a minute', async () => {
     const { saved: open } = await withBot('lister')
-    await withBot('lister-b', HALT, 'private')
+    const { saved: closed } = await withBot('lister-b', HALT, 'private')
     const res = await send(new Jar(), '/api/bots')
     expect(res.headers.get('Cache-Control')).toBe('public, max-age=60')
-    const { bots: all } = parse(PublicBotList, await res.json(), 'the public bots')
+    const { bots: all } = parse(PublicBotList, await res.json(), 'the arena bots')
     const bots = all.filter((b) => b.bot.owner.startsWith('lister'))
     const bytes = await env.REPLAYS.get(botBytesKey(open.version.bytesSha256))
-    expect(bots).toEqual([
-      {
-        bot: expect.objectContaining({ botId: open.bot.id, owner: 'lister', version: 1 }),
-        strategy: 'Jump to itself',
-        bytes: toBase64(new Uint8Array((await bytes?.arrayBuffer()) ?? [])),
-        updatedAt: open.bot.updatedAt,
-        best: null,
-      },
-    ])
+    expect(bots).toContainEqual({
+      bot: expect.objectContaining({ botId: open.bot.id, owner: 'lister', version: 1 }),
+      strategy: 'Jump to itself',
+      bytes: toBase64(new Uint8Array((await bytes?.arrayBuffer()) ?? [])),
+      updatedAt: open.bot.updatedAt,
+      best: null,
+      visibility: 'public',
+    })
+    // A private bot fights in the arena: its machine code is listed, its source stays hidden.
+    const hidden = bots.find((b) => b.bot.botId === closed.bot.id)
+    expect(hidden?.visibility).toBe('private')
+    expect(hidden?.bytes.length).toBeGreaterThan(0)
+    const version = await send(new Jar(), `/api/bots/${closed.bot.id}/versions/1`)
+    expect(version.status).toBe(404)
+    expect(bots).toHaveLength(2)
   })
 })
 

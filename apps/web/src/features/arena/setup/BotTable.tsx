@@ -58,10 +58,9 @@ const LAST = Number.MAX_SAFE_INTEGER
 
 const key = (bot: CatalogBot) => formatRef(bot.ref)
 
-/** A bot's account id, when it is one of my account bots. */
+/** A bot's account id, when it is a server bot: on my bots, one of my account's. */
 function accountId(bot: CatalogBot): string | null {
-  const listing = listingOf(bot)
-  return listing !== undefined && 'visibility' in listing ? listing.bot.botId : null
+  return listingOf(bot)?.bot.botId ?? null
 }
 
 /** A bot's id in this browser's store, when it is a local bot. */

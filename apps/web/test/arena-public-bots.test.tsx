@@ -1,7 +1,7 @@
 /**
- * The players' public bots in the arena's roster (`GET /api/bots`), in jsdom: listed beside the
- * house's with their owner and hill place, filtered by player, sorted, picked as `cloud:` refs, and
- * read back from a link.
+ * The players' bots in the arena's roster (`GET /api/bots`), private ones too, in jsdom: listed
+ * beside the house's with their owner, hill place, and visibility, filtered by player, sorted,
+ * picked as `cloud:` refs, and read back from a link.
  */
 import 'fake-indexeddb/auto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
@@ -31,7 +31,13 @@ import { answer, useApiServer } from './api-server'
 useDom()
 window.scrollTo = () => {}
 
-function publicBot(name: string, owner: string, slug: string, best: PublicBot['best']): PublicBot {
+function publicBot(
+  name: string,
+  owner: string,
+  slug: string,
+  best: PublicBot['best'],
+  visibility: PublicBot['visibility'] = 'public',
+): PublicBot {
   const id = name.toLowerCase()
   return {
     bot: { botId: id, versionId: `${id}-v1`, slug: id, name, version: 1, owner, author: null },
@@ -39,6 +45,7 @@ function publicBot(name: string, owner: string, slug: string, best: PublicBot['b
     bytes: toBase64(rosterImage(slug).bytes),
     updatedAt: '2026-09-20T00:00:00.000Z',
     best,
+    visibility,
   }
 }
 
@@ -54,7 +61,7 @@ const LIST: PublicBotList = {
   bots: [
     publicBot('Tidal', 'alice', 'dwarf', null),
     publicBot('Crowned', 'alice', 'imp', KING),
-    publicBot('Drifter', 'bob', 'paper', null),
+    publicBot('Drifter', 'bob', 'paper', null, 'private'),
   ],
 }
 
@@ -121,15 +128,18 @@ const cards = () =>
     .map((card) => card.getAttribute('aria-label'))
 
 describe("the players' bots in the roster", () => {
-  it('lists them beside the house, with their owner, hill place, and a player chip', async () => {
+  it('lists them beside the house, with their owner, hill place, and visibility', async () => {
     await renderArena()
     const crowned = await screen.findByRole('listitem', { name: 'Crowned' })
     expect(within(crowned).getByText('king')).toBeTruthy()
     expect(crowned.textContent).toContain('main · 1712')
     expect(within(crowned).getByRole('link', { name: 'alice' })).toBeTruthy()
-    expect(within(crowned).getByText('player')).toBeTruthy()
+    expect(within(crowned).getByText('public')).toBeTruthy()
     expect(cards()).toContain('Dwarf')
-    expect(cards()).toContain('Drifter')
+    // A private bot fights too: its chip says its source is hidden.
+    const drifter = screen.getByRole('listitem', { name: 'Drifter' })
+    expect(within(drifter).getByText('private')).toBeTruthy()
+    expect(within(drifter).getByRole('button', { name: 'add Drifter' })).toBeTruthy()
   })
 
   it('filters by player, and sorts by hill place', async () => {

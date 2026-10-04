@@ -508,14 +508,15 @@ export async function listPublicBotPages(
   return results.map((row) => ({ id: row.id, updatedAt: row.updated_at }))
 }
 
-/** A public bot's latest version as `listPublicBots` reads it. */
+/** A bot's latest version as `listPublicBots` reads it, and who may see the bot. */
 export interface PublicBotRow extends BotLabelRow {
   strategy: string | null
   bytes_sha256: string
   updated_at: string
+  visibility: Visibility
 }
 
-/** A public bot's best place on a hill, as `listPublicBests` reads it. */
+/** A bot's best place on a hill, as `listPublicBests` reads it. */
 export interface PublicBestRow {
   bot_id: string
   rank: number
@@ -539,15 +540,16 @@ const BEST_JOIN = `LEFT JOIN (
        ) best ON best.bot_id = v.bot_id`
 
 /**
- * The public bots of every player but the house (whose are the roster), each at its latest
- * version, the best first (`BEST_FIRST`): at most `limit`, so a cut keeps the best.
+ * The bots of every player but the house (whose are the roster), every visibility, each at its
+ * latest version, the best first (`BEST_FIRST`): at most `limit`, so a cut keeps the best. Every bot
+ * fights in the arena; its visibility hides its source, not its machine code.
  */
 export async function listPublicBots(db: D1Database, limit: number): Promise<PublicBotRow[]> {
   const { results } = await db
     .prepare(
-      `SELECT ${LABEL_COLUMNS}, v.strategy, v.bytes_sha256, b.updated_at
+      `SELECT ${LABEL_COLUMNS}, v.strategy, v.bytes_sha256, b.updated_at, b.visibility
        FROM bot_versions v ${LABEL_JOINS} ${BEST_JOIN}
-       WHERE b.visibility = 'public' AND b.deleted_at IS NULL AND u.handle <> ?
+       WHERE b.deleted_at IS NULL AND u.handle <> ?
          AND ${IS_LATEST_VERSION}
        ${BEST_FIRST} LIMIT ?`,
     )
@@ -556,13 +558,8 @@ export async function listPublicBots(db: D1Database, limit: number): Promise<Pub
   return results
 }
 
-/** One of an owner's bots as `listOwnBots` reads it: a public bot's row, and its visibility. */
-export interface OwnBotRow extends PublicBotRow {
-  visibility: Visibility
-}
-
 /** An owner's bots, every visibility, each at its latest version, the best first (`BEST_FIRST`). */
-export async function listOwnBots(db: D1Database, ownerId: string): Promise<OwnBotRow[]> {
+export async function listOwnBots(db: D1Database, ownerId: string): Promise<PublicBotRow[]> {
   const { results } = await db
     .prepare(
       `SELECT ${LABEL_COLUMNS}, v.strategy, v.bytes_sha256, b.updated_at, b.visibility
@@ -571,13 +568,13 @@ export async function listOwnBots(db: D1Database, ownerId: string): Promise<OwnB
        ${BEST_FIRST}`,
     )
     .bind(ownerId)
-    .all<OwnBotRow>()
+    .all<PublicBotRow>()
   return results
 }
 
 /**
- * Each bot's best place on a hill, any version's: the best rank, then the best rating. The public
- * bots' by default; `ownerId`'s bots, every visibility, when given.
+ * Each bot's best place on a hill, any version's: the best rank, then the best rating. Every bot's,
+ * every visibility; `ownerId`'s alone, when given.
  */
 export async function listPublicBests(
   db: D1Database,
@@ -589,8 +586,7 @@ export async function listPublicBests(
          h.slug AS hill_slug, h.name AS hill_name
        FROM hill_entries e JOIN bot_versions v ON v.id = e.bot_version_id
        JOIN bots b ON b.id = v.bot_id JOIN hills h ON h.id = e.hill_id
-       WHERE ${ownerId === undefined ? "b.visibility = 'public'" : 'b.owner_id = ?'}
-         AND b.deleted_at IS NULL
+       WHERE ${ownerId === undefined ? '' : 'b.owner_id = ? AND '}b.deleted_at IS NULL
        ORDER BY e.rank, e.rating DESC`,
     )
     .bind(...(ownerId === undefined ? [] : [ownerId]))

@@ -337,12 +337,13 @@ const card = (format: CardFormat) => async (c: Context<AppEnv>) => {
   return sendCard(c, botCard(await botDetail(c, bot), cardHost(c.env)), format, LIVE_CARD_AGE)
 }
 
-/** Where KV keeps the public bots. */
-export const PUBLIC_BOTS_KEY = 'bots:public'
+/** Where KV keeps the arena's bots: a new key when the list's shape changes, so none is stale. */
+export const PUBLIC_BOTS_KEY = 'bots:arena'
 
 /**
- * The public bots as of `now` (ms), each with its latest version's machine code from R2: from KV
- * while younger than `PUBLIC_BOTS_TTL_SECONDS`. A bot whose bytes R2 does not have is left out.
+ * The players' bots as of `now` (ms), every visibility, each with its latest version's machine code
+ * from R2: from KV while younger than `PUBLIC_BOTS_TTL_SECONDS`. A bot whose bytes R2 does not have
+ * is left out.
  */
 export function publicBotsOf(env: Env, now: number): Promise<PublicBotList> {
   return kvCached(env.KV, PUBLIC_BOTS_KEY, PUBLIC_BOTS_TTL_SECONDS, now, async () => {
@@ -350,7 +351,7 @@ export function publicBotsOf(env: Env, now: number): Promise<PublicBotList> {
       listPublicBots(env.DB, MAX_PUBLIC_BOTS),
       listPublicBests(env.DB),
     ])
-    return { bots: await withBytes(env, rows, bests, () => ({})) }
+    return { bots: await withBytes(env, rows, bests) }
   })
 }
 
@@ -363,21 +364,20 @@ export async function ownBotsOf(env: Env, ownerId: string): Promise<OwnBotList> 
     listOwnBots(env.DB, ownerId),
     listPublicBests(env.DB, ownerId),
   ])
-  return { bots: await withBytes(env, rows, bests, (row) => ({ visibility: row.visibility })) }
+  return { bots: await withBytes(env, rows, bests) }
 }
 
 /**
- * The listed bots of `rows`, in order: each with its machine code from R2 and its best hill place,
- * and what `extra` adds. A bot whose bytes R2 does not have is left out.
+ * The listed bots of `rows`, in order: each with its machine code from R2, its best hill place,
+ * and its visibility. A bot whose bytes R2 does not have is left out.
  */
-async function withBytes<Row extends PublicBotRow, Extra extends object>(
+async function withBytes(
   env: Env,
-  rows: readonly Row[],
+  rows: readonly PublicBotRow[],
   bests: ReadonlyMap<string, PublicBestRow>,
-  extra: (row: Row) => Extra,
-): Promise<(PublicBot & Extra)[]> {
+): Promise<PublicBot[]> {
   const listed = await Promise.all(
-    rows.map(async (row): Promise<(PublicBot & Extra) | null> => {
+    rows.map(async (row): Promise<PublicBot | null> => {
       const object = await env.REPLAYS.get(botBytesKey(row.bytes_sha256))
       if (object === null) return null
       const best = bests.get(row.bot_id)
@@ -397,7 +397,7 @@ async function withBytes<Row extends PublicBotRow, Extra extends object>(
                 ties: best.ties,
                 losses: best.losses,
               },
-        ...extra(row),
+        visibility: row.visibility,
       }
     }),
   )
@@ -408,8 +408,8 @@ async function withBytes<Row extends PublicBotRow, Extra extends object>(
 const ONE_SOURCE_BODY = 256 * 1024
 
 /**
- * The write routes above, and the reads. `GET /api/bots`: the public bots, the arena's roster of
- * players' bots (`publicBotsOf`); a browser keeps it a minute. `GET /api/bots/:id`: the bot, its owner, its versions (no
+ * The write routes above, and the reads. `GET /api/bots`: every player's bots, private ones too,
+ * with their machine code but no source: the arena's roster of players' bots (`publicBotsOf`); a browser keeps it a minute. `GET /api/bots/:id`: the bot, its owner, its versions (no
  * sources), and its hill places. `GET /api/bots/:id/versions/:v`: one version, with its source
  * when the bot is public or the reader owns it. An unlisted bot shows to anyone with its link, but
  * not its source. A private or deleted bot is a 404, to its owner too once it is deleted.

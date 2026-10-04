@@ -164,8 +164,10 @@ export const MAX_PUBLIC_BOTS = 500
 export const PUBLIC_BOTS_TTL_SECONDS = 60
 
 /**
- * A public bot as the arena lists it: its latest version's label, `%strategy`, and machine code
- * (base64), and its best place on a hill (the best rank, any version's), if it has one.
+ * A player's bot as the arena lists it: its latest version's label, `%strategy`, and machine code
+ * (base64), its best place on a hill (the best rank, any version's), if it has one, and who may see
+ * it. Every bot fights in the arena, a private one too: its visibility hides its source and page,
+ * not its machine code (PRODUCT_SPEC §0).
  */
 export const PublicBot = z.object({
   bot: BotLabel,
@@ -182,19 +184,20 @@ export const PublicBot = z.object({
       losses: whole('losses', 0, Number.MAX_SAFE_INTEGER),
     }),
   ),
+  visibility: Visibility,
 })
 export type PublicBot = z.output<typeof PublicBot>
 
 /**
- * `GET /api/bots`: the public bots of every player (not the house's, which are the roster), at
+ * `GET /api/bots`: the bots of every player, every visibility (not the house's, which are the roster), at
  * most `MAX_PUBLIC_BOTS`: the best first (the best hill rank, then the best rating), then the
  * latest changed, so a list too long to send whole keeps its best bots (PRODUCT_SPEC §0).
  */
 export const PublicBotList = z.object({ bots: z.array(PublicBot) })
 export type PublicBotList = z.output<typeof PublicBotList>
 
-/** One of the reader's own bots as the arena fights it: a `PublicBot`, and who may see it. */
-export const OwnBot = z.extend(PublicBot, { visibility: Visibility })
+/** One of the reader's own bots as the arena fights it: a `PublicBot`, read by its owner. */
+export const OwnBot = PublicBot
 export type OwnBot = z.output<typeof OwnBot>
 
 /**

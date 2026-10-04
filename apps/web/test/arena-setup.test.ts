@@ -258,6 +258,7 @@ function publicBot(
     bytes: toBase64(image?.assembled.bytes ?? new Uint8Array([0])),
     updatedAt: extra.updatedAt ?? '2026-09-20T00:00:00.000Z',
     best: extra.best ?? null,
+    visibility: 'public',
   }
 }
 

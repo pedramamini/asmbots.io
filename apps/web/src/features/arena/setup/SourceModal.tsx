@@ -44,11 +44,14 @@ export function SourceModal({ bot, onClose }: { bot: CatalogBot; onClose: () => 
       {source === undefined ? (
         <Skeleton rows={8} />
       ) : source === '' ? (
-        <p className="text-data text-muted">its source is not public.</p>
+        <p className="text-data text-muted">
+          its source is {listing?.visibility ?? 'not public'}: it fights in the arena, but its owner
+          keeps the text.
+        </p>
       ) : (
         <Asm>{source}</Asm>
       )}
-      {listing !== undefined && (
+      {listing !== undefined && listing.visibility !== 'private' && (
         <p className="text-data text-muted">
           its versions and hill places are on{' '}
           <Link to="/bots/$id" params={{ id: listing.bot.botId }} className={CELL_LINK}>
