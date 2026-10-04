@@ -25,6 +25,7 @@ import { answer, hang, refuse, renderAt, useApiServer, WithQueries } from './api
 import {
   CONFIG,
   DWARF,
+  DWARF_ACTIVITY,
   DWARF_DETAIL,
   HILLS,
   KEY,
@@ -47,6 +48,7 @@ const server = useApiServer(
   answer('/hills/main/history', { events: [] }),
   answer('/hills/overview', OVERVIEW),
   answer('/bots/roster-dwarf', DWARF_DETAIL),
+  answer('/bots/roster-dwarf/activity', DWARF_ACTIVITY),
   answer('/bots/roster-dwarf/versions/1', {
     version: { ...DWARF_DETAIL.versions[0], source: 'start: jmp $\n' },
   }),
@@ -399,7 +401,33 @@ describe('/bots/$id', () => {
     expect(seen?.textContent).toBe('2026-09-24')
     expect(seen?.nextElementSibling?.textContent).toBe(longAgo('2026-09-24T12:00:00.000Z'))
     const source = screen.getByRole('region', { name: 'source' })
-    await waitFor(() => expect(source.querySelector('pre')?.textContent).toBe('start: jmp $\n'))
+    await waitFor(() => expect(source.querySelector('pre')?.textContent).toBe('start: jmp $'))
+    // In the docs' code block, which copies it.
+    expect(await within(source).findByRole('button', { name: 'copy' })).toBeTruthy()
+  })
+
+  it('draws its battle record: form, hill rank, rivals, and its machine code', async () => {
+    await renderAt('/bots/roster-dwarf', () => <BotPage id="roster-dwarf" />)
+    const record = await screen.findByRole('region', { name: 'battle record' })
+    const tile = (name: string) => within(record).getByRole('region', { name })
+    await waitFor(() => expect(within(record).getByText('3 matches')).toBeTruthy())
+    // Won one, tied one, lost one: the latest last.
+    expect(within(tile('form')).getByText('33%')).toBeTruthy()
+    expect(
+      within(tile('form'))
+        .getByRole('img', { name: /^the latest 3 matches/ })
+        .getAttribute('aria-label'),
+    ).toBe('the latest 3 matches, oldest first: win, tie, loss')
+    // Main, where it holds #2 now.
+    expect(within(tile('hill rank')).getByRole('img').getAttribute('aria-label')).toBe(
+      'main: rank 2',
+    )
+    // Imp twice (a win and a tie), Paper once (a loss).
+    const rivals = within(tile('rivals')).getAllByRole('listitem')
+    expect(rivals.map((li) => li.textContent)).toEqual(['Imp1-1-0', 'Paper0-0-1'])
+    expect(within(tile('machine code')).getByRole('img').getAttribute('aria-label')).toBe(
+      '4 bytes, 25% zero, entropy 2.0 bits a byte',
+    )
   })
 
   it('says the source is not public when the version comes without one', async () => {

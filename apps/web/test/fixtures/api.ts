@@ -1,5 +1,6 @@
 /** Protocol records as the read API returns them: two hills, three bots, a user. */
 import type {
+  BotActivity,
   BotDetail,
   BotLabel,
   HillDetail,
@@ -179,6 +180,58 @@ export const DWARF_DETAIL: BotDetail = {
   ],
   placements: [{ hill: { slug: 'main', name: 'main' }, version: 1, entry: entry(DWARF, 2, 145) }],
   fights: 1204,
+}
+
+/**
+ * Dwarf's activity: it beat Imp, then tied it, then lost to Paper; it entered main at #3 and
+ * climbed to #2; its machine code is four bytes, one of them zero.
+ */
+export const DWARF_ACTIVITY: BotActivity = {
+  matches: [
+    duel('a3', [DWARF, PAPER], [0, 12], '2026-09-26T00:00:00.000Z'),
+    duel('a2', [IMP, DWARF], [10, 10], '2026-09-25T12:00:00.000Z'),
+    duel('a1', [DWARF, IMP], [21, 9], '2026-09-25T00:00:00.000Z'),
+  ],
+  events: [
+    {
+      event: {
+        id: 'e1',
+        hillId: 'hill-main',
+        submissionId: null,
+        kind: 'entered',
+        botVersionId: DWARF.versionId,
+        rank: 3,
+        score: 100,
+        delta: null,
+        at: '2026-09-24T12:00:00.000Z',
+      },
+      hill: { slug: 'main', name: 'main', size: 10 },
+    },
+  ],
+  bytes: 'AQAC/w==',
+}
+
+function duel(
+  id: string,
+  bots: readonly BotLabel[],
+  points: number[],
+  at: string,
+): BotActivity['matches'][number] {
+  return {
+    match: {
+      id,
+      tournamentId: null,
+      hillId: 'hill-main',
+      participants: bots.map((b) => b.versionId),
+      rounds: 10,
+      seed: 1,
+      key: null,
+      result: { points, survivors: [0], resultHash: '0123456789abcdef' },
+      replayKey: null,
+      finishedAt: at,
+    },
+    bots: [...bots],
+  }
 }
 
 /** A profile's numbers with nothing in them. */

@@ -24,6 +24,12 @@ import { Placeholder } from '../../app/Placeholder'
 import { CELL_LINK, count, day, longAgo } from '../hills/links'
 import { BotActions } from './BotActions'
 
+/** The battle record's charts: a chunk of their own, with their query. */
+const BotCharts = lazy(() => import('./BotCharts').then((m) => ({ default: m.BotCharts })))
+
+/** The source in the editor's colors: the docs' code block, a chunk the docs share. */
+const Asm = lazy(() => import('../../docs/Asm').then((m) => ({ default: m.Asm })))
+
 /** The owner's visibility control: a chunk only the owner's page loads. */
 const OwnerVisibility = lazy(() =>
   import('./OwnerVisibility').then((m) => ({ default: m.OwnerVisibility })),
@@ -81,9 +87,10 @@ const VERSION_COLUMNS: TableColumn<BotVersion>[] = [
 ]
 
 /**
- * `/bots/$id` (PRODUCT_SPEC §6): the bot's card with `fork` and `challenge`, its fights and the
- * day it was first seen, where it stands on each hill, its versions, and the latest version's
- * source when the bot is public (or mine).
+ * `/bots/$id` (PRODUCT_SPEC §6): its battle record as charts across the top (`BotCharts.tsx`);
+ * then, on the left, the bot's card with `fork` and `challenge`, its fights and the day it was
+ * first seen, where it stands on each hill, and its versions; on the right, the latest version's
+ * source in the editor's colors when the bot is public (or mine).
  */
 export function BotPage({ id }: { id: string }) {
   const bot = useBot(id)
@@ -119,68 +126,74 @@ export function BotPage({ id }: { id: string }) {
   return (
     <PanelGrid className="p-3">
       <PageIntro about={BOT_ABOUT} art={<IntroArt name="disk" />} />
-      <Panel
-        className="col-span-12 xl:col-span-4"
-        title="bot"
-        status={record.visibility}
-        actions={<BotActions bot={record} source={text} />}
+      <Suspense
+        fallback={
+          <Panel className="col-span-12" title="battle record">
+            <Skeleton rows={6} />
+          </Panel>
+        }
       >
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-3">
-            <Identicon value={latest?.bytesSha256 ?? record.id} size={40} />
-            <div className="flex min-w-0 flex-col">
-              <h1 className="truncate text-modal-title text-bright">{record.name}</h1>
-              <p className="text-data text-muted">
-                by <AuthorLink author={author} />
-                {signed !== '' && signed !== author.name && signed !== owner.handle
-                  ? ` · ${signed}`
-                  : ''}
-              </p>
+        <BotCharts id={id} placements={placements} />
+      </Suspense>
+      <div className="col-span-12 flex min-w-0 flex-col gap-3 xl:col-span-4">
+        <Panel
+          title="bot"
+          status={record.visibility}
+          actions={<BotActions bot={record} source={text} />}
+        >
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <Identicon value={latest?.bytesSha256 ?? record.id} size={40} />
+              <div className="flex min-w-0 flex-col">
+                <h1 className="truncate text-modal-title text-bright">{record.name}</h1>
+                <p className="text-data text-muted">
+                  by <AuthorLink author={author} />
+                  {signed !== '' && signed !== author.name && signed !== owner.handle
+                    ? ` · ${signed}`
+                    : ''}
+                </p>
+              </div>
+            </div>
+            {latest?.strategy && <p className="text-body">{latest.strategy}</p>}
+            {me?.user.id === record.ownerId && (
+              <Suspense fallback={<Skeleton rows={2} />}>
+                <OwnerVisibility bot={record} />
+              </Suspense>
+            )}
+            <div className="flex flex-wrap gap-4">
+              <Stat label="size" value={latest ? `${count(latest.size)} B` : '–'} />
+              <Stat label="versions" value={count(versions.length)} />
+              <Stat label="isa" value={latest?.isa ?? '–'} />
+              {/* The server's matches: its hill challenges and tournaments. */}
+              <Stat label="fights" value={count(fights)} />
+              <Stat
+                label="first seen"
+                value={day(record.createdAt)}
+                note={longAgo(record.createdAt)}
+              />
             </div>
           </div>
-          {latest?.strategy && <p className="text-body">{latest.strategy}</p>}
-          {me?.user.id === record.ownerId && (
-            <Suspense fallback={<Skeleton rows={2} />}>
-              <OwnerVisibility bot={record} />
-            </Suspense>
-          )}
-          <div className="flex flex-wrap gap-4">
-            <Stat label="size" value={latest ? `${count(latest.size)} B` : '–'} />
-            <Stat label="versions" value={count(versions.length)} />
-            <Stat label="isa" value={latest?.isa ?? '–'} />
-            {/* The server's matches: its hill challenges and tournaments. */}
-            <Stat label="fights" value={count(fights)} />
-            <Stat
-              label="first seen"
-              value={day(record.createdAt)}
-              note={longAgo(record.createdAt)}
-            />
-          </div>
-        </div>
-      </Panel>
-      <Panel
-        className="col-span-12 xl:col-span-8"
-        title="hill placements"
-        status={`${placements.length} hills`}
-      >
-        <Table
-          aria-label="hill placements"
-          columns={PLACEMENT_COLUMNS}
-          rows={placements}
-          rowKey={(p) => `${p.hill.slug}:${p.entry.botVersionId}`}
-          empty={
-            <EmptyState action={link('see the hills', '/hills')}>not on any hill yet.</EmptyState>
-          }
-        />
-      </Panel>
-      <Panel className="col-span-12 xl:col-span-4" title="versions" status={`${versions.length}`}>
-        <Table
-          aria-label="versions"
-          columns={VERSION_COLUMNS}
-          rows={versions}
-          rowKey={(v) => v.id}
-        />
-      </Panel>
+        </Panel>
+        <Panel title="hill placements" status={`${placements.length} hills`}>
+          <Table
+            aria-label="hill placements"
+            columns={PLACEMENT_COLUMNS}
+            rows={placements}
+            rowKey={(p) => `${p.hill.slug}:${p.entry.botVersionId}`}
+            empty={
+              <EmptyState action={link('see the hills', '/hills')}>not on any hill yet.</EmptyState>
+            }
+          />
+        </Panel>
+        <Panel title="versions" status={`${versions.length}`}>
+          <Table
+            aria-label="versions"
+            columns={VERSION_COLUMNS}
+            rows={versions}
+            rowKey={(v) => v.id}
+          />
+        </Panel>
+      </div>
       <Panel
         className="col-span-12 xl:col-span-8"
         title="source"
@@ -188,13 +201,11 @@ export function BotPage({ id }: { id: string }) {
         actions={record.visibility === 'public' ? <Chip>public</Chip> : undefined}
       >
         {text !== undefined ? (
-          <pre
-            // biome-ignore lint/a11y/noNoninteractiveTabindex: a scroll box the keyboard reads.
-            tabIndex={0}
-            className="max-h-96 overflow-auto text-code focus-visible:outline-1 focus-visible:-outline-offset-1 focus-visible:outline-accent"
+          <Suspense
+            fallback={<pre className="overflow-x-auto p-3 text-code text-text">{text}</pre>}
           >
-            {text}
-          </pre>
+            <Asm>{text}</Asm>
+          </Suspense>
         ) : source.isPending && latest !== null ? (
           <Skeleton rows={6} />
         ) : (
