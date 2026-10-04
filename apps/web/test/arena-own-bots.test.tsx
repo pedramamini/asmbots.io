@@ -155,6 +155,13 @@ const openMine = () =>
   )
 
 describe('my bots, signed in', () => {
+  it("lists the players' bots in the roster without waiting for my bots", async () => {
+    server.use(answer('/bots', { bots: [ownBot('Tidal', 'dwarf', 'public', null)] }))
+    await renderArena()
+    expect(await screen.findByRole('listitem', { name: 'Tidal' })).toBeTruthy()
+    expect(screen.queryByText(/loading players/)).toBeNull()
+  })
+
   it("lists this browser's and my account's, each once, each with who may see it", async () => {
     const source = (slug: string) => loadRoster().get(slug)?.source ?? ''
     // A local copy of Tidal (its `%name` is Dwarf), and a bot only this browser has.

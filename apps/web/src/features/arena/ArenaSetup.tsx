@@ -213,10 +213,11 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
   // My account's bots, private ones too: listed in my bots, and a `cloud:` ref's bot when it is
   // mine. Signed out, there are none.
   const signedIn = me !== null && me !== undefined
-  const ownBots = useOwnBots(
-    signedIn && (source === 'mine' || spec.bots.some((ref) => ref.kind === 'cloud')),
-  )
-  const own = !signedIn || ownBots.isError ? NO_BOTS : (ownBots.data?.bots ?? null)
+  const ownWanted = signedIn && (source === 'mine' || spec.bots.some((ref) => ref.kind === 'cloud'))
+  const ownBots = useOwnBots(ownWanted)
+  // Null only while a list asked for loads: one not asked for is none, so the roster's players
+  // never wait on it.
+  const own = !ownWanted || ownBots.isError ? NO_BOTS : (ownBots.data?.bots ?? null)
   const cloud = useMemo(
     () => withOwn(cloudMap(publicBots.data, publicBots.isError), own),
     [publicBots.data, publicBots.isError, own],
