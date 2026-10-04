@@ -117,11 +117,24 @@ function LowerStandIn() {
   )
 }
 
+/** The king of the hills' box while the hills or its chunk load, so nothing below shifts. */
+function KingStandIn() {
+  return (
+    <Panel className="col-span-12" title="king of the hills" status="loading">
+      <Skeleton className="h-24" />
+    </Panel>
+  )
+}
+
+/** Over the cards; loaded after the page (`KingOfTheHills.tsx`). */
+const KingOfTheHills = lazy(() => import('./KingOfTheHills'))
+
 /** Under the cards; loaded after the page (`HillsLower.tsx`). */
 const HillsLower = lazy(() => import('./HillsLower'))
 
 /**
- * `/hills` (PRODUCT_SPEC §5): what a hill is and when it runs, the hills in numbers, each hill as
+ * `/hills` (PRODUCT_SPEC §5): what a hill is and when it runs, the king of the hills (the player
+ * who holds the most), the hills in numbers, each hill as
  * a card (its standings as a mountain, its king, how busy it is), how a challenge runs, the hills
  * on one ruler of sizes, the newest board changes on every hill, and the hills side by side with,
  * signed in, the reader's best place on each.
@@ -140,6 +153,14 @@ export function HillsPage() {
   return (
     <PanelGrid className="p-3">
       <PageIntro about={HILLS_ABOUT} art={<IntroArt name="summit" />} />
+      {error === null &&
+        (hills === undefined ? (
+          <KingStandIn />
+        ) : (
+          <Suspense fallback={<KingStandIn />}>
+            <KingOfTheHills hills={hills} />
+          </Suspense>
+        ))}
       <Panel
         className="col-span-12"
         title="hills"

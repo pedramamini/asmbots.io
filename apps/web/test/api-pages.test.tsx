@@ -262,6 +262,15 @@ describe('/hills', () => {
     const changes = screen.getByRole('list', { name: 'board changes' })
     expect(changes.textContent).toContain('Dwarf by ASM Bots entered at #2 new')
     expect(screen.getByRole('region', { name: 'hills' }).textContent).toContain('2 hills')
+    // The king of the hills: the house holds the one crown, its profile and the hill a link each.
+    // It loads after the page, in place of its stand-in.
+    const crowns = await screen.findByRole('list', { name: 'crowns held' })
+    const king = screen.getByRole('region', { name: 'king of the hills' })
+    expect(within(king).getByRole('link', { name: 'ASM Bots' }).getAttribute('href')).toBe(
+      '/u/system',
+    )
+    expect(king.textContent).toContain('king of 1 of 2 hills')
+    expect(within(crowns).getByRole('link').getAttribute('href')).toBe('/hills/main')
     fireEvent.click(within(table).getByText('tiny'))
     await waitFor(() => expect(router.state.location.pathname).toBe('/hills/tiny'))
   })

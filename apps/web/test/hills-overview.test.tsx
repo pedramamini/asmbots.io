@@ -8,6 +8,7 @@ import { useDom } from '../../../packages/ui/test/dom'
 import { boardRows, ChallengeDiagram } from '../src/features/hills/ChallengeDiagram'
 import { mountainOrder } from '../src/features/hills/HillCard'
 import { challengeCost, cycles } from '../src/features/hills/HillsLower'
+import { crownHolders } from '../src/features/hills/KingOfTheHills'
 import { HILLS } from './fixtures/api'
 
 useDom()
@@ -20,6 +21,39 @@ describe('mountainOrder', () => {
 
   it('gives a hill over its size a column for each entry', () => {
     expect(mountainOrder([3, 2, 1], 2)).toEqual([2, 3, 1])
+  })
+})
+
+describe('crownHolders', () => {
+  const [main, tiny] = HILLS.hills
+  if (main?.king == null || tiny === undefined) throw new Error('fixture')
+  const crowned = (slug: string, owner: string, reign: number | null) => ({
+    ...main,
+    hill: { ...main.hill, id: slug, slug },
+    king: { ...main.king, bot: { ...main.king.bot, owner }, entry: { ...main.king.entry, reign } },
+  })
+
+  it('ranks the owners by crowns, then by reign added up, then by handle', () => {
+    const hills = [
+      crowned('a', 'bob', 1),
+      crowned('b', 'alice', 2),
+      crowned('c', 'carol', 3),
+      crowned('d', 'alice', null),
+      crowned('e', 'bob', 1),
+      crowned('f', 'dave', 3),
+      tiny,
+    ]
+    const holders = crownHolders(hills)
+    expect(holders.map((h) => [h.owner, h.hills.map((x) => x.hill.slug)])).toEqual([
+      ['alice', ['b', 'd']],
+      ['bob', ['a', 'e']],
+      ['carol', ['c']],
+      ['dave', ['f']],
+    ])
+  })
+
+  it('has no one when no hill has a king', () => {
+    expect(crownHolders([tiny])).toEqual([])
   })
 })
 
