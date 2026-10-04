@@ -1,6 +1,6 @@
 /**
  * The players' bots in the arena's roster (`GET /api/bots`), private ones too, in jsdom: listed
- * beside the house's with their owner, hill place, and visibility, filtered by player, sorted,
+ * beside the house's with their owner, hill place, and visibility, sorted,
  * picked as `cloud:` refs, and read back from a link.
  */
 import 'fake-indexeddb/auto'
@@ -142,27 +142,10 @@ describe("the players' bots in the roster", () => {
     expect(within(drifter).getByRole('button', { name: 'add Drifter' })).toBeTruthy()
   })
 
-  it('filters by player, and sorts by hill place', async () => {
+  it('sorts by hill place', async () => {
     await renderArena()
     await screen.findByRole('listitem', { name: 'Crowned' })
-    const player = within(screen.getByRole('radiogroup', { name: 'player' }))
-    const pills = player.getAllByRole('radio').map((pill) => pill.textContent)
-    expect(pills[0]).toMatch(/^all \d+$/)
-    expect(pills.slice(1)).toEqual([expect.stringMatching(/^ASM Bots \d+$/), 'alice 2', 'bob 1'])
-    fireEvent.click(player.getByRole('radio', { name: /^alice/ }))
-    expect(cards().sort()).toEqual(['Crowned', 'Tidal'])
-    fireEvent.click(player.getByRole('radio', { name: /^ASM Bots/ }))
-    expect(cards()).not.toContain('Crowned')
-    expect(cards()).toContain('Dwarf')
-    fireEvent.click(player.getByRole('radio', { name: /^all/ }))
-    // The pills count the bots in the weight class: the players' light bots are not heavy.
-    const weight = within(screen.getByRole('radiogroup', { name: 'weight class' }))
-    fireEvent.click(weight.getByRole('radio', { name: /^heavy / }))
-    const heavy = player.getAllByRole('radio').map((pill) => pill.textContent)
-    expect(heavy.slice(2)).toEqual(['alice 0', 'bob 0'])
-    expect(heavy[0]?.split(' ')[1]).toBe(heavy[1]?.split(' ').at(-1))
-    expect(heavy[0]).toBe(`all ${cards().length}`)
-    fireEvent.click(weight.getByRole('radio', { name: /^all / }))
+    expect(screen.queryByRole('radiogroup', { name: 'player' })).toBeNull()
     const sort = within(screen.getByRole('radiogroup', { name: 'sort bots' }))
     fireEvent.click(sort.getByRole('radio', { name: 'hill' }))
     expect(cards()[0]).toBe('Crowned')

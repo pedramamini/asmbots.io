@@ -16,7 +16,6 @@ import {
 import { type BattleConfigInput, CORE_SIZE, Pcg32, PlacementError, place } from '@asmbots/engine'
 import {
   fromBase64,
-  HOUSE_HANDLE,
   type OwnBot,
   type PublicBot,
   type PublicBotList,
@@ -321,28 +320,6 @@ export function sortBots(
     size: (a, b) => a.assembled.bytes.length - b.assembled.bytes.length,
   }
   return [...bots].sort(compare[sort])
-}
-
-/** Whose a bot is, for the picker's player filter: the house, a public bot's owner, or no one. */
-export function ownerOf(bot: CatalogBot): string | null {
-  return bot.origin === 'roster' ? HOUSE_HANDLE : (bot.cloud?.bot.owner ?? null)
-}
-
-/** The owners of `bots` and how many each has, the most first, the house first among equals. */
-export function ownersOf(bots: readonly CatalogBot[]): { owner: string; count: number }[] {
-  const counts = new Map<string, number>()
-  for (const bot of bots) {
-    const owner = ownerOf(bot)
-    if (owner !== null) counts.set(owner, (counts.get(owner) ?? 0) + 1)
-  }
-  return [...counts]
-    .map(([owner, count]) => ({ owner, count }))
-    .sort(
-      (a, b) =>
-        b.count - a.count ||
-        Number(b.owner === HOUSE_HANDLE) - Number(a.owner === HOUSE_HANDLE) ||
-        a.owner.localeCompare(b.owner),
-    )
 }
 
 /**

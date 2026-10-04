@@ -32,8 +32,6 @@ import {
   matchesQuery,
   maxSpacing,
   outsideWeight,
-  ownerOf,
-  ownersOf,
   randomFill,
   ranksOf,
   replaySources,
@@ -290,16 +288,6 @@ describe('public bots', () => {
       rosterCatalog().find((b) => formatRef(b.ref) === 'roster:dwarf')?.assembled.bytes,
     )
     expect(matchesQuery(bot as (typeof bots)[number], 'alice dwarf')).toBe(true)
-  })
-
-  it('counts the owners, the most first, the house first among equals', () => {
-    const house = rosterCatalog().slice(0, 2)
-    expect(ownersOf([...bots, ...house])).toEqual([
-      { owner: 'system', count: 2 },
-      { owner: 'alice', count: 2 },
-      { owner: 'bob', count: 1 },
-    ])
-    expect(house.map(ownerOf)).toEqual(['system', 'system'])
   })
 
   it('sorts by hill place, by the newest, by name, by size, and by rank', () => {

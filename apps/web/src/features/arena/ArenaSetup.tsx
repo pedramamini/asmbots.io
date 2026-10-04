@@ -82,8 +82,6 @@ import {
   maxSpacing,
   mineCatalog,
   outsideWeight,
-  ownerOf,
-  ownersOf,
   randomFill,
   ranksOf,
   resolveSelection,
@@ -151,9 +149,6 @@ const VIEWS = [
 /** No account bots: signed out, or the list cannot be read. One array, so memos keep. */
 const NO_BOTS: readonly OwnBot[] = []
 
-/** The most players the roster's player filter names: the ones with the most bots. */
-const PLAYER_PILLS = 6
-
 /** The pair a first visit can fight at once: a bomber and a replicator. */
 const STARTERS: readonly BotRef[] = [
   { kind: 'roster', slug: 'dwarf' },
@@ -195,8 +190,6 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
   const [query, setQuery] = useState('')
   /** The picker's weight filter, when picked: null follows the arena's class. */
   const [weight, setWeight] = useState<WeightFilter | null>(null)
-  /** The roster's player filter: a handle, the house's for the roster's own bots, or `all`. */
-  const [owner, setOwner] = useState('all')
   const [sort, setSort] = useState<BotSort>('rank')
   const [view, setView] = useState<View>('cards')
   const [problems, setProblems] = useState<Problems | null>(null)
@@ -257,8 +250,7 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
   // the other classes still list, to read, but the arena does not take their bots.
   const locked = spec.config.weight !== 'all'
   const filter: WeightFilter = weight ?? spec.config.weight
-  // The bots the picker lists, in the sort's order: the search's, of the player, in the weight
-  // class. The fills draw from them, `best fill` best ranked first. A bot's rank is its place among
+  // The bots the picker lists, in the sort's order: the search's, in the weight class. The fills draw from them, `best fill` best ranked first. A bot's rank is its place among
   // the source's bots with a record. The roster is the house's bots and the players' public ones.
   const catalog =
     source === 'roster'
@@ -267,30 +259,7 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
         ? (mine ?? [])
         : []
   const ranks = ranksOf(catalog, records)
-  // The players with the most bots, as pills, when there is more than one: the others are a search
-  // away (it reads owners too). Each pill counts the player's bots that match the search in the
-  // weight class, so the count is what the pill lists.
-  const owners = source === 'roster' ? ownersOf(catalog).slice(0, PLAYER_PILLS) : []
-  const player = owners.some((o) => o.owner === owner) ? owner : 'all'
-  const shown = catalog.filter(
-    (bot) => matchesQuery(bot, query) && inWeight(bot.assembled.bytes.length, filter),
-  )
-  const count = (n: number) => <span className="text-muted">{n}</span>
-  const playerFilters = [
-    { value: 'all', label: <>all {count(shown.length)}</> },
-    ...owners.map((o) => ({
-      value: o.owner,
-      label: (
-        <>
-          {ownerAuthor(o.owner).name}{' '}
-          {count(shown.filter((bot) => ownerOf(bot) === o.owner).length)}
-        </>
-      ),
-    })),
-  ]
-  const searched = sortBots(catalog, sort, records).filter(
-    (bot) => matchesQuery(bot, query) && (player === 'all' || ownerOf(bot) === player),
-  )
+  const searched = sortBots(catalog, sort, records).filter((bot) => matchesQuery(bot, query))
   const listed = searched.filter((bot) => inWeight(bot.assembled.bytes.length, filter))
   // Each filter pill counts the search's bots in its class.
   const weightFilters = WEIGHT_FILTERS.map(({ value, label }) => ({
@@ -312,19 +281,15 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
   const tourStep =
     tour === undefined ? null : selection.length >= MIN_ARENA_BOTS ? 'fight' : 'roster'
   const clearSearch = {
-    label:
-      filter === spec.config.weight && player === 'all' ? 'clear the search' : 'clear the filters',
+    label: filter === spec.config.weight ? 'clear the search' : 'clear the filters',
     onClick: () => {
       setQuery('')
       setWeight(null)
-      setOwner('all')
     },
   }
   // What an empty list names: `heavy roster bot matches "x"`, for the class and the search in force.
   const kind = filter === 'all' ? '' : `${WEIGHT_SHORT[filter]} `
-  const matching = `${player === 'all' ? '' : ` of ${ownerAuthor(player).name}`}${
-    query === '' ? '' : ` matches "${query}"`
-  }`
+  const matching = query === '' ? '' : ` matches "${query}"`
   // The roster's count, and how the players' bots are doing while they are not in it yet.
   const rosterStatus = `${catalog.length} bots${
     publicBots.isError ? ' · players offline' : cloud === null ? ' · loading players' : ''
@@ -633,20 +598,6 @@ export function ArenaSetup({ spec, onSpecChange, shared, onFight, tour }: ArenaS
             )}
             {source !== 'paste' && (
               <div className="flex flex-wrap items-center gap-2">
-                {owners.length > 1 && (
-                  <>
-                    <span aria-hidden className="text-panel-status text-muted">
-                      player
-                    </span>
-                    <Segmented<string>
-                      label="player"
-                      options={playerFilters}
-                      value={player}
-                      onValueChange={setOwner}
-                      className="flex-wrap"
-                    />
-                  </>
-                )}
                 <span aria-hidden className="text-panel-status text-muted">
                   sort
                 </span>
