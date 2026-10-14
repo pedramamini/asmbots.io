@@ -30,7 +30,8 @@ test('keeps the layout on screen by name, and loads it back from the layout menu
   await expect(page.getByRole('menuitem', { name: 'sign in to save layouts' })).toBeVisible()
   await page.keyboard.press('Escape')
 
-  await page.getByRole('button', { name: 'sign in with github' }).first().click()
+  await page.getByRole('button', { name: 'sign in', exact: true }).first().click()
+  await page.getByRole('button', { name: 'sign in with github' }).click()
   const pick = page.getByRole('dialog', { name: 'pick a handle' })
   await pick.getByRole('button', { name: 'continue' }).click()
   await expect(pick).toBeHidden()

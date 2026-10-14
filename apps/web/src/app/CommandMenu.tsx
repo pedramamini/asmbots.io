@@ -147,7 +147,7 @@ export function CommandMenu({ query, onClose }: CommandMenuProps) {
             {
               id: 'sign-in',
               group: 'account',
-              label: 'sign in with github',
+              label: 'sign in',
               icon: LogIn,
               run: signIn,
             },

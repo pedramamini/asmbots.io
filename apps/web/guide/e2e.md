@@ -28,6 +28,7 @@ What covers each PRODUCT_SPEC section:
 | Hills: submit → board | `hills`, `ticker-verify` |
 | Server tournaments: enter → live watch from a second browser | `tournaments-server` |
 | Docs: search, `open in arena` | `docs`, `home-docs` |
+| A password account: sign up with no email, the no-recovery warning, sign in again | `password-account` |
 | Settings persist | `settings`, `smoke` |
 | Keyboard only | `keyboard`, `focus` |
 | Five themes on `/`, `/arena`, `/editor`: compared screenshots | `themes` |

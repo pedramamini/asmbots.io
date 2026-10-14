@@ -182,6 +182,9 @@ test('sign in, save a bot to the account, and submit it to a hill', async ({ pag
   await open(page, '/hills/main', 'ASM BOTS // HILLS · main')
   await tabTo(page, page.getByRole('button', { name: 'sign in to submit', exact: true }))
   await page.keyboard.press('Enter')
+  // The sign-in page: GitHub is a Tab stop there, before the password form.
+  await tabTo(page, page.getByRole('button', { name: 'sign in with github' }))
+  await page.keyboard.press('Enter')
   const pick = page.getByRole('dialog', { name: 'pick a handle' })
   await expect(pick).toBeVisible()
   await tabTo(page, pick.getByRole('button', { name: 'continue' }))

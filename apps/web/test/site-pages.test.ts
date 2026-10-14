@@ -16,6 +16,7 @@ import {
 } from '../src/app/pages'
 import { docEntries } from '../src/docs'
 import { Route as ArenaRoute } from '../src/routes/arena/index'
+import { Route as AuthRoute } from '../src/routes/auth/$'
 import { Route as DocsRoute } from '../src/routes/docs'
 import { Route as DocRoute } from '../src/routes/docs/$'
 import { Route as EditorRoute } from '../src/routes/editor/index'
@@ -83,9 +84,23 @@ describe('the pages manifest', () => {
     }
   })
 
-  it('keeps the embed and the settings out of search', () => {
+  it('keeps the embed, the settings, and the sign-in pages out of search', () => {
     const hidden = Object.entries(manifest.pages).filter(([, page]) => page.noindex === true)
-    expect(hidden.map(([path]) => path).sort()).toEqual(['/embed/arena', '/settings'])
+    expect(hidden.map(([path]) => path).sort()).toEqual([
+      '/auth/forgot',
+      '/auth/login',
+      '/auth/reset',
+      '/auth/signup',
+      '/auth/verify',
+      '/embed/arena',
+      '/settings',
+    ])
+  })
+
+  it('titles each sign-in page as the page titles its tab: the one route of the five has no head', () => {
+    expect(titleOf(AuthRoute, { _splat: 'login' })).toBeUndefined()
+    expect(manifest.pages['/auth/login']?.title).toBe(routeTitle('account', 'sign in'))
+    expect(manifest.pages['/auth/forgot']?.title).toBe(routeTitle('account', 'forgot password'))
   })
 })
 
@@ -98,7 +113,8 @@ describe('what the build writes', () => {
     expect(locs).toContain('https://asmbots.io/docs/machine/memory')
     expect(locs).not.toContain('https://asmbots.io/settings')
     expect(locs).not.toContain('https://asmbots.io/embed/arena')
-    expect(locs).toHaveLength(Object.keys(manifest.pages).length - 2)
+    expect(locs).not.toContain('https://asmbots.io/auth/login')
+    expect(locs).toHaveLength(Object.keys(manifest.pages).length - 7)
   })
 
   it('robots.txt: every page may be crawled, and where the sitemap is', () => {

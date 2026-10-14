@@ -245,6 +245,10 @@ for (const theme of THEMES) {
         route.continue({ url: `${route.request().url()}&as=${login}` }),
       )
       await page.getByRole('button', { name: 'sign in to submit', exact: true }).click()
+      const github = page.getByRole('button', { name: 'sign in with github' })
+      await expect(github).toBeVisible()
+      await expectClean(page, 'sign-in page')
+      await github.click()
       const pick = page.getByRole('dialog', { name: 'pick a handle' })
       await expect(pick).toBeVisible()
       await expectClean(page, 'first sign-in')

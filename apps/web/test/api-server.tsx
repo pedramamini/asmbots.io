@@ -26,9 +26,10 @@ import type { ReactNode } from 'react'
 export const liveRooms = ws.link('*/api/live/*')
 
 /**
- * An msw server for the file's tests: `handlers` by default, silent live rooms, and a ticker feed
- * and a hills overview that never come (the frame's ticker keeps its quiet line); a test's own
- * through `server.use`.
+ * An msw server for the file's tests: `handlers` by default, silent live rooms, a ticker feed and
+ * a hills overview that never come (the frame's ticker keeps its quiet line), and a signed-in
+ * account that signs in with GitHub (the settings page asks how, for an account with no GitHub
+ * login to its name); a test's own through `server.use`.
  */
 export function useApiServer(...handlers: (RequestHandler | WebSocketHandler)[]) {
   const server = setupServer(
@@ -37,6 +38,7 @@ export function useApiServer(...handlers: (RequestHandler | WebSocketHandler)[])
     hang('/ticker'),
     // The hills page's overview: a test that reads it answers it.
     hang('/hills/overview'),
+    answer('/me/credentials', { method: 'github', email: null, emailVerified: false, mail: false }),
   )
   beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
   afterEach(() => server.resetHandlers())

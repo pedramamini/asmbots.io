@@ -23,7 +23,7 @@ import { applyTheme, THEMES, type Theme } from '@asmbots/ui/themes'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Copy, Download, KeyRound, LogOut, Trash2, Upload, UserX } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { ApiRequestError } from '../api/client'
 import {
   useApiTokens,
@@ -66,7 +66,7 @@ export function exportFileName(now = new Date()): string {
 
 /**
  * `/settings` (PRODUCT_SPEC §8): theme, arena effects, sound, keys, account, data, and, signed in,
- * the API tokens.
+ * the API tokens, and a password account's password and recovery email.
  */
 export function SettingsPage() {
   return (
@@ -76,6 +76,7 @@ export function SettingsPage() {
       <SoundPanel />
       <AccountPanel />
       <ProfilePanel />
+      <PasswordAccount />
       <ApiTokensPanel />
       <DataPanel />
     </PanelGrid>
@@ -292,6 +293,22 @@ function SoundPanel() {
   )
 }
 
+/** A password account's panel: its own chunk, which an account signed in with GitHub never loads. */
+const CredentialsPanel = lazy(() =>
+  import('../features/account/CredentialsPanel').then((m) => ({ default: m.CredentialsPanel })),
+)
+
+/** The password and recovery panel, for an account that has no GitHub login to its name. */
+function PasswordAccount() {
+  const { data: me } = useMe()
+  if (!me || me.user.github !== undefined) return null
+  return (
+    <Suspense fallback={null}>
+      <CredentialsPanel />
+    </Suspense>
+  )
+}
+
 function AccountPanel() {
   const { data: me } = useMe()
   const signOut = useSignOut()
@@ -305,8 +322,12 @@ function AccountPanel() {
       {me ? (
         <div className="flex flex-col items-start gap-3">
           <p className="text-muted">
-            github: <span className="text-accent-fg">linked</span>. signed in as{' '}
-            <UserLink handle={me.user.handle} />. local bots stay in this browser too.
+            {me.user.github !== undefined && (
+              <>
+                github: <span className="text-accent-fg">linked</span>.{' '}
+              </>
+            )}
+            signed in as <UserLink handle={me.user.handle} />. local bots stay in this browser too.
           </p>
           <HandleForm key={me.user.handle} me={me} />
           <div className="flex flex-wrap gap-2">
@@ -409,8 +430,9 @@ function ProfileName({ me }: { me: Me }) {
         />
       </div>
       <p className="text-data text-muted">
-        anonymous hides your github name, login, and avatar from every public page. your handle
-        still shows.
+        {me.user.github === undefined && me.user.name === undefined
+          ? 'this account has no github name or avatar: the public sees its handle either way.'
+          : 'anonymous hides your github name, login, and avatar from every public page. your handle still shows.'}
       </p>
     </div>
   )

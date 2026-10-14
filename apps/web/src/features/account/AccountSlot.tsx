@@ -5,18 +5,19 @@ import { useRouter } from '@tanstack/react-router'
 import { LogIn, LogOut, Settings, UserRound } from 'lucide-react'
 import type { Ref } from 'react'
 import { mayBeSignedIn, useMe } from '../../api/queries'
-import { signInHref, signOut } from '../../api/writes'
+import { signOut } from '../../api/writes'
 import { preconnectAvatars } from './avatars'
 
-/** Sends the browser to GitHub's sign-in, and back to this page after. */
+/** Sends the browser to the sign-in page (GitHub or a password), and back to this page after. */
 export function signIn(): void {
   const { pathname, search, hash } = window.location
-  window.location.assign(signInHref(`${pathname}${search}${hash}`))
+  const here = encodeURIComponent(`${pathname}${search}${hash}`)
+  window.location.assign(`/auth/login?returnTo=${here}`)
 }
 
-/** `sign in with github`: `signIn`. */
+/** `sign in`: `signIn`. */
 export function SignInButton({
-  children = 'sign in with github',
+  children = 'sign in',
   compact = false,
 }: {
   children?: string
@@ -55,7 +56,7 @@ export function useSignOut(): () => Promise<void> {
 
 /**
  * The header's account slot (PRODUCT_SPEC §9): the signed-in user's avatar, which opens a menu
- * (profile, settings, sign out), or `sign in with github`. A visit that may be signed in opens the
+ * (profile, settings, sign out), or `sign in`. A visit that may be signed in opens the
  * avatars' connection while `me` loads.
  */
 export function AccountSlot() {

@@ -287,8 +287,7 @@ describe('SettingsPage', () => {
     const account = screen.getByRole('region', { name: 'account' })
     expect(account.textContent).toContain('signed out')
     expect(
-      (within(account).getByRole('button', { name: 'sign in with github' }) as HTMLButtonElement)
-        .disabled,
+      (within(account).getByRole('button', { name: 'sign in' }) as HTMLButtonElement).disabled,
     ).toBe(false)
   })
 

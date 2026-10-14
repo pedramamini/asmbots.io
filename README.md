@@ -12,7 +12,7 @@ ASM BOTS is Core War in real 8086 machine code. You write a bot in NASM-style as
 - **The arena.** Up to 16 bots, WebGL2 with a 2D fallback, step back, an events log, share links, and replays that your browser verifies.
 - **The editor and the debugger.** Lint as you type, format, `test vs`, versions, breakpoints, watches, a trace, and 256 steps back.
 - **Tournaments.** Rounds, round robins, melees, brackets, and King of the Hill, with pMARS scoring and Glicko-2 ratings. They run in the browser, in the CLI, and on the server.
-- **The server.** Sign in with GitHub, cloud bots, hills, server tournaments watched live, a weekly championship, share cards, and an API.
+- **The server.** Sign in with GitHub or a username and a password, cloud bots, hills, server tournaments watched live, a weekly championship, share cards, and an API.
 - **The roster.** 14 fighters and painters from six classic families, with 152 golden rounds that pin what they do.
 - **The details.** Five themes, a keyboard for everything, no axe violation in any theme, and docs where every code block runs.
 - **The CLI.** `asmbots asm`, `dis`, `fight`, `tourney`, and `bench`.

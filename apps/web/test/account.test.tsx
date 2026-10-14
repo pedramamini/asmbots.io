@@ -122,7 +122,7 @@ describe('the account slot', () => {
   it('offers sign-in, and asks the API nothing, when the browser holds no session', async () => {
     renderWith(() => <AccountSlot />)
     // msw fails any request it has no handler for: a GET /api/me here would.
-    expect(await screen.findByRole('button', { name: 'sign in with github' })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'sign in' })).toBeTruthy()
   })
 
   it('shows the avatar menu when signed in', async () => {
@@ -153,7 +153,7 @@ describe('the account slot', () => {
     renderWith(() => <AccountSlot />)
     fireEvent.click(await screen.findByRole('button', { name: 'account: octo' }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'sign out' }))
-    expect(await screen.findByRole('button', { name: 'sign in with github' })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'sign in' })).toBeTruthy()
     expect(loggedOut).toBe(true)
     expect(await screen.findByText('signed out.')).toBeTruthy()
   })
@@ -162,13 +162,13 @@ describe('the account slot', () => {
     signedIn(true)
     server.use(answer('/me', { error: { code: 'unauthorized', message: 'sign in first' } }, 401))
     renderWith(() => <AccountSlot />)
-    expect(await screen.findByRole('button', { name: 'sign in with github' })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'sign in' })).toBeTruthy()
     await waitFor(() => expect(document.cookie).not.toContain('signed_in=1'))
   })
 })
 
 describe('the settings account panel', () => {
-  const onboarded: Me = { ...ME, onboarded: true }
+  const onboarded: Me = { user: { ...ME.user, github: 'octo' }, onboarded: true }
 
   it('shows the github link, and edits the handle with the same checks as the first sign-in', async () => {
     signedIn(true)

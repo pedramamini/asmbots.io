@@ -113,8 +113,3 @@ export function revokeApiToken(id: string): Promise<void> {
 export async function signOut(): Promise<void> {
   await apiPost('/auth/logout', {}, () => undefined)
 }
-
-/** Where `sign in with github` goes: GitHub, then back to `returnTo` on this site. */
-export function signInHref(returnTo: string): string {
-  return `/api/auth/github?returnTo=${encodeURIComponent(returnTo)}`
-}

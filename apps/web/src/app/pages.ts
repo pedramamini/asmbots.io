@@ -88,6 +88,24 @@ const APP_PAGES: Readonly<Record<string, PageMeta>> = {
     headline: 'settings',
     noindex: true,
   },
+  ...Object.fromEntries(
+    Object.entries({
+      login: 'sign in',
+      signup: 'new account',
+      forgot: 'forgot password',
+      reset: 'reset password',
+      verify: 'verify email',
+    }).map(([page, name]) => [
+      `/auth/${page}`,
+      {
+        title: routeTitle('account', name),
+        description: 'Sign in to ASM BOTS with GitHub, or with a username and a password.',
+        label: 'account',
+        headline: 'your account',
+        noindex: true,
+      },
+    ]),
+  ),
   '/embed/arena': {
     title: routeTitle('embed'),
     description: 'A battle in the ASM BOTS arena: 8086 bots fighting for 64 KB.',

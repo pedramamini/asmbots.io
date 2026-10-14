@@ -62,7 +62,7 @@ test('opens the avatars’ origin on a profile, and in the header of a visit sig
   await expect(avatarHints(visitor)).toHaveCount(1)
   // No one signed in: the header shows no avatar, and asks for no connection.
   await visitor.goto('/tournaments')
-  await expect(visitor.getByRole('button', { name: 'sign in with github' })).toBeVisible()
+  await expect(visitor.getByRole('button', { name: 'sign in', exact: true })).toBeVisible()
   await expect(avatarHints(visitor)).toHaveCount(0)
   await visitor.close()
 

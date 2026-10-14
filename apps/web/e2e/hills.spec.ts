@@ -36,6 +36,8 @@ async function signIn(page: Page, slug: string, login: string): Promise<void> {
   )
   // Exact: an empty feed offers `sign in to submit a bot` as well.
   await page.getByRole('button', { name: 'sign in to submit', exact: true }).click()
+  // The sign-in page offers GitHub or a password: GitHub, which the Worker fakes.
+  await page.getByRole('button', { name: 'sign in with github' }).click()
   await expect(page).toHaveURL(`${WORKER}/hills/${slug}`)
   const pick = page.getByRole('dialog', { name: 'pick a handle' })
   await pick.getByRole('button', { name: 'continue' }).click()

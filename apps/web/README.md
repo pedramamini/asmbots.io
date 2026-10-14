@@ -21,6 +21,7 @@ One file a part of the app, in `guide/`. Read the one your change touches; paths
 | [Arena](guide/arena.md) | the battle page: routes, sound, the first visit, the Worker protocol, the renderer, its performance, adding an effect |
 | [Editor and debugger](guide/editor.md) | the editor and debugger: architecture, keymap, breakpoints, adding a template |
 | [Tournaments](guide/tournaments.md) | tournaments run in the browser and on the server: the files, the runner, the controls |
+| [Account](guide/account.md) | signing in with GitHub or a password, the `/auth/...` pages, and the settings page's password panel |
 | [Stats](guide/stats.md) | `/stats`, the leaderboard, and the badges |
 | [Empty and error states](guide/states.md) | what each page shows while loading, empty, offline, or failed |
 | [Sharing and embeds](guide/sharing.md) | share links, replays, screenshots, and the embed |

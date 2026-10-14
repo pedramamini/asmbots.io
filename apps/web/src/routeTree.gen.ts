@@ -15,6 +15,7 @@ import { Route as DocsRouteImport } from './routes/docs'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ArenaIndexRouteImport } from './routes/arena/index'
 import { Route as ArenaReplayIdRouteImport } from './routes/arena/$replayId'
+import { Route as AuthSplatRouteImport } from './routes/auth/$'
 import { Route as BotsIdRouteImport } from './routes/bots/$id'
 import { Route as DocsIndexRouteImport } from './routes/docs/index'
 import { Route as DocsSplatRouteImport } from './routes/docs/$'
@@ -59,6 +60,11 @@ const ArenaIndexRoute = ArenaIndexRouteImport.update({
 const ArenaReplayIdRoute = ArenaReplayIdRouteImport.update({
   id: '/arena/$replayId',
   path: '/arena/$replayId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthSplatRoute = AuthSplatRouteImport.update({
+  id: '/auth/$',
+  path: '/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BotsIdRoute = BotsIdRouteImport.update({
@@ -144,6 +150,7 @@ export interface FileRoutesByFullPath {
   '/docs': typeof DocsRouteWithChildren
   '/settings': typeof SettingsRoute
   '/arena/$replayId': typeof ArenaReplayIdRoute
+  '/auth/$': typeof AuthSplatRoute
   '/bots/$id': typeof BotsIdRoute
   '/docs/$': typeof DocsSplatRoute
   '/editor/$botId': typeof EditorBotIdRoute
@@ -166,6 +173,7 @@ export interface FileRoutesByTo {
   '/_gallery': typeof GalleryRoute
   '/settings': typeof SettingsRoute
   '/arena/$replayId': typeof ArenaReplayIdRoute
+  '/auth/$': typeof AuthSplatRoute
   '/bots/$id': typeof BotsIdRoute
   '/docs/$': typeof DocsSplatRoute
   '/editor/$botId': typeof EditorBotIdRoute
@@ -190,6 +198,7 @@ export interface FileRoutesById {
   '/docs': typeof DocsRouteWithChildren
   '/settings': typeof SettingsRoute
   '/arena/$replayId': typeof ArenaReplayIdRoute
+  '/auth/$': typeof AuthSplatRoute
   '/bots/$id': typeof BotsIdRoute
   '/docs/$': typeof DocsSplatRoute
   '/editor/$botId': typeof EditorBotIdRoute
@@ -215,6 +224,7 @@ export interface FileRouteTypes {
     | '/docs'
     | '/settings'
     | '/arena/$replayId'
+    | '/auth/$'
     | '/bots/$id'
     | '/docs/$'
     | '/editor/$botId'
@@ -237,6 +247,7 @@ export interface FileRouteTypes {
     | '/_gallery'
     | '/settings'
     | '/arena/$replayId'
+    | '/auth/$'
     | '/bots/$id'
     | '/docs/$'
     | '/editor/$botId'
@@ -260,6 +271,7 @@ export interface FileRouteTypes {
     | '/docs'
     | '/settings'
     | '/arena/$replayId'
+    | '/auth/$'
     | '/bots/$id'
     | '/docs/$'
     | '/editor/$botId'
@@ -284,6 +296,7 @@ export interface RootRouteChildren {
   DocsRoute: typeof DocsRouteWithChildren
   SettingsRoute: typeof SettingsRoute
   ArenaReplayIdRoute: typeof ArenaReplayIdRoute
+  AuthSplatRoute: typeof AuthSplatRoute
   BotsIdRoute: typeof BotsIdRoute
   EditorBotIdRoute: typeof EditorBotIdRoute
   HillsSlugRoute: typeof HillsSlugRoute
@@ -342,6 +355,13 @@ declare module '@tanstack/react-router' {
       path: '/arena/$replayId'
       fullPath: '/arena/$replayId'
       preLoaderRoute: typeof ArenaReplayIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/$': {
+      id: '/auth/$'
+      path: '/auth/$'
+      fullPath: '/auth/$'
+      preLoaderRoute: typeof AuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/bots/$id': {
@@ -470,6 +490,7 @@ const rootRouteChildren: RootRouteChildren = {
   DocsRoute: DocsRouteWithChildren,
   SettingsRoute: SettingsRoute,
   ArenaReplayIdRoute: ArenaReplayIdRoute,
+  AuthSplatRoute: AuthSplatRoute,
   BotsIdRoute: BotsIdRoute,
   EditorBotIdRoute: EditorBotIdRoute,
   HillsSlugRoute: HillsSlugRoute,

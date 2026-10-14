@@ -39,7 +39,8 @@ test('signs in, picks a handle, imports two local bots, and shows them on the pr
   ])
   await page.reload()
 
-  await page.getByRole('button', { name: 'sign in with github' }).first().click()
+  await page.getByRole('button', { name: 'sign in', exact: true }).first().click()
+  await page.getByRole('button', { name: 'sign in with github' }).click()
   await expect(page).toHaveURL(`${WORKER}/settings`)
 
   const pick = page.getByRole('dialog', { name: 'pick a handle' })
@@ -80,7 +81,8 @@ test('saves a bot in the account: v1, the same bytes again, v2, and the bot page
   )
   await page.goto('/editor')
   await startOnYourOwn(page)
-  await page.getByRole('button', { name: 'sign in with github' }).first().click()
+  await page.getByRole('button', { name: 'sign in', exact: true }).first().click()
+  await page.getByRole('button', { name: 'sign in with github' }).click()
   const pick = page.getByRole('dialog', { name: 'pick a handle' })
   await pick.getByRole('button', { name: 'continue' }).click()
   await expect(pick).toBeHidden()
@@ -126,7 +128,8 @@ test('deletes the account from settings: signed out, the profile gone', async ({
     route.continue({ url: `${route.request().url()}&as=${login}` }),
   )
   await page.goto('/settings')
-  await page.getByRole('button', { name: 'sign in with github' }).first().click()
+  await page.getByRole('button', { name: 'sign in', exact: true }).first().click()
+  await page.getByRole('button', { name: 'sign in with github' }).click()
   const pick = page.getByRole('dialog', { name: 'pick a handle' })
   await pick.getByRole('button', { name: 'continue' }).click()
   await expect(pick).toBeHidden()
