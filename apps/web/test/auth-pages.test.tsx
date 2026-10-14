@@ -163,7 +163,7 @@ describe('/auth/signup', () => {
     expect(screen.getByText('a handle is 3 to 24 characters')).toBeTruthy()
     type('username', 'ada')
     type('password', 'short')
-    expect(screen.getByText('a password is at least 10 characters')).toBeTruthy()
+    expect(screen.getByText('a password is at least 15 characters')).toBeTruthy()
     type('password', PASSWORD)
     type('password, again', 'correct horse batteri')
     expect(screen.getByText('the two passwords differ')).toBeTruthy()

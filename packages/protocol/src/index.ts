@@ -120,6 +120,7 @@ export {
   MAX_PASSWORD,
   MIN_PASSWORD,
   normalizeEmail,
+  normalizePassword,
   passwordProblem,
   RecoverAccount,
   ResetPassword,

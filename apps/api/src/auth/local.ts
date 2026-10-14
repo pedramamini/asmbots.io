@@ -245,13 +245,12 @@ export const local = new Hono<AppEnv>()
       handleProblem(username) ??
       // An admin's handle is not one to take by signing up for it (`ADMIN_HANDLES`).
       (isAdminHandle(c.env, username) ? `${username} is reserved` : null) ??
-      passwordProblem(asked.password, username) ??
+      passwordProblem(asked.password, email === null ? [username] : [username, email]) ??
       (email === null
         ? null
         : send === null
           ? 'this server sends no mail: leave the email out'
-          : (emailProblem(email) ??
-            (asked.password.toLowerCase() === email ? 'a password is not the email' : null)))
+          : emailProblem(email))
     if (problem !== null) return errorResponse(c, 'bad_request', problem)
     if (await isHandleTaken(c.env.DB, username)) {
       return errorResponse(c, 'conflict', `${username} is taken`)
@@ -335,7 +334,7 @@ export const local = new Hono<AppEnv>()
     // Read first, so a password the API refuses leaves the link good for another.
     const link = hash === null ? null : await peekAuthToken(c.env.DB, hash, 'reset_password')
     if (hash === null || link === null) return errorResponse(c, 'bad_request', BAD_LINK)
-    const problem = passwordProblem(asked.password, link.handle)
+    const problem = passwordProblem(asked.password, [link.handle, link.email])
     if (problem !== null) return errorResponse(c, 'bad_request', problem)
     const passwordHash = await hashPassword(asked.password)
     const used = await takeAuthToken(c.env.DB, hash, 'reset_password')

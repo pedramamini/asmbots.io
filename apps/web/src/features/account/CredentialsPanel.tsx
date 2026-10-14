@@ -39,7 +39,7 @@ export function CredentialsPanel() {
       <div className="flex flex-col gap-4">
         <Recovery credentials={credentials} />
         {credentials.mail && <EmailForm key={credentials.email ?? ''} credentials={credentials} />}
-        <PasswordForm me={me} />
+        <PasswordForm me={me} email={credentials.email} />
       </div>
     </Panel>
   )
@@ -172,14 +172,15 @@ function EmailForm({ credentials }: { credentials: Credentials }) {
 }
 
 /** A new password, with the one it replaces. Every other session of the account ends. */
-function PasswordForm({ me }: { me: Me }) {
+function PasswordForm({ me, email }: { me: Me; email: string | null }) {
   const { toast } = useToast()
   const [current, setCurrent] = useState('')
   const [password, setPassword] = useState('')
   const [again, setAgain] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const ready = current !== '' && newPassword(password, again, me.user.handle).ready
+  const names = email === null ? [me.user.handle] : [me.user.handle, email]
+  const ready = current !== '' && newPassword(password, again, names).ready
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -219,7 +220,7 @@ function PasswordForm({ me }: { me: Me }) {
         label="new password"
         password={password}
         again={again}
-        username={me.user.handle}
+        names={names}
         onPassword={setPassword}
         onAgain={setAgain}
       />

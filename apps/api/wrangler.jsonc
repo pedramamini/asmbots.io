@@ -6,6 +6,9 @@
   "name": "asmbots",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-15",
+  // `node:crypto`'s scrypt, the password hash (src/auth/password.ts): Cloudflare documents the
+  // Node APIs as needing this flag, so it is set, not left to what a runtime offers without it.
+  "compatibility_flags": ["nodejs_compat"],
   // The share cards' font (src/og/fonts): a `.ttf` import is its bytes, an ArrayBuffer. The AI
   // mode's prompt (src/ai/prompt.ts): a `.md` import is its text.
   "rules": [

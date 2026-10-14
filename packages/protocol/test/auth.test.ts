@@ -9,6 +9,7 @@ import {
   MAX_PASSWORD,
   MIN_PASSWORD,
   normalizeEmail,
+  normalizePassword,
   ProtocolError,
   parse,
   passwordProblem,
@@ -16,24 +17,73 @@ import {
 } from '../src/index'
 
 describe('passwordProblem', () => {
-  it('asks for length, and for nothing else of a password that has it', () => {
+  it('asks 15 code points, and nothing else of a password that has them', () => {
+    expect(MIN_PASSWORD).toBe(15)
     expect(passwordProblem('correct horse battery')).toBeNull()
-    expect(passwordProblem('alllowercase')).toBeNull()
-    expect(passwordProblem('x'.repeat(MIN_PASSWORD - 1))).toBe(
-      'a password is at least 10 characters',
-    )
+    expect(passwordProblem('alllowercaseonly')).toBeNull()
+    expect(passwordProblem(`${'x'.repeat(13)}yz`)).toBeNull()
+    expect(passwordProblem(`${'x'.repeat(12)}yz`)).toBe('a password is at least 15 characters')
     expect(passwordProblem(`ab${'x'.repeat(MAX_PASSWORD - 2)}`)).toBeNull()
     expect(passwordProblem(`ab${'x'.repeat(MAX_PASSWORD - 1)}`)).toBe(
       'a password is at most 128 characters',
     )
   })
 
-  it('refuses one character repeated, the username, and the passwords every list starts with', () => {
-    expect(passwordProblem('aaaaaaaaaaaa')).toBe('a password is more than one character repeated')
-    expect(passwordProblem('Long-Username', 'long-username')).toBe('a password is not the username')
-    expect(passwordProblem('long-username-and-more', 'long-username')).toBeNull()
-    expect(passwordProblem('PASSWORD123')).toBe('that password is too common: pick another')
-    expect(passwordProblem('qwertyuiop')).toBe('that password is too common: pick another')
+  it('counts code points of the NFKC form, as the server hashes it', () => {
+    // 15 UTF-16 units, but an `e` and a combining accent are one `é`: 14 once normalized.
+    const combining = 'café au lait x'
+    expect(combining.length).toBe(15)
+    expect(normalizePassword(combining)).toBe('café au lait x')
+    expect(passwordProblem(combining)).toBe('a password is at least 15 characters')
+    // Seven emoji are 14 UTF-16 units and 7 code points, and eight letters make 15.
+    expect(passwordProblem(`${'\u{1F916}'.repeat(7)}asmbotsz`)).toBeNull()
+    expect(passwordProblem(`${'\u{1F916}'.repeat(7)}asmbots`)).toBe(
+      'a password is at least 15 characters',
+    )
+    // A ligature is the two letters it stands for.
+    expect(normalizePassword('ﬀ')).toBe('ff')
+  })
+
+  it('refuses a piece repeated, in any form a compatibility character gives it', () => {
+    expect(passwordProblem('aaaaaaaaaaaaaaaa')).toBe('a password is more than one piece repeated')
+    expect(passwordProblem('abcabcabcabcabcabc')).toBe('a password is more than one piece repeated')
+    // Fullwidth `ａ` and `a` are one letter once normalized: no way past the rule.
+    expect(passwordProblem('ａa'.repeat(8))).toBe('a password is more than one piece repeated')
+  })
+
+  it('refuses the account`s own names, and them with a short tail, however they are typed', () => {
+    expect(passwordProblem('long-username-x', ['long-username-x'])).toBe(
+      'a password is more than your username or email',
+    )
+    expect(passwordProblem('Long.Username.X!!', ['long-username-x'])).toBe(
+      'a password is more than your username or email',
+    )
+    expect(passwordProblem('ada@example.com', ['ada', 'ada@example.com'])).toBe(
+      'a password is more than your username or email',
+    )
+    // A username is public: with it at either end, a password needs 15 of its own besides. Fullwidth
+    // letters of the username are the username.
+    expect(passwordProblem('\uff41\uff44\uff41-lovelace-1815', ['ada'])).toBe(
+      'a password is more than your username or email',
+    )
+    expect(passwordProblem('ada-lovelace-1815', ['ada'])).toBe(
+      'a password is more than your username or email',
+    )
+    expect(passwordProblem('ａｄａａｄａａｄａ-2-3-4-5', ['adaadaada'])).toBe(
+      'a password is more than your username or email',
+    )
+    expect(passwordProblem('ada-lovelace-was-first', ['ada'])).toBeNull()
+  })
+
+  it('refuses what a guesser tries first, with or without spaces and in any case', () => {
+    const common = 'that password is too common: pick another'
+    expect(passwordProblem('correct horse battery staple')).toBe(common)
+    expect(passwordProblem('Correct-Horse-Battery-Staple')).toBe(common)
+    expect(passwordProblem('123456789012345')).toBe(common)
+    expect(passwordProblem('qwertyuiopasdfgh')).toBe(common)
+    expect(passwordProblem('abcdefghijklmnop')).toBe(common)
+    // Fullwidth digits are digits.
+    expect(passwordProblem('１２３４５６７８９０１２３４５')).toBe(common)
   })
 })
 

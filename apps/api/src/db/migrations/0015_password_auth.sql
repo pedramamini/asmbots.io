@@ -7,7 +7,7 @@
 -- (the partial unique index); unverified, an address proves nothing and may repeat.
 CREATE TABLE password_credentials (
   user_id            TEXT PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
-  password_hash      TEXT NOT NULL,            -- `pbkdf2-sha256$<rounds>x<iterations>$<salt>$<key>`
+  password_hash      TEXT NOT NULL,            -- PHC scrypt: `$scrypt$ln=14,r=8,p=5$<salt>$<key>`
   email              TEXT,                     -- trimmed, lowercase
   email_verified_at  TEXT,
   password_set_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),

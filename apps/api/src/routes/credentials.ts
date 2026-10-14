@@ -17,6 +17,7 @@ import {
   type Credentials,
   emailProblem,
   normalizeEmail,
+  normalizePassword,
   parse,
   passwordProblem,
 } from '@asmbots/protocol'
@@ -85,8 +86,10 @@ export const credentials = new Hono<AppEnv>()
     const wrong = await wrongPassword(c, row, asked.current)
     if (wrong !== null) return wrong
     const problem =
-      passwordProblem(asked.password, user.handle) ??
-      (asked.password === asked.current ? 'the new password is the one you have' : null)
+      passwordProblem(asked.password, [user.handle, ...(row.email === null ? [] : [row.email])]) ??
+      (normalizePassword(asked.password) === normalizePassword(asked.current)
+        ? 'the new password is the one you have'
+        : null)
     if (problem !== null) return errorResponse(c, 'bad_request', problem)
     const hash = await hashPassword(asked.password)
     const setAt = await setPassword(c.env.DB, userId, hash, 'password.change')

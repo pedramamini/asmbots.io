@@ -1,4 +1,4 @@
-import { passwordProblem } from '@asmbots/protocol'
+import { MIN_PASSWORD, normalizePassword, passwordProblem } from '@asmbots/protocol'
 import { cx, Input, type InputProps } from '@asmbots/ui'
 import { type ReactNode, useId } from 'react'
 import { ApiRequestError } from '../../../api/client'
@@ -47,15 +47,17 @@ export function Field({
 
 /**
  * What is wrong with a new password typed twice, a field each: nothing while a field is empty,
- * so a form does not complain before it is filled. `ready` once both are good.
+ * so a form does not complain before it is filled. `ready` once both are good. Both are read as
+ * the server hashes them (`normalizePassword`), so the form and the server agree on every count.
  */
-export function newPassword(password: string, again: string, username = '') {
-  const problem = password === '' ? null : passwordProblem(password, username)
-  const differs = again !== '' && again !== password ? 'the two passwords differ' : null
+export function newPassword(password: string, again: string, names: readonly string[] = []) {
+  const problem = password === '' ? null : passwordProblem(password, names)
+  const same = normalizePassword(again) === normalizePassword(password)
+  const differs = again !== '' && !same ? 'the two passwords differ' : null
   return {
     problem,
     differs,
-    ready: password !== '' && problem === null && again === password,
+    ready: password !== '' && problem === null && same,
   }
 }
 
@@ -63,19 +65,20 @@ export function newPassword(password: string, again: string, username = '') {
 export function NewPasswordFields({
   password,
   again,
-  username,
+  names,
   label = 'password',
   onPassword,
   onAgain,
 }: {
   password: string
   again: string
-  username?: string | undefined
+  /** What the account is named by (its username, its email): a password is more than these. */
+  names?: readonly string[] | undefined
   label?: string | undefined
   onPassword: (value: string) => void
   onAgain: (value: string) => void
 }) {
-  const { problem, differs } = newPassword(password, again, username)
+  const { problem, differs } = newPassword(password, again, names)
   return (
     <>
       <Field
@@ -84,7 +87,7 @@ export function NewPasswordFields({
         autoComplete="new-password"
         value={password}
         problem={problem}
-        hint="10 characters or more. length is what counts: a few words do well."
+        hint={`${MIN_PASSWORD} characters or more. length is what counts: a few words do well.`}
         onChange={(event) => onPassword(event.currentTarget.value)}
       />
       <Field

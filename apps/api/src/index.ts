@@ -2,7 +2,8 @@
  * The Worker: `/api/*` in Hono, everything else from the web app's static assets (ARCHITECTURE
  * §7), each page with its own head (`site/`), and `/sitemap.xml`. The hashed assets (`/assets/*`)
  * never reach it (`run_worker_first` in wrangler.jsonc). No Node built-ins here or in anything it
- * imports: the engine and tourney run unchanged.
+ * imports, so the engine and tourney run unchanged, but one: `node:crypto`'s scrypt, the password
+ * hash (`auth/password.ts`), which has no Web Crypto equal.
  */
 import { Hono } from 'hono'
 import { requestId } from 'hono/request-id'

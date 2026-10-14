@@ -126,7 +126,9 @@ Note: `list` shows names only, not values (they are encrypted). Verification is 
 
 ## Password sign-in and mail
 
-An account may sign in with a username and a password instead of GitHub (`apps/api/README.md`, "Password sign-in"). It needs `SESSION_SECRET` and nothing else, so it is on from the deploy that ships it. Migration `0015_password_auth.sql` adds its two tables and changes none.
+An account may sign in with a username and a password instead of GitHub (`apps/api/README.md`, "Password sign-in"). It needs `SESSION_SECRET` and nothing else, so it is on from the deploy that ships it.
+
+**Before that deploy:** the account must be on the Workers Paid plan. Each password is hashed with scrypt, about 120 ms of CPU a sign-in (README, "Password hashing"); the Free plan allows 10 ms a request. After it, read a sign-in's CPU time in `wrangler tail` once. Migration `0015_password_auth.sql` adds its two tables and changes none.
 
 ### Close or open it
 

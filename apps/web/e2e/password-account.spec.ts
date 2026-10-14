@@ -40,7 +40,7 @@ test('makes an account with no email, is told it cannot be recovered, and signs 
   const make = page.getByRole('button', { name: 'make the account' })
   await page.getByLabel('username').fill(name)
   await page.getByLabel('password', { exact: true }).fill('short')
-  await expect(page.getByText('a password is at least 10 characters')).toBeVisible()
+  await expect(page.getByText('a password is at least 15 characters')).toBeVisible()
   await expect(make).toBeDisabled()
   await page.getByLabel('password', { exact: true }).fill(PASSWORD)
   await page.getByLabel('password, again').fill(PASSWORD)

@@ -246,7 +246,8 @@ function SignUpPage({ back }: { back: string }) {
   const typed = normalizeEmail(email)
   const nameProblem = username === '' ? null : handleProblem(username)
   const mailProblem = typed === '' ? null : emailProblem(typed)
-  const pass = newPassword(password, again, username)
+  const names = typed === '' ? [username] : [username, typed]
+  const pass = newPassword(password, again, names)
   const ready = username !== '' && nameProblem === null && pass.ready && mailProblem === null
 
   const submit = async (event: FormEvent) => {
@@ -278,7 +279,7 @@ function SignUpPage({ back }: { back: string }) {
         <NewPasswordFields
           password={password}
           again={again}
-          username={username}
+          names={names}
           onPassword={setPassword}
           onAgain={setAgain}
         />

@@ -8,46 +8,80 @@
  */
 import * as z from 'zod/mini'
 
-/** A password's length, in characters. */
-export const MIN_PASSWORD = 10
+/**
+ * A password's length, in Unicode code points of its NFKC form (`normalizePassword`): what the
+ * server hashes, so what a rule counts. 15 at least: an account here has a password and no second
+ * factor, and NIST SP 800-63B-4 (§3.1.1.2) asks 15 of a password that is the only factor.
+ */
+export const MIN_PASSWORD = 15
 export const MAX_PASSWORD = 128
 
 /** An email address's length at most (RFC 5321). */
 export const MAX_EMAIL = 254
 
-/** The passwords of `MIN_PASSWORD` characters or more that every guessing list starts with. */
+/**
+ * A password as the server hashes it and every rule reads it: NFKC (NIST SP 800-63B-4 asks for
+ * NFKC or NFKD). Two keyboards that type the same word give the same bytes, and a compatibility
+ * character counts as what it stands for: a fullwidth `ａ` is an `a`, a ligature `ﬀ` is two
+ * letters, an `e` and a combining accent are one `é`.
+ */
+export function normalizePassword(password: string): string {
+  return password.normalize('NFKC')
+}
+
+/** The passwords of `MIN_PASSWORD` code points or more that every guessing list has. */
 const COMMON_PASSWORDS: ReadonlySet<string> = new Set([
-  '0123456789',
-  '1234567890',
-  '12345678910',
-  '123456789a',
-  '1q2w3e4r5t',
-  '1q2w3e4r5t6y',
-  'abcdefghij',
-  'administrator',
-  'asmbots.io',
-  'iloveyou123',
-  'letmein12345',
-  'password123',
-  'password1234',
-  'passwordpassword',
-  'qwerty12345',
-  'qwertyuiop',
-  'qwertyuiop123',
+  'administrator1234',
+  'correcthorsebatterystaple',
+  'iloveyouiloveyou',
+  'letmeinletmeinletmein',
+  'passwordpassword1',
+  'passwordpassword123',
   'trustno1trustno1',
+  'welcometoasmbots',
 ])
 
+/** Runs a keyboard or a count goes in: a password that is a piece of one is no password. */
+const RUNS = [
+  '01234567890123456789012345678901234567890',
+  '98765432109876543210987654321098765432109',
+  'abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz',
+  'zyxwvutsrqponmlkjihgfedcbazyxwvutsrqponmlkjihgfedcba',
+  'qwertyuiopasdfghjklzxcvbnm',
+  '1q2w3e4r5t6y7u8i9o0p',
+  'qazwsxedcrfvtgbyhnujmikolp',
+]
+
+/** What a guesser would try first for `password` (lowercase NFKC): no spaces, no separators. */
+const bare = (lower: string) => lower.replace(/[\s._-]+/gu, '')
+
 /**
- * What is wrong with `password` as a new password for the account named `username`, or null when
- * nothing is. Length is what counts (NIST SP 800-63B): no rule asks for a digit or a symbol.
+ * What is wrong with `password` as a new password for an account that `names` name (its username,
+ * its email), or null when nothing is. A name is public, so a password that starts or ends with
+ * one needs `MIN_PASSWORD` code points of its own besides it. Every rule reads the password as it is hashed
+ * (`normalizePassword`), so a compatibility character, a combining mark, or a character outside
+ * the BMP counts as one code point of what the server keeps. Length is what counts (NIST SP
+ * 800-63B-4): no rule asks for a digit or a symbol; the rest refuse what a guesser tries first.
  */
-export function passwordProblem(password: string, username = ''): string | null {
-  if (password.length < MIN_PASSWORD) return `a password is at least ${MIN_PASSWORD} characters`
-  if (password.length > MAX_PASSWORD) return `a password is at most ${MAX_PASSWORD} characters`
-  if (/^(.)\1*$/su.test(password)) return 'a password is more than one character repeated'
-  const lower = password.toLowerCase()
-  if (username !== '' && lower === username.toLowerCase()) return 'a password is not the username'
-  if (COMMON_PASSWORDS.has(lower)) return 'that password is too common: pick another'
+export function passwordProblem(password: string, names: readonly string[] = []): string | null {
+  const kept = normalizePassword(password)
+  const length = [...kept].length
+  if (length < MIN_PASSWORD) return `a password is at least ${MIN_PASSWORD} characters`
+  if (length > MAX_PASSWORD) return `a password is at most ${MAX_PASSWORD} characters`
+  if (/^(.+?)\1+$/su.test(kept)) return 'a password is more than one piece repeated'
+  const lower = kept.toLowerCase()
+  const plain = bare(lower)
+  for (const name of names) {
+    const own = bare(normalizePassword(name).toLowerCase())
+    if (own !== '' && (plain === own || plain.startsWith(own) || plain.endsWith(own))) {
+      if (plain.length - own.length < MIN_PASSWORD) {
+        return 'a password is more than your username or email'
+      }
+    }
+  }
+  if (COMMON_PASSWORDS.has(plain) || RUNS.some((run) => run.includes(plain))) {
+    return 'that password is too common: pick another'
+  }
   return null
 }
 

@@ -6,6 +6,7 @@
  * (`waitUntil`) is awaited by `settle`.
  */
 import { env } from 'cloudflare:workers'
+import { scrypt } from 'node:crypto'
 import {
   AuditList,
   AuthMethods,
@@ -144,10 +145,34 @@ async function audit(jar: Jar): Promise<string[]> {
   return parse(AuditList, await res.json(), 'the audit').entries.map((e) => e.action)
 }
 
+/** A PHC scrypt string, made here with the runtime's scrypt directly: an older cost, say. */
+function scryptHash(password: string, ln: number, r: number, p: number): Promise<string> {
+  const salt = crypto.getRandomValues(new Uint8Array(16))
+  const b64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes)).replace(/=+$/, '')
+  return new Promise((resolve, reject) =>
+    scrypt(new TextEncoder().encode(password), salt, 32, { N: 2 ** ln, r, p }, (err, key) =>
+      err ? reject(err) : resolve(`$scrypt$ln=${ln},r=${r},p=${p}$${b64(salt)}$${b64(key)}`),
+    ),
+  )
+}
+
 describe('password hashing', () => {
-  it('verifies the password it hashed, and no other', async () => {
+  it('is scrypt: RFC 7914`s test vector 3 checks out', async () => {
+    // P = "pleaseletmein", S = "SodiumChloride", N = 16384, r = 8, p = 1, dkLen = 64 (§12).
+    const key = [
+      '7023bdcb3afd7348461c06cd81fd38ebfda8fbba904f8e3ea9b543f6545da1f2',
+      'd5432955613f0fcf62d49705242a9af9e61e85dc0d651e40dfcf017b45575887',
+    ].join('')
+    const bytes = Uint8Array.from(key.match(/../g) ?? [], (h) => Number.parseInt(h, 16))
+    const b64 = (b: Uint8Array) => btoa(String.fromCharCode(...b)).replace(/=+$/, '')
+    const stored = `$scrypt$ln=14,r=8,p=1$${b64(new TextEncoder().encode('SodiumChloride'))}$${b64(bytes)}`
+    expect(await verifyPassword('pleaseletmein', stored)).toBe(true)
+    expect(await verifyPassword('pleaseletmeim', stored)).toBe(false)
+  })
+
+  it('verifies the password it hashed, and no other, at today`s cost', async () => {
     const hash = await hashPassword(PASSWORD)
-    expect(hash).toMatch(/^pbkdf2-sha256\$6x100000\$[A-Za-z0-9+/]{22}==\$[A-Za-z0-9+/]{43}=$/)
+    expect(hash).toMatch(/^\$scrypt\$ln=14,r=8,p=5\$[A-Za-z0-9+/]{22}\$[A-Za-z0-9+/]{43}$/)
     expect(await verifyPassword(PASSWORD, hash)).toBe(true)
     expect(await verifyPassword(`${PASSWORD} `, hash)).toBe(false)
     expect(await verifyPassword('', hash)).toBe(false)
@@ -158,32 +183,45 @@ describe('password hashing', () => {
     expect(await hashPassword(PASSWORD)).not.toBe(await hashPassword(PASSWORD))
   })
 
-  it('reads a password in one Unicode form, however it was typed', async () => {
-    const hash = await hashPassword('café au lait 123')
-    expect(await verifyPassword('café au lait 123', hash)).toBe(true)
+  it('hashes the NFKC form, so a compatibility character is what it stands for', async () => {
+    const composed = await hashPassword('café au lait, no sugar')
+    expect(await verifyPassword('café au lait, no sugar', composed)).toBe(true)
+    const fullwidth = await hashPassword('ｃｏｒｒｅｃｔ horse battery')
+    expect(await verifyPassword('correct horse battery', fullwidth)).toBe(true)
+    const ligature = await hashPassword('ﬀ stands for two letters')
+    expect(await verifyPassword('ff stands for two letters', ligature)).toBe(true)
   })
 
-  it('takes no hash it did not make, and none that asks for unbounded work', async () => {
-    const [, , salt, key] = (await hashPassword(PASSWORD)).split('$')
+  it('takes no hash it did not make, and none that asks for too much memory or work', async () => {
+    const [, , , salt, key] = (await hashPassword(PASSWORD)).split('$')
     for (const stored of [
       '',
       'plain',
-      `md5$1x1$${salt}$${key}`,
-      `pbkdf2-sha256$6x100000$${salt}`,
-      `pbkdf2-sha256$0x100000$${salt}$${key}`,
-      `pbkdf2-sha256$6x100001$${salt}$${key}`,
-      `pbkdf2-sha256$999x100000$${salt}$${key}`,
-      `pbkdf2-sha256$6x100000$!!$${key}`,
+      `pbkdf2-sha256$6x100000$${salt}$${key}`,
+      `$argon2id$v=19$m=19456,t=2,p=1$${salt}$${key}`,
+      `$scrypt$ln=14,r=8,p=5$${salt}`,
+      `$scrypt$ln=9,r=8,p=5$${salt}$${key}`,
+      `$scrypt$ln=0,r=8,p=5$${salt}$${key}`,
+      `$scrypt$ln=14,r=0,p=5$${salt}$${key}`,
+      // 128 MiB, and 64 MiB: past the 32 MiB a stored hash may ask.
+      `$scrypt$ln=17,r=8,p=1$${salt}$${key}`,
+      `$scrypt$ln=14,r=32,p=1$${salt}$${key}`,
+      // 16 MiB, but four times today's work.
+      `$scrypt$ln=14,r=8,p=20$${salt}$${key}`,
+      `$scrypt$ln=14,r=8,p=5$!!!!!!!!!!!!!!!!!!!!!!$${key}`,
+      `$scrypt$ln=14,r=8,p=5$AAAA$${key}`,
+      `$scrypt$ln=14,r=8,p=5$${salt}$${key}$extra`,
     ]) {
-      expect(await verifyPassword(PASSWORD, stored)).toBe(false)
+      expect(await verifyPassword(PASSWORD, stored), stored).toBe(false)
       expect(needsRehash(stored)).toBe(true)
     }
     expect(await verifyNobody(PASSWORD)).toBe(false)
   })
 
-  it('marks a hash made at another cost for hashing again', async () => {
-    const [, , salt] = (await hashPassword(PASSWORD)).split('$')
-    expect(needsRehash(`pbkdf2-sha256$1x1000$${salt}$${salt}`)).toBe(true)
+  it('takes a hash made at another cost within bounds, and marks it for hashing again', async () => {
+    const older = await scryptHash(PASSWORD, 12, 8, 1)
+    expect(await verifyPassword(PASSWORD, older)).toBe(true)
+    expect(needsRehash(older)).toBe(true)
   })
 })
 
@@ -288,7 +326,7 @@ describe('POST /api/auth/signup', () => {
       email: 'hash-kept@example.com',
       email_verified_at: null,
     })
-    expect(String(row?.password_hash)).toMatch(/^pbkdf2-sha256\$/)
+    expect(String(row?.password_hash)).toMatch(/^\$scrypt\$ln=14,r=8,p=5\$/)
     expect(String(row?.password_hash)).not.toContain(PASSWORD)
   })
 
@@ -305,7 +343,7 @@ describe('POST /api/auth/signup', () => {
     })
     expect(await refused({ username: 'weak-one', password: 'short' })).toMatchObject({
       status: 400,
-      message: 'a password is at least 10 characters',
+      message: 'a password is at least 15 characters',
     })
     expect(await refused({ username: 'weak-two', password: 'Password123' })).toMatchObject({
       status: 400,
@@ -491,8 +529,8 @@ describe('POST /api/auth/signup', () => {
 })
 
 /**
- * Each sign-in checks a password at production cost (600,000 PBKDF2 iterations), and these tests
- * make 30 to 70 of them: past Vitest's 5 s when the whole suite runs at once.
+ * Each sign-in checks a password at production cost (scrypt, 16 MiB, about 120 ms here), and these
+ * tests make 30 to 70 of them: past Vitest's 5 s when the whole suite runs at once.
  */
 const MANY_PASSWORDS = { timeout: 30_000 }
 
@@ -629,25 +667,7 @@ describe('POST /api/auth/login', MANY_PASSWORDS, () => {
 
   it('hashes a password again when its hash was made at another cost', async () => {
     await signUp('old-cost')
-    const salt = btoa('0123456789abcdef')
-    const key = await crypto.subtle.importKey(
-      'raw',
-      new TextEncoder().encode(PASSWORD),
-      'PBKDF2',
-      false,
-      ['deriveBits'],
-    )
-    const bits = await crypto.subtle.deriveBits(
-      {
-        name: 'PBKDF2',
-        hash: 'SHA-256',
-        salt: new TextEncoder().encode('0123456789abcdef'),
-        iterations: 1000,
-      },
-      key,
-      256,
-    )
-    const weak = `pbkdf2-sha256$1x1000$${salt}$${btoa(String.fromCharCode(...new Uint8Array(bits)))}`
+    const weak = await scryptHash(PASSWORD, 12, 8, 1)
     await env.DB.prepare(
       "UPDATE password_credentials SET password_hash = ? WHERE user_id = (SELECT id FROM users WHERE handle = 'old-cost')",
     )
@@ -658,7 +678,7 @@ describe('POST /api/auth/login', MANY_PASSWORDS, () => {
     const row = await env.DB.prepare(
       "SELECT password_hash FROM password_credentials WHERE user_id = (SELECT id FROM users WHERE handle = 'old-cost')",
     ).first<{ password_hash: string }>()
-    expect(row?.password_hash).toMatch(/^pbkdf2-sha256\$6x100000\$/)
+    expect(row?.password_hash).toMatch(/^\$scrypt\$ln=14,r=8,p=5\$/)
     expect((await logIn(new Jar(), 'old-cost', PASSWORD)).status).toBe(200)
   })
 
@@ -809,7 +829,7 @@ describe('account recovery', () => {
       await errorOf(await post(new Jar(), '/api/auth/reset', { token, password: 'short' })),
     ).toMatchObject({
       status: 400,
-      message: 'a password is at least 10 characters',
+      message: 'a password is at least 15 characters',
     })
     expect((await post(new Jar(), '/api/auth/reset', { token, password: 'reset-me' })).status).toBe(
       400,
@@ -1040,13 +1060,14 @@ describe('admin handles', () => {
 
 describe('without GitHub', () => {
   it('signs up and signs in with a password when no GitHub app is set up', async () => {
-    const NO_GITHUB: Env = {
-      ...env,
-      GITHUB_CLIENT_ID: undefined,
-      GITHUB_CLIENT_SECRET: undefined,
-      DEV_FAKE_AUTH: undefined,
-      MAIL_TRANSPORT: undefined,
-    }
+    const {
+      GITHUB_CLIENT_ID: _id,
+      GITHUB_CLIENT_SECRET: _secret,
+      DEV_FAKE_AUTH: _fake,
+      MAIL_TRANSPORT: _mail,
+      ...rest
+    } = env
+    const NO_GITHUB: Env = rest
     const methods = await call(new Jar(), '/api/auth/methods', { vars: NO_GITHUB })
     expect(parse(AuthMethods, await methods.json(), 'the methods')).toEqual({
       github: false,
