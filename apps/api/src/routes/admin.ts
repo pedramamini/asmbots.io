@@ -28,6 +28,19 @@ export function adminHandles(value: string | undefined): Set<string> {
   )
 }
 
+/**
+ * Whether `handle` is one of `ADMIN_HANDLES`. Admin rights go by handle, so a free admin handle is
+ * one nobody may take: not by signing up for it (`auth/local.ts`), not by a new handle
+ * (`PATCH /api/me`), not as a new GitHub account's first handle (`auth/github.ts`). Only the
+ * account that holds one keeps it; an operator gives one out in D1 (RUNBOOK).
+ */
+export function isAdminHandle(
+  env: { ADMIN_HANDLES?: string | undefined },
+  handle: string,
+): boolean {
+  return adminHandles(env.ADMIN_HANDLES).has(handle.toLowerCase())
+}
+
 /** 401 unless someone is signed in; 403 unless their handle is one of `ADMIN_HANDLES`. */
 const requireAdmin: MiddlewareHandler<AppEnv> = async (c, next) => {
   const session = c.get('session')

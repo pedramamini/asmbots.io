@@ -152,6 +152,10 @@ No mail is logged in production. A failed send logs one line (`verification mail
 
 Locally, `MAIL_TRANSPORT=test` in `.dev.vars` sends nothing: each message goes to the `wrangler dev` log (the link to click is in it) and to KV at `mail:test:<address>`. A deployed Worker ignores the var.
 
+### Admin handles
+
+`ADMIN_HANDLES` gives admin rights by handle. A free admin handle is taken by nobody, by any path (sign-up, a new handle, a new GitHub account's first handle), so list only handles their owners hold, or give one out by hand: `wrangler d1 execute asmbots --remote --command "UPDATE users SET handle = '<admin handle>' WHERE id = '<user id>'"`.
+
 ### A user who cannot sign in
 
 - **Forgot the password, verified email on the account**: `/auth/forgot` mails a reset link (30 minutes, one use).

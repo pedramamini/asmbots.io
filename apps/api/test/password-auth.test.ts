@@ -490,7 +490,13 @@ describe('POST /api/auth/signup', () => {
   })
 })
 
-describe('POST /api/auth/login', () => {
+/**
+ * Each sign-in checks a password at production cost (600,000 PBKDF2 iterations), and these tests
+ * make 30 to 70 of them: past Vitest's 5 s when the whole suite runs at once.
+ */
+const MANY_PASSWORDS = { timeout: 30_000 }
+
+describe('POST /api/auth/login', MANY_PASSWORDS, () => {
   it('signs in with the username in any case, on a new session each time', async () => {
     const first = await signUp('sign-in-ok')
     const jar = new Jar()
@@ -972,6 +978,96 @@ describe('account recovery', () => {
   })
 })
 
+describe('admin handles', () => {
+  /** `ADMIN_HANDLES` names `boss-*` handles nobody holds, and `held-boss`, which one account will. */
+  const ADMIN: Env = { ...MAIL, ADMIN_HANDLES: 'boss-one, Boss-Two, held-boss' }
+
+  /** A first GitHub sign-in as `login` (fake auth), with `vars`. */
+  async function githubAs(jar: Jar, login: string, vars: Env): Promise<void> {
+    const start = await call(jar, `/api/auth/github?as=${login}`, { vars })
+    const to = start.headers.get('Location') ?? ''
+    expect(to).toMatch(/^\/api\/auth\/github\/callback\?/)
+    expect((await call(jar, to, { vars })).status).toBe(302)
+  }
+
+  const statsAs = (jar: Jar, vars: Env) => call(jar, '/api/admin/stats', { vars })
+
+  it('lets nobody take a free one with a new handle, whichever way they signed in', async () => {
+    const pw = await signUp('wants-boss')
+    const gh = new Jar()
+    await githubAs(gh, 'wants-boss-gh', ADMIN)
+    for (const jar of [pw, gh]) {
+      for (const handle of ['boss-one', 'BOSS-TWO']) {
+        const res = await call(jar, '/api/me', { method: 'PATCH', body: { handle }, vars: ADMIN })
+        expect(await errorOf(res)).toEqual({
+          status: 400,
+          code: 'bad_request',
+          message: `${handle.toLowerCase()} is reserved`,
+        })
+      }
+      expect((await statsAs(jar, ADMIN)).status).toBe(403)
+    }
+    // Any other handle is still theirs to pick.
+    const other = await call(pw, '/api/me', {
+      method: 'PATCH',
+      body: { handle: 'not-the-boss' },
+      vars: ADMIN,
+    })
+    expect(other.status).toBe(200)
+  })
+
+  it('gives a free one to no new GitHub account as its first handle', async () => {
+    const jar = new Jar()
+    await githubAs(jar, 'boss-one', ADMIN)
+    const me = parse(Me, await (await call(jar, '/api/me', { vars: ADMIN })).json(), 'me')
+    expect(me.user.handle).toMatch(/^boss-one-[0-9a-f]{4}$/)
+    expect(me.user.github).toBe('boss-one')
+    expect((await statsAs(jar, ADMIN)).status).toBe(403)
+  })
+
+  it('leaves the account that holds one its handle and its rights', async () => {
+    // Held from before the handle was an admin's.
+    const holder = await signUp('held-boss')
+    const same = await call(holder, '/api/me', {
+      method: 'PATCH',
+      body: { handle: 'Held-Boss' },
+      vars: ADMIN,
+    })
+    expect(same.status).toBe(200)
+    expect((await statsAs(holder, ADMIN)).status).toBe(200)
+  })
+})
+
+describe('without GitHub', () => {
+  it('signs up and signs in with a password when no GitHub app is set up', async () => {
+    const NO_GITHUB: Env = {
+      ...env,
+      GITHUB_CLIENT_ID: undefined,
+      GITHUB_CLIENT_SECRET: undefined,
+      DEV_FAKE_AUTH: undefined,
+      MAIL_TRANSPORT: undefined,
+    }
+    const methods = await call(new Jar(), '/api/auth/methods', { vars: NO_GITHUB })
+    expect(parse(AuthMethods, await methods.json(), 'the methods')).toEqual({
+      github: false,
+      password: true,
+      signup: true,
+      mail: false,
+    })
+    expect((await call(new Jar(), '/api/auth/github', { vars: NO_GITHUB })).status).toBe(500)
+    const jar = new Jar()
+    const made = await post(
+      jar,
+      '/api/auth/signup',
+      { username: 'no-github', password: PASSWORD },
+      { vars: NO_GITHUB },
+    )
+    expect(made.status).toBe(201)
+    expect((await call(jar, '/api/me', { vars: NO_GITHUB })).status).toBe(200)
+    expect((await logIn(new Jar(), 'no-github', PASSWORD, { vars: NO_GITHUB })).status).toBe(200)
+  })
+})
+
 describe('a password account and a GitHub account', () => {
   it('never join on a handle: each sign-in finds only its own kind', async () => {
     const octo = new Jar()
@@ -1047,6 +1143,23 @@ describe('a password account and a GitHub account', () => {
 })
 
 describe('the account`s password and email', () => {
+  it('ends an old session by the password in D1, with nothing of it left in KV to say so', async () => {
+    const jar = await signUp('gate-d1')
+    const elsewhere = new Jar()
+    await logIn(elsewhere, 'gate-d1', PASSWORD)
+    const id = decodeURIComponent(elsewhere.cookies.get('__Host-session') ?? '').split('.')[0] ?? ''
+    const kept = await env.KV.get(`sess:${id}`)
+    expect(
+      (await post(jar, '/api/me/password', { current: PASSWORD, password: OTHER })).status,
+    ).toBe(204)
+    // The session comes back to KV, and no KV key marks the change: D1 alone ends it.
+    await env.KV.put(`sess:${id}`, kept ?? '')
+    const left = await env.KV.list({ prefix: 'pwset:' })
+    expect(left.keys).toHaveLength(0)
+    expect(await whoAmI(elsewhere)).toBeNull()
+    expect((await whoAmI(jar))?.user.handle).toBe('gate-d1')
+  })
+
   it('changes the password with the current one: other sessions end, this one goes on', async () => {
     const jar = await verified('change-pw', 'change-pw@example.com')
     const elsewhere = new Jar()

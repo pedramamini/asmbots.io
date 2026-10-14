@@ -47,6 +47,7 @@ import {
 import type { AppEnv } from '../env'
 import { errorResponse, log } from '../middleware'
 import { classParam, idParam, wholeParam } from '../params'
+import { isAdminHandle } from './admin'
 import { ownBotsOf } from './bots'
 
 export function meBody(row: UserRow): Me {
@@ -62,7 +63,8 @@ export async function gone(c: Context<AppEnv>): Promise<Response> {
 /**
  * `GET /api/me`: the signed-in user; 401 when nobody is.
  * `PATCH /api/me` `{ handle?, anonymous? }`: a new handle (lowercased; `handleProblem` says which
- * are allowed), 409 when someone else has it; the first one marks the user onboarded. `anonymous`
+ * are allowed, and none of `ADMIN_HANDLES` but the one the user holds), 409 when someone else has
+ * it; the first one marks the user onboarded. `anonymous`
  * hides the GitHub name, login, and avatar from every public record (PRODUCT_SPEC §6). The avatar,
  * name, and login are GitHub's, refreshed at each sign-in.
  * `GET /api/me/bots`: the signed-in user's bots, private ones too, each with its latest version.
@@ -207,6 +209,13 @@ export const me = new Hono<AppEnv>()
     const handle = asked.handle?.trim().toLowerCase()
     const problem = handle === undefined ? null : handleProblem(handle)
     if (problem !== null) return errorResponse(c, 'bad_request', problem)
+    // A free admin handle is nobody's to take (`isAdminHandle`); the one who holds it keeps it.
+    if (handle !== undefined && isAdminHandle(c.env, handle)) {
+      const now = await getUserRow(c.env.DB, userId)
+      if (now?.handle.toLowerCase() !== handle) {
+        return errorResponse(c, 'bad_request', `${handle} is reserved`)
+      }
+    }
     let row = handle === undefined ? null : await setUserHandle(c.env.DB, userId, handle)
     if (row === 'taken') return errorResponse(c, 'conflict', `${handle} is taken`)
     if (asked.anonymous !== undefined)

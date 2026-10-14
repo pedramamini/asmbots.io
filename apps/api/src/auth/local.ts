@@ -83,14 +83,14 @@ import {
   SIGNUP_DAY_BUDGET,
   takeBudget,
 } from '../rate-limit'
-import { adminHandles } from '../routes/admin'
+import { isAdminHandle } from '../routes/admin'
 import { meBody } from '../routes/me'
 import { hashPassword, needsRehash, verifyNobody, verifyPassword } from './password'
 import {
   authConfigured,
   cookieOptions,
   dropSession,
-  endPasswordSessions,
+  endAllSessions,
   endSession,
   passwordAuth,
   randomHex,
@@ -244,7 +244,7 @@ export const local = new Hono<AppEnv>()
     const problem =
       handleProblem(username) ??
       // An admin's handle is not one to take by signing up for it (`ADMIN_HANDLES`).
-      (adminHandles(c.env.ADMIN_HANDLES).has(username) ? `${username} is reserved` : null) ??
+      (isAdminHandle(c.env, username) ? `${username} is reserved` : null) ??
       passwordProblem(asked.password, username) ??
       (email === null
         ? null
@@ -344,7 +344,8 @@ export const local = new Hono<AppEnv>()
         ? null
         : await setPassword(c.env.DB, used.userId, passwordHash, 'password.reset', used.email)
     if (used === null || setAt === null) return errorResponse(c, 'bad_request', BAD_LINK)
-    await endPasswordSessions(c.env.KV, used.userId, setAt)
+    // The sessions' own check ends them for sure (`outlived`); this drops them from KV.
+    await endAllSessions(c.env.KV, used.userId)
     if (c.get('session')?.userId === used.userId) await endSession(c)
     const send = mailer(c)
     if (send !== null) mailPasswordChanged(c, send, link.handle, used.email)

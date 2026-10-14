@@ -23,7 +23,7 @@ import {
 import { type Context, Hono } from 'hono'
 import { AUTH_BODY, mailPasswordChanged, mailVerifyLink, signInAs, tooMany } from '../auth/local'
 import { hashPassword, verifyPassword } from '../auth/password'
-import { endPasswordSessions, refuseToken, requireUser } from '../auth/session'
+import { endAllSessions, refuseToken, requireUser } from '../auth/session'
 import { jsonBody, limitBody } from '../body'
 import { type CredentialRow, getCredentials, setEmail, setPassword } from '../db/credentials'
 import { getUserRow } from '../db/queries'
@@ -91,7 +91,7 @@ export const credentials = new Hono<AppEnv>()
     const hash = await hashPassword(asked.password)
     const setAt = await setPassword(c.env.DB, userId, hash, 'password.change')
     if (setAt === null) return gone(c)
-    await endPasswordSessions(c.env.KV, userId, setAt)
+    await endAllSessions(c.env.KV, userId)
     c.set('session', null)
     await signInAs(c, userId, setAt)
     const send = mailer(c)

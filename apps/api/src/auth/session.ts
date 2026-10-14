@@ -45,7 +45,7 @@ export interface Session {
   ua: string
   /**
    * A password sign-in's: the account's `password_set_at` as it signed in. A password set since
-   * ends the session (`passwordSetKey`), whatever `endAllSessions` listed.
+   * ends the session (`outlived`), whatever `endAllSessions` listed.
    */
   pw?: string
 }
@@ -72,26 +72,6 @@ export function sessionKey(id: string): string {
  */
 function userSessionKey(userId: string, id: string): string {
   return `usess:${userId}:${id}`
-}
-
-/**
- * When `userId`'s password was last set, kept from that moment for as long as a session lasts. A
- * session that signed in with an earlier password is no session (`loadSession`): the one way a
- * new password ends them all for sure, since a KV list (`endAllSessions`) can miss a session
- * started in the last minute, and a sign-in with the old password can land beside the change.
- */
-export function passwordSetKey(userId: string): string {
-  return `pwset:${userId}`
-}
-
-/** Records that `userId`'s password was set at `setAt`: every session from before it ends. */
-export async function endPasswordSessions(
-  kv: KVNamespace,
-  userId: string,
-  setAt: string,
-): Promise<void> {
-  await kv.put(passwordSetKey(userId), setAt, { expirationTtl: SESSION_TTL_SECONDS })
-  await endAllSessions(kv, userId)
 }
 
 /** Deletes session `id` of `userId` from KV: the session and its entry in the user's list. */
@@ -213,16 +193,27 @@ export const sameOrigin: MiddlewareHandler<AppEnv> = async (c, next) => {
   await next()
 }
 
-/** Whether `session` signed in with a password its account has since replaced. */
-async function outlived(kv: KVNamespace, session: Session): Promise<boolean> {
+/**
+ * Whether `session` signed in with a password its account has since replaced, or an account that
+ * has no password any more (deleted). Read from D1, not KV: the one way a new password ends every
+ * session for sure, at once and everywhere. A KV list (`endAllSessions`) can miss a session
+ * started in the last minute, a KV write takes up to a minute to reach every edge, and a sign-in
+ * with the old password can land beside the change. A GitHub session has no `pw`, and costs no
+ * read.
+ */
+async function outlived(db: D1Database, session: Session): Promise<boolean> {
   if (session.pw === undefined) return false
-  const setAt = await kv.get(passwordSetKey(session.userId))
-  return setAt !== null && setAt !== session.pw
+  const row = await db
+    .prepare('SELECT password_set_at FROM password_credentials WHERE user_id = ?')
+    .bind(session.userId)
+    .first<{ password_set_at: string }>()
+  return row?.password_set_at !== session.pw
 }
 
 /**
  * Sets `session` from the cookie. A bad signature, an expired session, a password session whose
- * password has changed since, or a write with no `Origin` leaves it null. With no cookie session, an `Authorization: Bearer` API token signs its user in
+ * password has changed since, or a write with no `Origin` leaves it null. With no cookie
+ * session, an `Authorization: Bearer` API token signs its user in
  * (`tokenSession`); a token that is not one, or was revoked, is 401 then and there, not a
  * request from nobody, so a script with a bad token hears so.
  */
@@ -234,7 +225,7 @@ export const loadSession: MiddlewareHandler<AppEnv> = async (c, next) => {
     const id = await getSignedCookie(c, secret, SESSION_COOKIE, SESSION_PREFIX)
     if (id) {
       const session = await c.env.KV.get<Session>(sessionKey(id), 'json')
-      if (session && (await outlived(c.env.KV, session))) {
+      if (session && (await outlived(c.env.DB, session))) {
         await dropSession(c.env.KV, session.userId, id)
       } else if (session) {
         c.set('session', { id, ...session, via: 'cookie' })

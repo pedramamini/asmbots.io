@@ -22,6 +22,7 @@ import {
 } from '../db/queries'
 import type { AppEnv } from '../env'
 import { errorResponse, log } from '../middleware'
+import { isAdminHandle } from '../routes/admin'
 import { handleCandidates } from './handle'
 import {
   authConfigured,
@@ -105,11 +106,13 @@ function fakeAccount(login: string): GithubProfile {
 }
 
 /** The user for a GitHub account, made on its first sign-in. */
-async function signInUser(db: D1Database, account: GithubProfile) {
+async function signInUser(c: Context<AppEnv>, account: GithubProfile) {
+  const db = c.env.DB
   const known = await updateGithubUser(db, account)
   if (known) return known
   for (const handle of handleCandidates(account.login)) {
-    if (await isHandleTaken(db, handle)) continue
+    // A free admin handle is nobody's first handle, whatever the GitHub login (`isAdminHandle`).
+    if (isAdminHandle(c.env, handle) || (await isHandleTaken(db, handle))) continue
     return upsertGithubUser(db, { ...account, id: crypto.randomUUID(), handle })
   }
   throw new Error(`no free handle for GitHub login ${account.login}`)
@@ -121,7 +124,7 @@ async function finishSignIn(
   account: GithubProfile,
   back: string,
 ): Promise<Response> {
-  const user = await signInUser(c.env.DB, account)
+  const user = await signInUser(c, account)
   const old = c.get('session')
   if (old) await dropSession(c.env.KV, old.userId, old.id)
   await startSession(c, user.id)
