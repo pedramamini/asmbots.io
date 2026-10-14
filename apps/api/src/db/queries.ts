@@ -1675,7 +1675,8 @@ const UNSTARTED = "SELECT id FROM tournaments WHERE status IN ('draft', 'schedul
  * named and authored `[deleted]`, with no source, and deleted (404 to all). Their other
  * tournaments pass to `DELETED_USER`, as do their hill submissions and tournament entries of the
  * versions that stay (the others go with their versions). Their API tokens go, by name here and
- * not only by cascade, so no token outlives its user. Their audit rows go with them (cascade).
+ * not only by cascade, so no token outlives its user; so do a password account's credentials and
+ * its mailed links. Their audit rows go with them (cascade).
  * Sessions are in KV: the caller ends them. False when there was no such user.
  */
 export async function deleteAccount(db: D1Database, userId: string): Promise<boolean> {
@@ -1717,6 +1718,8 @@ export async function deleteAccount(db: D1Database, userId: string): Promise<boo
       .bind(DELETED_USER.id, userId),
     db.prepare('DELETE FROM api_tokens WHERE user_id = ?').bind(userId),
     db.prepare('DELETE FROM editor_layouts WHERE user_id = ?').bind(userId),
+    db.prepare('DELETE FROM auth_tokens WHERE user_id = ?').bind(userId),
+    db.prepare('DELETE FROM password_credentials WHERE user_id = ?').bind(userId),
     db.prepare('DELETE FROM users WHERE id = ?').bind(userId),
   ])
   return (results.at(-1)?.meta.changes ?? 0) > 0

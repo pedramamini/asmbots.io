@@ -669,6 +669,10 @@ export const AUDIT_ACTIONS = [
   'tournament.enter',
   'token.create',
   'token.delete',
+  'password.change',
+  'password.reset',
+  'email.change',
+  'email.verify',
 ] as const
 export const AuditAction = z.enum(AUDIT_ACTIONS)
 export type AuditAction = z.output<typeof AuditAction>
@@ -676,7 +680,7 @@ export type AuditAction = z.output<typeof AuditAction>
 /**
  * One change the user made: `target` is what it changed, a bot id for `bot.*` (`<bot id>/v<n>`
  * for `bot.version`), a submission id for `hill.submit`, a tournament id for `tournament.*`, an
- * API token id for `token.*`.
+ * API token id for `token.*`, the user's id for `password.*` and `email.*` (`auth.ts`).
  */
 export const AuditEntry = z.object({
   id: Id,

@@ -94,15 +94,30 @@ export async function endAllSessions(kv: KVNamespace, userId: string): Promise<n
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]'])
 
-/** Whether sign-in skips GitHub for a test user: `DEV_FAKE_AUTH=1`, on localhost only. */
-export function fakeAuth(c: Context<AppEnv>): boolean {
-  return c.env.DEV_FAKE_AUTH === '1' && LOCAL_HOSTS.has(new URL(c.req.url).hostname)
+/** Whether the request is to localhost: `wrangler dev` and the tests, never a deployed Worker. */
+export function isLocalHost(c: Context<AppEnv>): boolean {
+  return LOCAL_HOSTS.has(new URL(c.req.url).hostname)
 }
 
-/** Whether sign-in is set up: the cookie secret, and the GitHub app unless `fakeAuth`. */
+/** Whether sign-in skips GitHub for a test user: `DEV_FAKE_AUTH=1`, on localhost only. */
+export function fakeAuth(c: Context<AppEnv>): boolean {
+  return c.env.DEV_FAKE_AUTH === '1' && isLocalHost(c)
+}
+
+/** Whether GitHub sign-in is set up: the cookie secret, and the GitHub app unless `fakeAuth`. */
 export function authConfigured(c: Context<AppEnv>): boolean {
   const github = Boolean(c.env.GITHUB_CLIENT_ID && c.env.GITHUB_CLIENT_SECRET)
   return Boolean(c.env.SESSION_SECRET) && (github || fakeAuth(c))
+}
+
+/**
+ * What of password sign-in is on (`PASSWORD_AUTH`): signing in, and making a new account. It
+ * needs only the cookie secret.
+ */
+export function passwordAuth(c: Context<AppEnv>): { login: boolean; signup: boolean } {
+  const mode = c.env.PASSWORD_AUTH ?? ''
+  const login = Boolean(c.env.SESSION_SECRET) && mode !== 'off'
+  return { login, signup: login && mode !== 'login' }
 }
 
 /** Hex of `n` random bytes. */

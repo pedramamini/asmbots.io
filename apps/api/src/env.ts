@@ -49,6 +49,22 @@ export interface Env {
    * no alarm fires on its own, and step the alarms with `runDurableObjectAlarm`.
    */
   RUNNER_ALARM_DELAY_MS?: string
+  /**
+   * Password sign-in (`auth/local.ts`), beside GitHub's: on with `SESSION_SECRET` set. `login`
+   * closes new accounts and keeps sign-in for the ones there; `off` closes both.
+   */
+  PASSWORD_AUTH?: string
+  /**
+   * Account mail (`mail/mail.ts`): Cloudflare Email Service's binding and the address it sends
+   * from. Without both, mail is off: no account holds an email, and none recovers a password.
+   */
+  EMAIL?: SendEmail
+  MAIL_FROM?: string
+  /**
+   * `test`: mail goes to KV and the log, not out (the tests, `wrangler dev`). Honored only for a
+   * request to localhost, as `DEV_FAKE_AUTH`, so a production Worker never logs a reset link.
+   */
+  MAIL_TRANSPORT?: string
   /** Workers AI: the editor's AI mode (`routes/ai.ts`). Unset (the tests, `wrangler dev --local`): 503. */
   AI?: Ai
   /** The most the AI mode spends a UTC day, the whole site and each user, US dollars. */

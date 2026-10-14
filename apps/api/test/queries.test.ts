@@ -78,6 +78,8 @@ describe('the schema', () => {
     expect(results.map((r) => r.name)).toEqual([
       'api_tokens_user',
       'audit_user_at',
+      'auth_tokens_expires',
+      'auth_tokens_user',
       'bot_versions_bot_version',
       'bots_owner',
       'hill_entries_rank',
@@ -92,6 +94,7 @@ describe('the schema', () => {
       'matches_hill_finished',
       'matches_key',
       'matches_tournament',
+      'password_credentials_verified_email',
       'tournament_entries_user',
       'tournaments_finished',
       'tournaments_starts',

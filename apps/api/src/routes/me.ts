@@ -49,12 +49,12 @@ import { errorResponse, log } from '../middleware'
 import { classParam, idParam, wholeParam } from '../params'
 import { ownBotsOf } from './bots'
 
-function meBody(row: UserRow): Me {
+export function meBody(row: UserRow): Me {
   return { user: toUser(row, true), onboarded: row.onboarded_at !== null }
 }
 
 /** The user is gone (deleted account): the session goes with them. */
-async function gone(c: Context<AppEnv>): Promise<Response> {
+export async function gone(c: Context<AppEnv>): Promise<Response> {
   await endSession(c)
   return errorResponse(c, 'unauthorized', 'sign in first')
 }

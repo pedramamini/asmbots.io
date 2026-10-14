@@ -109,6 +109,24 @@ export {
   UserStats,
 } from './api'
 export {
+  AUTH_TOKEN,
+  AuthMethods,
+  ChangeEmail,
+  ChangePassword,
+  Credentials,
+  emailProblem,
+  LogIn,
+  MAX_EMAIL,
+  MAX_PASSWORD,
+  MIN_PASSWORD,
+  normalizeEmail,
+  passwordProblem,
+  RecoverAccount,
+  ResetPassword,
+  SignUp,
+  VerifyEmail,
+} from './auth'
+export {
   awardBadges,
   BADGE_GROUPS,
   BADGE_IDS,

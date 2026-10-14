@@ -120,12 +120,12 @@ export async function readSiteStats(db: D1Database, now: Date): Promise<SiteStat
     db.prepare(
       `SELECT
            (SELECT MIN(created_at) FROM users) AS since,
-           (SELECT COUNT(*) FROM users WHERE github_id IS NOT NULL) AS users,
+           (SELECT COUNT(*) FROM users WHERE id NOT IN ('system', 'deleted')) AS users,
            (SELECT COUNT(DISTINCT b.owner_id) FROM bots b JOIN users u ON u.id = b.owner_id
-             WHERE b.deleted_at IS NULL AND u.github_id IS NOT NULL) AS builders,
+             WHERE b.deleted_at IS NULL AND u.id NOT IN ('system', 'deleted')) AS builders,
            (SELECT COUNT(*) FROM bots WHERE deleted_at IS NULL) AS bots,
            (SELECT COUNT(*) FROM bots b JOIN users u ON u.id = b.owner_id
-             WHERE b.deleted_at IS NULL AND u.github_id IS NULL AND u.id <> 'deleted') AS roster_bots,
+             WHERE b.deleted_at IS NULL AND u.id = 'system') AS roster_bots,
            (SELECT COUNT(*) FROM bot_versions) AS versions,
            (SELECT COUNT(*) FROM matches WHERE result_json IS NOT NULL) AS matches,
            (SELECT COUNT(*) FROM matches WHERE result_json IS NOT NULL
@@ -156,7 +156,7 @@ export async function readSiteStats(db: D1Database, now: Date): Promise<SiteStat
     ),
     db.prepare(
       `SELECT substr(created_at, 1, 10) AS day, COUNT(*) AS n FROM users
-         WHERE github_id IS NOT NULL GROUP BY day`,
+         WHERE id NOT IN ('system', 'deleted') GROUP BY day`,
     ),
     db.prepare(
       `SELECT substr(created_at, 1, 10) AS day, COUNT(*) AS n FROM bots

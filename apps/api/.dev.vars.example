@@ -10,5 +10,9 @@ GITHUB_CLIENT_SECRET=
 # Signs the session cookie. Any long random string: `openssl rand -hex 32`.
 SESSION_SECRET=
 
+# Account mail in dev: `test` sends nothing. Each message (a verification link, a reset link)
+# goes to this terminal's log and to local KV. Honored on localhost only.
+MAIL_TRANSPORT=test
+
 # A `vars` entry in wrangler.jsonc can be overridden here too, e.g.:
 # APP_ORIGIN=http://localhost:5173

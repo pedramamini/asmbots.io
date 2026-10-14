@@ -7,6 +7,7 @@
 import { Hono } from 'hono'
 import { requestId } from 'hono/request-id'
 import { auth } from './auth/github'
+import { local } from './auth/local'
 import { loadSession, refuseToken, sameOrigin } from './auth/session'
 import { scheduled } from './cron'
 import type { AppEnv, Env } from './env'
@@ -16,10 +17,14 @@ import {
   ASSEMBLE_LIMIT,
   AUTH_LIMIT,
   BOTS_LIMIT,
+  RECOVER_LIMIT,
   REPLAYS_LIMIT,
   rateLimit,
+  SIGNUP_DAY_LIMIT,
+  SIGNUP_LIMIT,
   SUBMIT_LIMIT,
   TOURNAMENT_LIMIT,
+  VERIFY_MAIL_LIMIT,
   WRITE_LIMIT,
 } from './rate-limit'
 import { admin } from './routes/admin'
@@ -27,6 +32,7 @@ import { ai } from './routes/ai'
 import { assembler } from './routes/assemble'
 import { bots } from './routes/bots'
 import { championships } from './routes/championships'
+import { credentials } from './routes/credentials'
 import { health } from './routes/health'
 import { hills } from './routes/hills'
 import { leaderboard } from './routes/leaderboard'
@@ -57,6 +63,10 @@ app.use('/api/auth/*', refuseToken)
 app.use('/api/admin/*', refuseToken)
 app.on(['POST', 'PUT', 'PATCH', 'DELETE'], '/api/*', rateLimit(WRITE_LIMIT))
 app.use('/api/auth/*', rateLimit(AUTH_LIMIT))
+// Accounts made, by IP: an hour's and a day's. Then reset and verification links asked for.
+app.post('/api/auth/signup', rateLimit(SIGNUP_DAY_LIMIT), rateLimit(SIGNUP_LIMIT))
+app.post('/api/auth/recover', rateLimit(RECOVER_LIMIT))
+app.post('/api/me/email/verify', rateLimit(VERIFY_MAIL_LIMIT))
 app.post('/api/ai/*', rateLimit(AI_LIMIT))
 app.post('/api/assemble', rateLimit(ASSEMBLE_LIMIT))
 // `/api/bots/*` covers `/api/bots` too: a second pattern for it would count each request twice.
@@ -68,7 +78,9 @@ app.post('/api/tournaments', rateLimit(TOURNAMENT_LIMIT))
 app.route('/api/health', health)
 app.route('/api/version', version)
 app.route('/api/auth', auth)
+app.route('/api/auth', local)
 app.route('/api/me', me)
+app.route('/api/me', credentials)
 app.route('/api/admin', admin)
 app.route('/api/ai', ai)
 app.route('/api/assemble', assembler)
