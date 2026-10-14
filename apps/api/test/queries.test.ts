@@ -78,6 +78,7 @@ describe('the schema', () => {
     expect(results.map((r) => r.name)).toEqual([
       'api_tokens_user',
       'audit_user_at',
+      'auth_budgets_expires',
       'auth_tokens_expires',
       'auth_tokens_user',
       'bot_versions_bot_version',

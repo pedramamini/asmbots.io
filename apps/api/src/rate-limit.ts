@@ -1,8 +1,9 @@
 /**
  * A fixed-window rate limit per client, counted in KV: per user when the request carries a
- * session (`loadSession` runs first), else per IP. KV is eventually consistent and has no atomic
- * increment, so a burst across edge locations can slip a few requests past the limit: fine for
- * abuse control, not for billing.
+ * session (`loadSession` runs first), else per address (`clientNet`). KV is eventually consistent
+ * and has no atomic increment, so a burst across edge locations can slip a few requests past the
+ * limit: fine for abuse control, not for billing, and not for what guards a password. Those are
+ * the budgets below, counted in D1 (`takeBudget`).
  */
 import type { MiddlewareHandler } from 'hono'
 import type { AppEnv } from './env'
@@ -35,7 +36,7 @@ export const ASSEMBLE_LIMIT: RateLimit = { scope: 'assemble', limit: 30, windowS
 export const BOTS_LIMIT: RateLimit = { scope: 'bots', limit: 20, windowSeconds: 60 }
 /** `POST /api/replays`: each one runs a match again. */
 export const REPLAYS_LIMIT: RateLimit = { scope: 'replays', limit: 10, windowSeconds: 60 }
-/** Every `/api/auth/*` request, reads too: a sign-in is two (start, callback). */
+/** Every `/api/auth/*` request but `GET /methods`, reads too: a GitHub sign-in is two (start, callback). */
 export const AUTH_LIMIT: RateLimit = { scope: 'auth', limit: 10, windowSeconds: 60 }
 /**
  * `POST /api/hills/:slug/submit`: submissions a user makes an hour, each a match against every
@@ -70,25 +71,6 @@ export const AI_LIMIT: RateLimit = {
   counts: (status) => status === 200,
 }
 
-/**
- * `POST /api/auth/signup`: accounts an IP makes, an hour and a day. Only an account made (201)
- * counts. An account needs no email, so this is what keeps one client from making many.
- */
-export const SIGNUP_LIMIT: RateLimit = {
-  scope: 'signup',
-  limit: 3,
-  windowSeconds: 60 * 60,
-  counts: (status) => status === 201,
-  by: 'ip',
-}
-export const SIGNUP_DAY_LIMIT: RateLimit = {
-  scope: 'signup-day',
-  limit: 10,
-  windowSeconds: 24 * 60 * 60,
-  counts: (status) => status === 201,
-  by: 'ip',
-}
-
 /** `POST /api/auth/recover`: reset links an IP asks for an hour, whoever they are for. */
 export const RECOVER_LIMIT: RateLimit = {
   scope: 'recover',
@@ -105,57 +87,129 @@ export const VERIFY_MAIL_LIMIT: RateLimit = {
 }
 
 /**
- * Wrong passwords, counted by `checkBudget` and `spendBudget`: from one IP, for one username
- * from anywhere, and for one account's own password (`POST /api/me/password`, `/email`). Past
- * one, the next try is 429 before any password is checked. The username's count is the highest:
- * anyone can run it out for a name that is not theirs, so it stops a guesser, and only for the
- * hour does it stop the owner too.
+ * A count that holds under a burst (`takeBudget`, in D1): what guards a password or makes an
+ * account, where a hundred requests at once must not each read the same count, as they would in
+ * KV. Each is taken before the work it guards, and given back when the work was no abuse (the
+ * password was right, the username was taken).
  */
-export const LOGIN_IP_BUDGET = { scope: 'login-ip', limit: 10, windowSeconds: 10 * 60 } as const
-export const LOGIN_NAME_BUDGET = { scope: 'login-name', limit: 30, windowSeconds: 60 * 60 } as const
-export const PASSWORD_BUDGET = { scope: 'password', limit: 5, windowSeconds: 15 * 60 } as const
-/** `POST /api/auth/recover`: reset links one account is mailed an hour, whoever asks. */
-export const RECOVER_ACCOUNT_BUDGET = {
-  scope: 'recover-account',
-  limit: 3,
-  windowSeconds: 60 * 60,
-} as const
-
 export interface Budget {
   scope: string
   limit: number
   windowSeconds: number
 }
 
+/**
+ * Sign-ins tried from one address in ten minutes, the right password not counted: what a guesser
+ * at many usernames spends.
+ */
+export const LOGIN_IP_BUDGET: Budget = { scope: 'login-ip', limit: 10, windowSeconds: 10 * 60 }
+/**
+ * Wrong passwords for one username an hour, from every address but a browser that has signed in
+ * to the account before (`LOGIN_DEVICE_BUDGET`): what a guesser at one account spends, however
+ * many addresses it has. It counts for a username nobody has too, so the answer says nothing.
+ * Anyone can run it out for a name that is not theirs; the account's own browsers are not held
+ * by it, so that locks out the guesser and not the owner.
+ */
+export const LOGIN_NAME_BUDGET: Budget = { scope: 'login-name', limit: 30, windowSeconds: 60 * 60 }
+/** Wrong passwords an hour from one browser the account has signed in from before. */
+export const LOGIN_DEVICE_BUDGET: Budget = {
+  scope: 'login-device',
+  limit: 10,
+  windowSeconds: 60 * 60,
+}
+/** Wrong current passwords on the settings page (`POST /api/me/password`, `/email`), a user. */
+export const PASSWORD_BUDGET: Budget = { scope: 'password', limit: 5, windowSeconds: 15 * 60 }
+/**
+ * `POST /api/auth/signup`: accounts one address makes, an hour and a day. An account needs no
+ * email, so this is what keeps one client from making many.
+ */
+export const SIGNUP_BUDGET: Budget = { scope: 'signup', limit: 3, windowSeconds: 60 * 60 }
+export const SIGNUP_DAY_BUDGET: Budget = {
+  scope: 'signup-day',
+  limit: 10,
+  windowSeconds: 24 * 60 * 60,
+}
+/**
+ * `POST /api/auth/recover`: reset links one account is mailed in half an hour, whoever asks. The
+ * window is a link's lifetime, and a new link does not void the ones before: so whoever spends
+ * an account's links for it has put working links in its owner's inbox, not locked them out.
+ */
+export const RECOVER_ACCOUNT_BUDGET: Budget = {
+  scope: 'recover-account',
+  limit: 3,
+  windowSeconds: 30 * 60,
+}
+/** `POST /api/me/email`: new addresses a user sets an hour, each of which is mailed a link. */
+export const EMAIL_CHANGE_BUDGET: Budget = {
+  scope: 'email-change',
+  limit: 5,
+  windowSeconds: 60 * 60,
+}
+/**
+ * Verification links one address is mailed an hour, whichever accounts name it: nobody's inbox
+ * fills because someone typed their address into sign-up or the settings page.
+ */
+export const MAIL_TO_BUDGET: Budget = { scope: 'mail-to', limit: 3, windowSeconds: 60 * 60 }
+
 function budgetKey({ scope, windowSeconds }: Budget, client: string, now: number): string {
-  return `rl:${scope}:${client}:${Math.floor(now / windowSeconds)}`
+  return `${scope}:${client}:${Math.floor(now / windowSeconds)}`
 }
 
 /**
- * Seconds until `client` may try again under `budget`, or 0 while it has some left. A count kept
- * by hand, for what is not one request one count: only a wrong password spends a sign-in's.
+ * Counts one against `client`'s `budget`, in one statement that adds and reads back: of a burst
+ * of requests, only `limit` are told 0. Returns the seconds until the window ends when this one
+ * is past the limit, else 0. Counts past their window go with it.
  */
-export async function checkBudget(
-  kv: KVNamespace,
-  budget: Budget,
-  client: string,
-): Promise<number> {
+export async function takeBudget(db: D1Database, budget: Budget, client: string): Promise<number> {
   const now = Math.floor(Date.now() / 1000)
-  const used = Number((await kv.get(budgetKey(budget, client, now))) ?? 0)
-  if (used < budget.limit) return 0
-  return (Math.floor(now / budget.windowSeconds) + 1) * budget.windowSeconds - now
+  const ends = (Math.floor(now / budget.windowSeconds) + 1) * budget.windowSeconds
+  const [, taken] = await db.batch<{ n: number }>([
+    db
+      .prepare('DELETE FROM auth_budgets WHERE expires_at <= ?')
+      .bind(new Date(now * 1000).toISOString()),
+    db
+      .prepare(
+        `INSERT INTO auth_budgets (key, n, expires_at) VALUES (?, 1, ?)
+         ON CONFLICT (key) DO UPDATE SET n = n + 1 RETURNING n`,
+      )
+      .bind(budgetKey(budget, client, now), new Date(ends * 1000).toISOString()),
+  ])
+  const used = taken?.results[0]?.n ?? budget.limit + 1
+  return used > budget.limit ? Math.max(1, ends - now) : 0
 }
 
-/** Counts one against `client`'s `budget`. */
-export async function spendBudget(kv: KVNamespace, budget: Budget, client: string): Promise<void> {
-  const key = budgetKey(budget, client, Math.floor(Date.now() / 1000))
-  const used = Number((await kv.get(key)) ?? 0)
-  await kv.put(key, String(used + 1), { expirationTtl: budget.windowSeconds + 60 })
+/** Gives back one that `takeBudget` counted: what it guarded was no abuse. */
+export async function giveBackBudget(
+  db: D1Database,
+  budget: Budget,
+  client: string,
+): Promise<void> {
+  await db
+    .prepare('UPDATE auth_budgets SET n = MAX(n - 1, 0) WHERE key = ?')
+    .bind(budgetKey(budget, client, Math.floor(Date.now() / 1000)))
+    .run()
 }
 
 /** The client's IP as Cloudflare saw it; `unknown` only outside Cloudflare's edge. */
 export function clientIp(request: Request): string {
   return request.headers.get('CF-Connecting-IP') ?? 'unknown'
+}
+
+/**
+ * The client's address as the limits count it: an IPv4 address, or the /64 of an IPv6 one. One
+ * subscriber holds a whole /64, so a count by the full address would start again at each of its
+ * 2^64 addresses.
+ */
+export function clientNet(request: Request): string {
+  const ip = clientIp(request)
+  if (!ip.includes(':')) return ip
+  const [head = '', tail] = ip.toLowerCase().split('::')
+  const first = head === '' ? [] : head.split(':')
+  const last = tail === undefined || tail === '' ? [] : tail.split(':')
+  const gap = tail === undefined ? 0 : Math.max(0, 8 - first.length - last.length)
+  const groups = [...first, ...Array<string>(gap).fill('0'), ...last]
+  const net = groups.slice(0, 4).map((group) => group.replace(/^0+(?=.)/, ''))
+  return `${net.join(':')}::/64`
 }
 
 export function rateLimit({
@@ -169,7 +223,7 @@ export function rateLimit({
     const now = Math.floor(Date.now() / 1000)
     const window = Math.floor(now / windowSeconds)
     const userId = by === 'ip' ? undefined : c.get('session')?.userId
-    const client = userId === undefined ? `ip:${clientIp(c.req.raw)}` : `u:${userId}`
+    const client = userId === undefined ? `ip:${clientNet(c.req.raw)}` : `u:${userId}`
     const key = `rl:${scope}:${client}:${window}`
     const used = Number((await c.env.KV.get(key)) ?? 0)
     const resetIn = (window + 1) * windowSeconds - now

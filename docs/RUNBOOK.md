@@ -138,7 +138,7 @@ An account may sign in with a username and a password instead of GitHub (`apps/a
 | `login` | closed (503) | on |
 | `off` | closed (503) | off (503) |
 
-Set it and deploy. Close new accounts (`login`) when sign-ups are being abused: an account needs no email, so the limit on them is by IP (3 an hour, 10 a day). GitHub sign-in is not touched by either value.
+Set it and deploy. Close new accounts (`login`) when sign-ups are being abused: an account needs no email, so the limit on them is by address (3 an hour, 10 a day; an IPv6 /64 is one address). GitHub sign-in is not touched by either value.
 
 ### Mail
 
@@ -146,7 +146,7 @@ Mail is **off** until it is set up: `GET /api/auth/methods` answers `"mail": fal
 
 1. In the Cloudflare dashboard, set the `asmbots.io` zone up to send with Email Service (it adds the SPF and DKIM records), and pick the address mail comes from.
 2. In `apps/api/wrangler.jsonc`, uncomment the `send_email` binding `EMAIL` and set `MAIL_FROM` in `vars` to that address. Check the binding's options against Cloudflare's current docs: this one has not sent a message yet.
-3. Deploy, then check: `curl https://asmbots.io/api/auth/methods` answers `"mail": true`; sign up with an address of your own, open the verification link, and ask for a reset at `/forgot-password`.
+3. Deploy, then check: `curl https://asmbots.io/api/auth/methods` answers `"mail": true`; sign up with an address of your own, open the verification link, and ask for a reset at `/auth/forgot`.
 
 No mail is logged in production. A failed send logs one line (`verification mail failed`, `account recovery failed`, `password notice failed`, `email notice failed`) with the request id and the error, never the message or its link.
 
@@ -154,10 +154,10 @@ Locally, `MAIL_TRANSPORT=test` in `.dev.vars` sends nothing: each message goes t
 
 ### A user who cannot sign in
 
-- **Forgot the password, verified email on the account**: `/forgot-password` mails a reset link (30 minutes, one use).
+- **Forgot the password, verified email on the account**: `/auth/forgot` mails a reset link (30 minutes, one use).
 - **Forgot the password, no email or an unverified one**: the account cannot be recovered. This is the deal the sign-up page states. Do not reset a password by hand for someone who asks: with no verified address, nothing proves the account is theirs.
-- **"Too many wrong passwords"**: wrong passwords are counted by IP (10 in 10 minutes) and by username from anywhere (30 an hour), and the count ends with its window. To end one early, delete the KV keys `rl:login-ip:ip:<ip>:<window>` or `rl:login-name:name:<username>:<window>`.
-- **An account someone else got into**: end its sessions (`usess:<user-id>:` in KV, below); a password change or reset does this itself.
+- **"Too many wrong passwords"**: sign-ins are counted by address (10 in 10 minutes) and wrong passwords by username from anywhere (30 an hour), in D1 (`auth_budgets`), and a count ends with its window. A browser that has signed in to the account before is not held by the username's count, so an owner locked out by someone else's guesses signs in from a browser they have used. To end a count early: `wrangler d1 execute asmbots --remote --command "DELETE FROM auth_budgets WHERE key LIKE 'login-name:name:<username>:%'"` (or `login-ip:ip:<address>:%`).
+- **An account someone else got into**: a password change or a reset ends every session of the account, and a reset revokes its API tokens too. With no verified email there is no reset: the owner changes the password from a session they still have (settings), and revokes any API token they do not know.
 
 ## Monitoring
 

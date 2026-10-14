@@ -33,21 +33,25 @@ function isUnique(err: unknown, column: string): boolean {
 export async function createPasswordUser(
   db: D1Database,
   account: { id: string; handle: string; passwordHash: string; email: string | null },
-): Promise<UserRow | 'taken'> {
+): Promise<{ user: UserRow; passwordSetAt: string } | 'taken'> {
   try {
-    const [made] = await db.batch<UserRow>([
+    const [made, kept] = await db.batch<UserRow & { password_set_at: string }>([
       db
         .prepare(`INSERT INTO users (id, handle, onboarded_at) VALUES (?, ?, ${NOW}) RETURNING *`)
         .bind(account.id, account.handle),
       db
         .prepare(
-          'INSERT INTO password_credentials (user_id, password_hash, email) VALUES (?, ?, ?)',
+          `INSERT INTO password_credentials (user_id, password_hash, email) VALUES (?, ?, ?)
+           RETURNING password_set_at`,
         )
         .bind(account.id, account.passwordHash, account.email),
     ])
-    const row = made?.results[0]
-    if (row === undefined) throw new Error(`making password user ${account.handle} returned no row`)
-    return row
+    const user = made?.results[0]
+    const passwordSetAt = kept?.results[0]?.password_set_at
+    if (user === undefined || passwordSetAt === undefined) {
+      throw new Error(`making password user ${account.handle} returned no row`)
+    }
+    return { user, passwordSetAt }
   } catch (err) {
     if (isUnique(err, 'users.handle')) return 'taken'
     throw err
@@ -58,17 +62,18 @@ export async function createPasswordUser(
 export async function getPasswordLogin(
   db: D1Database,
   handle: string,
-): Promise<{ user: UserRow; passwordHash: string } | null> {
+): Promise<{ user: UserRow; passwordHash: string; passwordSetAt: string } | null> {
   const row = await db
     .prepare(
-      `SELECT u.*, p.password_hash FROM users u JOIN password_credentials p ON p.user_id = u.id
+      `SELECT u.*, p.password_hash, p.password_set_at FROM users u
+         JOIN password_credentials p ON p.user_id = u.id
        WHERE u.handle = ?`,
     )
     .bind(handle)
-    .first<UserRow & { password_hash: string }>()
+    .first<UserRow & { password_hash: string; password_set_at: string }>()
   if (row === null) return null
-  const { password_hash, ...user } = row
-  return { user, passwordHash: password_hash }
+  const { password_hash, password_set_at, ...user } = row
+  return { user, passwordHash: password_hash, passwordSetAt: password_set_at }
 }
 
 /** User `userId`'s credentials; null for a GitHub account. */
@@ -101,18 +106,29 @@ export async function getRecoverable(
     .first<{ userId: string; handle: string; email: string }>()
 }
 
-/** Keeps a new hash for a password that did not change (`needsRehash`). */
-export async function rehashPassword(db: D1Database, userId: string, hash: string): Promise<void> {
+/**
+ * Keeps a new hash, `hash`, for a password that did not change (`needsRehash`), in place of
+ * `was`, the hash it was checked against: a password set in between stays as it was set.
+ */
+export async function rehashPassword(
+  db: D1Database,
+  userId: string,
+  was: string,
+  hash: string,
+): Promise<void> {
   await db
-    .prepare('UPDATE password_credentials SET password_hash = ? WHERE user_id = ?')
-    .bind(hash, userId)
+    .prepare(
+      'UPDATE password_credentials SET password_hash = ? WHERE user_id = ? AND password_hash = ?',
+    )
+    .bind(hash, userId, was)
     .run()
 }
 
 /**
  * A new password for `userId`, with its audit row, and every reset link the account had is void.
- * With `email` (a reset): only while that is still the account's verified address. False when
- * nothing changed.
+ * With `email` (a reset): only while that is still the account's verified address, and the
+ * account's API tokens go too, since whoever had the account may have made one. Returns the new
+ * `password_set_at`, or null when nothing changed.
  */
 export async function setPassword(
   db: D1Database,
@@ -120,15 +136,15 @@ export async function setPassword(
   hash: string,
   action: 'password.change' | 'password.reset',
   email?: string,
-): Promise<boolean> {
+): Promise<string | null> {
   const still = email === undefined ? '' : ' AND email = ?3 AND email_verified_at IS NOT NULL'
   const update = db
     .prepare(
       `UPDATE password_credentials SET password_hash = ?2, password_set_at = ${NOW}
-       WHERE user_id = ?1${still}`,
+       WHERE user_id = ?1${still} RETURNING password_set_at`,
     )
     .bind(...(email === undefined ? [userId, hash] : [userId, hash, email]))
-  const [changed] = await db.batch([
+  const [changed] = await db.batch<{ password_set_at: string }>([
     update,
     // Only when the update above changed a row: `changes()` is the statement before this one's.
     db
@@ -137,11 +153,18 @@ export async function setPassword(
          SELECT ?, ?, ?, ? WHERE changes() > 0`,
       )
       .bind(crypto.randomUUID(), userId, action, userId),
+  ])
+  const setAt = changed?.results[0]?.password_set_at ?? null
+  if (setAt === null) return null
+  await db.batch([
     db
       .prepare("DELETE FROM auth_tokens WHERE user_id = ? AND kind = 'reset_password'")
       .bind(userId),
+    ...(action === 'password.reset'
+      ? [db.prepare('DELETE FROM api_tokens WHERE user_id = ?').bind(userId)]
+      : []),
   ])
-  return (changed?.meta.changes ?? 0) > 0
+  return setAt
 }
 
 /**
@@ -196,8 +219,10 @@ export async function verifyEmail(
 }
 
 /**
- * Keeps the token whose SHA-256 is `hash`, for `seconds`, in place of every one of its kind the
- * user had: only the newest link works. Tokens past their time go too, anyone's.
+ * Keeps the token whose SHA-256 is `hash`, for `seconds`. A verification link takes the place of
+ * the one before: only the newest works. A reset link does not: each mailed in the last half hour
+ * works until one is used (`RECOVER_ACCOUNT_BUDGET` says why), three at most. Tokens past their
+ * time go too, anyone's.
  */
 export async function putAuthToken(
   db: D1Database,
@@ -207,7 +232,7 @@ export async function putAuthToken(
   await db.batch([
     db.prepare('DELETE FROM auth_tokens WHERE expires_at <= ?').bind(new Date(now).toISOString()),
     db
-      .prepare('DELETE FROM auth_tokens WHERE user_id = ? AND kind = ?')
+      .prepare("DELETE FROM auth_tokens WHERE user_id = ? AND kind = ? AND kind = 'verify_email'")
       .bind(token.userId, token.kind),
     db
       .prepare(

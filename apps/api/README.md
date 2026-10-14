@@ -46,7 +46,7 @@ The AI mode's vars, both optional: `AI_DAILY_USD` (the site's spend a UTC day, 1
 | `REPLAYS` | R2 | `asmbots-replays` | Replays at `replays/<key>.json`, bot binaries; content-addressed |
 | `AI` | Workers AI | | The editor's AI mode (`POST /api/ai/chat`, model `@cf/google/gemma-4-26b-a4b-it`). Always remote: `wrangler dev` reaches Cloudflare with your login and bills the account; `wrangler dev --local` (the e2e Worker) and the tests have none, so the route answers 503 |
 | `EMAIL` | Send email | | Account mail through Cloudflare Email Service ([Password sign-in](#password-sign-in-srcauthlocalts)). Not bound yet (commented out in `wrangler.jsonc`): the zone must be set up to send first (RUNBOOK, "Mail"). Without it and `MAIL_FROM`, mail is off |
-| `KV` | KV | `asmbots-kv` | Sessions (`sess:<id>`, 30 days, and `usess:<user>:<id>` beside each so a user's sessions list by prefix), rate-limit counters (`rl:<scope>:<client>:<window>`), the test mail transport's last message to an address (`mail:test:<to>`, 1 hour, localhost only), share cards (a replay's SVG at `og:<key>`, every card's PNG at `og:png:<SHA-256 of its SVG>`, 1 day each), the ticker's feed (`ticker`, read again after 30 s) |
+| `KV` | KV | `asmbots-kv` | Sessions (`sess:<id>`, 30 days, and `usess:<user>:<id>` beside each so a user's sessions list by prefix), rate-limit counters (`rl:<scope>:<client>:<window>`), when each password account's password was last set (`pwset:<user>`, 30 days, which ends its older sessions), the test mail transport's last message to an address (`mail:test:<to>`, 1 hour, localhost only), share cards (a replay's SVG at `og:<key>`, every card's PNG at `og:png:<SHA-256 of its SVG>`, 1 day each), the ticker's feed (`ticker`, read again after 30 s) |
 | `RUNNER` | Durable Object | `Runner` | One per job (`hill:<slug>:<submissionId>`, `tournament:<id>`): plays its matches, one an alarm, into D1 and R2, then settles the hill board or the tournament ([Runner](#runner)) |
 | `LIVE_ROOM` | Durable Object | `LiveRoom` | One per hill or tournament (`hill:<id>`, `tournament:<id>`): fans its Runners' events out to spectators' WebSockets and keeps the last 20 ([LiveRoom](#liveroom)) |
 | `MATCH_ANALYTICS` | Analytics Engine | `asmbots_matches` | A data point per match a Runner settles: count, duration, bots, kind ([Observability](#observability)) |
@@ -76,7 +76,7 @@ A new migration is the next `src/db/migrations/NNNN_name.sql`; never edit one th
 
 Every error is the protocol shape `{ error: { code, message } }` with an `X-Request-Id` header.
 
-Rate limits (`src/rate-limit.ts`, fixed one-minute windows in KV) count a signed-in user by user id and anyone else by IP. Past one, the answer is 429 `rate_limited` with `Retry-After`; every limited answer carries `X-RateLimit-Limit` and `X-RateLimit-Remaining` (the tightest limit's).
+Rate limits (`src/rate-limit.ts`, fixed one-minute windows in KV) count a signed-in user by user id and anyone else by address: an IPv4 address, or the /64 of an IPv6 one (`clientNet`), since one subscriber holds a whole /64. Past one, the answer is 429 `rate_limited` with `Retry-After`; every limited answer carries `X-RateLimit-Limit` and `X-RateLimit-Remaining` (the tightest limit's).
 
 | Requests | Per minute |
 | --- | --- |
@@ -84,15 +84,25 @@ Rate limits (`src/rate-limit.ts`, fixed one-minute windows in KV) count a signed
 | `POST /api/assemble` | 30 |
 | `POST /api/bots` and every `POST` under it (import, versions) | 20 |
 | `POST /api/replays` | 10 |
-| Every `/api/auth/*` request, reads too (a sign-in is two) | 10 |
+| Every `/api/auth/*` request but `GET /api/auth/methods`, reads too (a GitHub sign-in is two) | 10 |
 | `POST /api/hills/:slug/submit`: submissions made (201) only, so a refused one costs nothing | 5 an hour |
 | `POST /api/tournaments`: tournaments made (201) only | 5 an hour |
-| `POST /api/auth/signup`: accounts made (201) only, by IP whoever is signed in | 3 an hour, 10 a day |
-| `POST /api/auth/login`: wrong passwords only. By IP, and by username from every IP (it counts for a username nobody has too, so the answer says nothing) | 10 in 10 minutes an IP, 30 an hour a username |
-| `POST /api/auth/recover`: by IP; and the reset links one account is mailed, whoever asks (past them the answer is still 202) | 5 an hour an IP, 3 an hour an account |
-| `POST /api/me/password`, `POST /api/me/email`: wrong current passwords only, together | 5 in 15 minutes |
+| `POST /api/auth/recover`, by address whoever is signed in | 5 an hour |
 | `POST /api/me/email/verify` | 3 an hour |
 | `POST /api/ai/chat`: turns that ran (200) only; each turn's cost also counts against the day's caps in dollars (`src/ai/spend.ts`, KV `ai:spend:<day>` and `ai:spend:<day>:u:<user>`) | 30 an hour |
+
+What guards a password or makes an account is counted in D1 instead (`takeBudget`, table `auth_budgets`): one statement adds and reads back, so of a burst of requests at once only the limit get through, which a KV count cannot promise. Each is counted before the work it guards and given back when the work was no abuse (the password was right, the username was taken).
+
+| Budget | Counts | Limit |
+| --- | --- | --- |
+| `login-ip` | `POST /api/auth/login`: sign-ins tried from one address, the right password not counted | 10 in 10 minutes |
+| `login-name` | wrong passwords for one username, from every address; it counts for a username nobody has too, so the answer says nothing. A browser the account has signed in from before is not held by it (see below) | 30 an hour |
+| `login-device` | wrong passwords from one such browser | 10 an hour |
+| `password` | wrong current passwords on `POST /api/me/password` and `/email`, a user | 5 in 15 minutes |
+| `signup`, `signup-day` | `POST /api/auth/signup`: accounts one address makes | 3 an hour, 10 a day |
+| `recover-account` | reset links one account is mailed, whoever asks (past them the answer is still 202) | 3 in 30 minutes |
+| `email-change` | `POST /api/me/email`: new addresses a user sets, each mailed a link | 5 an hour |
+| `mail-to` | verification links one address is mailed, whichever accounts name it | 3 an hour |
 
 The audit log (D1 `audit`: `id, user_id, action, target, at`) gets a row in the same batch as each change: `bot.create` (per imported bot too), `bot.update`, `bot.version` (target `<bot id>/v<n>`; a save of the same bytes makes none), `bot.delete`, `hill.submit` (target the submission id), `tournament.create` and `tournament.enter` (target the tournament id), `token.create` and `token.delete` (target the API token id), `password.change`, `password.reset`, `email.change`, and `email.verify` (target the user's id; `src/db/credentials.ts`) (`auditInsert` in `src/db/queries.ts`).
 
@@ -112,9 +122,11 @@ Email is optional. **An account with no email, or with one it has not verified, 
 
 - **Passwords** (`src/auth/password.ts`): 10..128 characters, no rule but length (`passwordProblem` in `@asmbots/protocol`: not one character repeated, not the username, not one of the passwords every guessing list starts with). Hashed with PBKDF2-HMAC-SHA256, 600,000 iterations, a 16-byte salt each, through Web Crypto, as six chained calls of 100,000 (Cloudflare's runtime refuses more a call). The hash says its cost (`pbkdf2-sha256$6x100000$<salt>$<key>`), and a password hashed at another cost is hashed again when it next signs in. A password is read in Unicode NFKC.
 - **A password account and a GitHub account never join.** D1 `password_credentials` has a row for a password account only, whose `github_id` is null; GitHub sign-in finds its user by `github_id` alone. No password route reads `users.email` (GitHub's address). A username someone has, of either kind, is 409 at sign-up; a GitHub login the same as a password account's username gets its own user and a suffixed handle, as before; an email the same as a GitHub account's is just an address, and recovers only the password account that verified it. There is no way to add a password to a GitHub account, or GitHub to a password account.
-- **Mailed links** (D1 `auth_tokens`): a token is 32 random bytes, in the link after `#` (so in no log and no `Referer`), kept as its SHA-256. It works once (its row is deleted as it is used, in the statement that reads it), until it expires (a verification a day, a reset half an hour), and only while the account's email is the address it went to. A new link voids the one before; a new email or a new password voids them all. A link opens `SITE_URL`, never a host or an origin the request names.
+- **Mailed links** (D1 `auth_tokens`): a token is 32 random bytes, in the link after `#` (so in no log and no `Referer`), kept as its SHA-256. It works once (its row is deleted as it is used, in the statement that reads it), until it expires (a verification a day, a reset half an hour), and only while the account's email is the address it went to. A new email voids them all; a new password voids the reset links. A link opens `SITE_URL`, never a host or an origin the request names.
 - **One answer.** Sign-in answers 401 `wrong username or password` for a wrong password, no such username, and a GitHub account's handle, after the same password check. `/recover` answers 202 `{}` whatever its `login` names, and does its work after it has answered. Sign-up does say a username is taken: handles are public at `/u/:handle`.
-- **Sessions.** Signing in starts a new session in place of the browser's. A new password ends every session of the account (and gives the browser that changed it a new one; a reset gives none, the user signs in). KV lists are eventually consistent, so a session started elsewhere in the last minute can outlive it, as with a deleted account.
+- **Sessions.** Signing in starts a new session in place of the browser's. A new password ends every session of the account (and gives the browser that changed it a new one; a reset gives none, the user signs in). It does so for sure: a password session keeps the `password_set_at` it signed in with (`pw`), KV `pwset:<user>` holds the account's latest for 30 days, and `loadSession` drops a session whose two differ. So a session the KV list missed, or one a sign-in with the old password wrote beside the change, ends too (within a minute, KV's lag). A reset also revokes the account's API tokens: whoever had the account may have made one. A password change keeps them.
+- **Lockout.** The count of wrong passwords for a username is one anyone can run out, to stop guessers from many addresses. So that this locks out the guesser and not the owner, a password sign-in leaves a signed cookie (`known_browser`, `<user id>.<random>`, a year, sent to `/api/auth` only) that signs nobody in: a sign-in for that account from that browser is counted on the browser's own budget instead. An owner with no such browser waits out the hour.
+- **Reset links.** Up to three in half an hour, and a new one does not void the others (a verification link does): asking for links in someone's name puts working links in their inbox, and cannot void theirs. Using one voids the rest.
 - **Mail** (`src/mail`): plain text only. `EMAIL` (Cloudflare Email Service) and `MAIL_FROM` send it in production; with neither, mail is off: `GET /api/auth/methods` says `mail: false`, an account may hold no email (400 at sign-up for one), and `/recover` is 503. `MAIL_TRANSPORT=test`, on localhost only, keeps each message in KV (`mail:test:<to>`) and logs it, so `wrangler dev` shows the link to click and the tests read it; no mail leaves.
 
 Beside the session the API sets `signed_in=1`, a cookie the page can read that proves nothing: the web app asks `GET /api/me` only when it is there, so a signed-out visit makes no request and logs no 401.
@@ -130,10 +142,10 @@ Test sign-in: with the var `DEV_FAKE_AUTH=1` (`wrangler dev --var DEV_FAKE_AUTH:
 | `GET /api/auth/github/callback` | Checks the state, trades the code, makes or refreshes the user by `github_id` (first handle: the login, else login plus a suffix), starts a session, 302 to `returnTo` or `/?signed-in=1`; 400 on a bad state or code |
 | `POST /api/auth/logout` | Ends the session (KV and cookie); 204 |
 | `GET /api/auth/methods` | `{ github, password, signup, mail }`: the ways to sign in that are on. `signup`: new password accounts; `mail`: the server sends mail, so an account may have an email and recover with it |
-| `POST /api/auth/signup` | `{ username, password, email? }` → 201 `{ user, onboarded: true }`, signed in. 400 for a username `handleProblem` refuses, a password `passwordProblem` refuses, an address that is not one, or any email when mail is off; 409 `<username> is taken`; 503 when `PASSWORD_AUTH` closes it. With an email, a verification link goes to it |
+| `POST /api/auth/signup` | `{ username, password, email? }` → 201 `{ user, onboarded: true }`, signed in. 400 for a username `handleProblem` refuses or `ADMIN_HANDLES` names, a password `passwordProblem` refuses, an address that is not one, or any email when mail is off; 409 `<username> is taken`; 503 when `PASSWORD_AUTH` closes it. With an email, a verification link goes to it |
 | `POST /api/auth/login` | `{ username, password }` → `{ user, onboarded }`, signed in. 401 `wrong username or password` whatever is wrong; 429 with `Retry-After` past the wrong-password limits, for the right password too |
 | `POST /api/auth/recover` | `{ login }`, a username or an email → 202 `{}` always. The account's verified email, when it has one, is mailed a reset link. 503 when mail is off |
-| `POST /api/auth/reset` | `{ token, password }`: a reset link's token and the new password → 204; every session of the account ends, and its verified email is told. 400 `the link is not valid or has expired: ask for a new one` for a token that is wrong, used, or old; 400 for a password `passwordProblem` refuses, which leaves the link good |
+| `POST /api/auth/reset` | `{ token, password }`: a reset link's token and the new password → 204; every session of the account ends, its API tokens are revoked, and its verified email is told. 400 `the link is not valid or has expired: ask for a new one` for a token that is wrong, used, or old; 400 for a password `passwordProblem` refuses, which leaves the link good |
 | `POST /api/auth/verify-email` | `{ token }`: a verification link's token → 204, the address verified. 400 as `/reset`; 409 when another account verified the address first |
 | `GET /api/me/credentials` | `{ method, email, emailVerified, mail }`: `github` or `password`, and a password account's own email. Cookie sessions only, as every route below |
 | `POST /api/me/password` | `{ current, password }` → 204: every session of the account ends, this browser gets a new one, and the verified email is told. 403 `the current password is wrong`; 409 for a GitHub account |

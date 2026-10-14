@@ -24,7 +24,12 @@
  *   same (`verifyNobody`), and `/recover` does its work after it has answered.
  * - A mailed token is 32 random bytes, kept as its SHA-256, good once and for a set time, and
  *   only while the account's email is the address it went to. Its link opens `SITE_URL`.
- * - Wrong passwords are counted by IP and by username (`rate-limit.ts`), accounts made by IP.
+ * - Wrong passwords are counted by address and by username, accounts made by address, each in
+ *   one D1 statement that adds and reads back (`takeBudget`), so a burst cannot outrun a count.
+ *   A browser that has signed in to an account before (`KNOWN_COOKIE`) is not held by the count
+ *   of its username: whoever runs that out locks out other guessers, not the account's owner.
+ * - A new password ends every session of the account, for sure: a session carries the
+ *   `password_set_at` it signed in with, and one from before the change is no session.
  */
 import {
   AUTH_TOKEN,
@@ -41,6 +46,7 @@ import {
   VerifyEmail,
 } from '@asmbots/protocol'
 import { type Context, Hono } from 'hono'
+import { getSignedCookie, setSignedCookie } from 'hono/cookie'
 import { jsonBody, limitBody } from '../body'
 import {
   createPasswordUser,
@@ -65,19 +71,26 @@ import {
 } from '../mail/messages'
 import { errorResponse } from '../middleware'
 import {
-  checkBudget,
-  clientIp,
+  type Budget,
+  clientNet,
+  giveBackBudget,
+  LOGIN_DEVICE_BUDGET,
   LOGIN_IP_BUDGET,
   LOGIN_NAME_BUDGET,
+  MAIL_TO_BUDGET,
   RECOVER_ACCOUNT_BUDGET,
-  spendBudget,
+  SIGNUP_BUDGET,
+  SIGNUP_DAY_BUDGET,
+  takeBudget,
 } from '../rate-limit'
+import { adminHandles } from '../routes/admin'
 import { meBody } from '../routes/me'
 import { hashPassword, needsRehash, verifyNobody, verifyPassword } from './password'
 import {
   authConfigured,
+  cookieOptions,
   dropSession,
-  endAllSessions,
+  endPasswordSessions,
   endSession,
   passwordAuth,
   randomHex,
@@ -96,15 +109,53 @@ const BAD_LINK = 'the link is not valid or has expired: ask for a new one'
 
 const OFF = 'password sign-in is off'
 
-/** Signs `userId` in: a new session, in place of any the browser had. */
-async function signInAs(c: Context<AppEnv>, userId: string): Promise<void> {
+/**
+ * A signed cookie that says this browser has signed in to an account with its password before:
+ * `<user id>.<a random id of the browser>`, kept a year, sent to `/api/auth` only. It signs
+ * nobody in. It moves a sign-in for that account from the username's count of wrong passwords,
+ * which anyone can run out, to a count of the browser's own (OWASP's device cookie).
+ */
+const KNOWN_COOKIE = 'known_browser'
+const KNOWN_PATH = '/api/auth'
+const KNOWN_TTL_SECONDS = 365 * 24 * 60 * 60
+
+/** The random id of this browser, when it has signed in to `userId` with a password before. */
+async function knownBrowser(c: Context<AppEnv>, userId: string): Promise<string | null> {
+  const secret = c.env.SESSION_SECRET
+  if (!secret) return null
+  const value = await getSignedCookie(c, secret, KNOWN_COOKIE)
+  if (!value) return null
+  const at = value.lastIndexOf('.')
+  return value.slice(0, at) === userId ? value.slice(at + 1) : null
+}
+
+/** Marks this browser as one that has signed in to `userId`, unless it is marked so already. */
+async function rememberBrowser(c: Context<AppEnv>, userId: string): Promise<void> {
+  const secret = c.env.SESSION_SECRET
+  if (!secret || (await knownBrowser(c, userId)) !== null) return
+  const value = `${userId}.${randomHex(16)}`
+  await setSignedCookie(
+    c,
+    KNOWN_COOKIE,
+    value,
+    secret,
+    cookieOptions(KNOWN_TTL_SECONDS, KNOWN_PATH),
+  )
+}
+
+/**
+ * Signs `userId` in with its password, set at `setAt`: a new session, in place of any the browser
+ * had, and the browser is one the account knows from now on.
+ */
+export async function signInAs(c: Context<AppEnv>, userId: string, setAt: string): Promise<void> {
   const old = c.get('session')
   if (old) await dropSession(c.env.KV, old.userId, old.id)
-  await startSession(c, userId)
+  await startSession(c, userId, setAt)
+  await rememberBrowser(c, userId)
 }
 
 /** 429 for `wait` seconds more. */
-function tooMany(c: Context<AppEnv>, wait: number, what: string): Response {
+export function tooMany(c: Context<AppEnv>, wait: number, what: string): Response {
   c.header('Retry-After', String(wait))
   return errorResponse(c, 'rate_limited', `${what}: try again in ${wait} s`)
 }
@@ -115,7 +166,10 @@ async function newLinkToken(): Promise<{ secret: string; hash: string }> {
   return { secret, hash: await hashToken(secret) }
 }
 
-/** Mails `email` the link that verifies it for `user`, after the response. */
+/**
+ * Mails `email` the link that verifies it for `user`, after the response; not past the links one
+ * address is mailed an hour (`MAIL_TO_BUDGET`), whoever names it.
+ */
 export function mailVerifyLink(
   c: Context<AppEnv>,
   send: Mailer,
@@ -124,6 +178,7 @@ export function mailVerifyLink(
 ): void {
   const origin = linkOrigin(c)
   const work = async () => {
+    if ((await takeBudget(c.env.DB, MAIL_TO_BUDGET, `to:${email}`)) > 0) return
     const { secret, hash } = await newLinkToken()
     const seconds = VERIFY_TTL_SECONDS
     await putAuthToken(c.env.DB, { hash, userId: user.id, kind: 'verify_email', email, seconds })
@@ -144,7 +199,7 @@ export function mailPasswordChanged(
 
 /**
  * `/recover`'s work, after it has answered: the account `login` names, when it has a verified
- * email and has not been mailed its hour's links, gets a new one.
+ * email and has not been mailed its half hour's links, gets a new one.
  */
 async function recover(
   c: Context<AppEnv>,
@@ -154,9 +209,7 @@ async function recover(
 ): Promise<void> {
   const account = await getRecoverable(c.env.DB, login)
   if (account === null) return
-  const client = `u:${account.userId}`
-  if ((await checkBudget(c.env.KV, RECOVER_ACCOUNT_BUDGET, client)) > 0) return
-  await spendBudget(c.env.KV, RECOVER_ACCOUNT_BUDGET, client)
+  if ((await takeBudget(c.env.DB, RECOVER_ACCOUNT_BUDGET, `u:${account.userId}`)) > 0) return
   const { secret, hash } = await newLinkToken()
   await putAuthToken(c.env.DB, {
     hash,
@@ -190,6 +243,8 @@ export const local = new Hono<AppEnv>()
     const send = mailer(c)
     const problem =
       handleProblem(username) ??
+      // An admin's handle is not one to take by signing up for it (`ADMIN_HANDLES`).
+      (adminHandles(c.env.ADMIN_HANDLES).has(username) ? `${username} is reserved` : null) ??
       passwordProblem(asked.password, username) ??
       (email === null
         ? null
@@ -201,47 +256,66 @@ export const local = new Hono<AppEnv>()
     if (await isHandleTaken(c.env.DB, username)) {
       return errorResponse(c, 'conflict', `${username} is taken`)
     }
-    const row = await createPasswordUser(c.env.DB, {
+    // The address's accounts, a day's then an hour's, counted before the account is made.
+    const ip = `ip:${clientNet(c.req.raw)}`
+    const taken: Budget[] = []
+    for (const budget of [SIGNUP_DAY_BUDGET, SIGNUP_BUDGET]) {
+      const wait = await takeBudget(c.env.DB, budget, ip)
+      if (wait === 0) {
+        taken.push(budget)
+        continue
+      }
+      await Promise.all(taken.map((b) => giveBackBudget(c.env.DB, b, ip)))
+      return tooMany(c, wait, 'too many new accounts from this address')
+    }
+    const made = await createPasswordUser(c.env.DB, {
       id: crypto.randomUUID(),
       handle: username,
       passwordHash: await hashPassword(asked.password),
       email,
     })
-    if (row === 'taken') return errorResponse(c, 'conflict', `${username} is taken`)
-    await signInAs(c, row.id)
-    if (email !== null && send !== null) mailVerifyLink(c, send, row, email)
-    return c.json(meBody(row), 201)
+    if (made === 'taken') {
+      await Promise.all(taken.map((b) => giveBackBudget(c.env.DB, b, ip)))
+      return errorResponse(c, 'conflict', `${username} is taken`)
+    }
+    await signInAs(c, made.user.id, made.passwordSetAt)
+    if (email !== null && send !== null) mailVerifyLink(c, send, made.user, email)
+    return c.json(meBody(made.user), 201)
   })
   .post('/login', limitBody(AUTH_BODY), async (c) => {
     if (!passwordAuth(c).login) return errorResponse(c, 'unavailable', OFF)
     const asked = parse(LogIn, await jsonBody(c), 'the request')
     const username = asked.username.trim().toLowerCase()
-    const ip = `ip:${clientIp(c.req.raw)}`
-    const name = HANDLE_SHAPED.test(username) ? `name:${username}` : null
-    const wait = Math.max(
-      await checkBudget(c.env.KV, LOGIN_IP_BUDGET, ip),
-      name === null ? 0 : await checkBudget(c.env.KV, LOGIN_NAME_BUDGET, name),
-    )
+    const named = HANDLE_SHAPED.test(username)
+    const found = named ? await getPasswordLogin(c.env.DB, username) : null
+    // Each try is counted before the password is checked, and given back when it was right. The
+    // address's first: past them, nothing else is counted or checked.
+    const ip = `ip:${clientNet(c.req.raw)}`
+    const tries: [Budget, string][] = [[LOGIN_IP_BUDGET, ip]]
+    const stopped = await takeBudget(c.env.DB, LOGIN_IP_BUDGET, ip)
+    if (stopped > 0) return tooMany(c, stopped, 'too many sign-ins from this address')
+    // Then the username's, or this browser's own when the account knows it.
+    const browser = found === null ? null : await knownBrowser(c, found.user.id)
+    if (browser !== null) tries.push([LOGIN_DEVICE_BUDGET, `dev:${browser}`])
+    else if (named) tries.push([LOGIN_NAME_BUDGET, `name:${username}`])
+    const second = tries[1]
+    const wait = second === undefined ? 0 : await takeBudget(c.env.DB, ...second)
     if (wait > 0) return tooMany(c, wait, 'too many wrong passwords')
-    const found = name === null ? null : await getPasswordLogin(c.env.DB, username)
     const right =
       found === null
         ? await verifyNobody(asked.password)
         : await verifyPassword(asked.password, found.passwordHash)
     if (found === null || !right) {
-      await Promise.all([
-        spendBudget(c.env.KV, LOGIN_IP_BUDGET, ip),
-        name === null ? null : spendBudget(c.env.KV, LOGIN_NAME_BUDGET, name),
-      ])
       return errorResponse(c, 'unauthorized', 'wrong username or password')
     }
+    await Promise.all(tries.map(([budget, client]) => giveBackBudget(c.env.DB, budget, client)))
     if (needsRehash(found.passwordHash)) {
       const again = hashPassword(asked.password).then((hash) =>
-        rehashPassword(c.env.DB, found.user.id, hash),
+        rehashPassword(c.env.DB, found.user.id, found.passwordHash, hash),
       )
       afterResponse(c, 'password rehash', again)
     }
-    await signInAs(c, found.user.id)
+    await signInAs(c, found.user.id, found.passwordSetAt)
     return c.json(meBody(found.user))
   })
   .post('/recover', limitBody(AUTH_BODY), async (c) => {
@@ -265,11 +339,12 @@ export const local = new Hono<AppEnv>()
     if (problem !== null) return errorResponse(c, 'bad_request', problem)
     const passwordHash = await hashPassword(asked.password)
     const used = await takeAuthToken(c.env.DB, hash, 'reset_password')
-    const changed =
-      used !== null &&
-      (await setPassword(c.env.DB, used.userId, passwordHash, 'password.reset', used.email))
-    if (used === null || !changed) return errorResponse(c, 'bad_request', BAD_LINK)
-    await endAllSessions(c.env.KV, used.userId)
+    const setAt =
+      used === null
+        ? null
+        : await setPassword(c.env.DB, used.userId, passwordHash, 'password.reset', used.email)
+    if (used === null || setAt === null) return errorResponse(c, 'bad_request', BAD_LINK)
+    await endPasswordSessions(c.env.KV, used.userId, setAt)
     if (c.get('session')?.userId === used.userId) await endSession(c)
     const send = mailer(c)
     if (send !== null) mailPasswordChanged(c, send, link.handle, used.email)

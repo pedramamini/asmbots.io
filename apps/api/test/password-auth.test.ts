@@ -18,11 +18,12 @@ import {
 } from '@asmbots/protocol'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { hashPassword, needsRehash, verifyNobody, verifyPassword } from '../src/auth/password'
-import { createPasswordUser } from '../src/db/credentials'
+import { createPasswordUser, rehashPassword } from '../src/db/credentials'
 import { applySeed, buildSeed } from '../src/db/seed'
 import type { Env } from '../src/env'
 import worker from '../src/index'
 import { type Mail, testMailKey } from '../src/mail/mail'
+import { clientNet } from '../src/rate-limit'
 import { errorOf, SPIN, signIn } from './fake-auth'
 import { Jar } from './jar'
 
@@ -125,7 +126,7 @@ async function mailTo(to: string): Promise<Mail | null> {
 
 /** The token of the link in `mail`. */
 function tokenIn(mail: Mail | null, page: string): string {
-  const match = mail?.text.match(new RegExp(`${LOCAL}/${page}#([0-9a-f]{64})\\b`))
+  const match = mail?.text.match(new RegExp(`${LOCAL}/auth/${page}#([0-9a-f]{64})\\b`))
   if (!match?.[1]) throw new Error(`no ${page} link in ${JSON.stringify(mail)}`)
   return match[1]
 }
@@ -133,7 +134,7 @@ function tokenIn(mail: Mail | null, page: string): string {
 /** An account whose email is verified: it can recover. */
 async function verified(username: string, email: string): Promise<Jar> {
   const jar = await signUp(username, { email })
-  const token = tokenIn(await mailTo(email.toLowerCase()), 'verify-email')
+  const token = tokenIn(await mailTo(email.toLowerCase()), 'verify')
   expect((await post(new Jar(), '/api/auth/verify-email', { token })).status).toBe(204)
   return jar
 }
@@ -204,6 +205,11 @@ describe('GET /api/auth/methods', () => {
       password: false,
       signup: false,
     })
+    // The sign-in page reads it on every visit: it is outside the ten-a-minute sign-in limit.
+    const visitor = new Jar()
+    for (let i = 0; i < 12; i++) {
+      expect((await call(visitor, '/api/auth/methods')).status).toBe(200)
+    }
     // The test transport is for localhost: any other host has no mail from it.
     expect((await read(MAIL, 'https://asmbots.test')).mail).toBe(false)
   })
@@ -376,7 +382,9 @@ describe('POST /api/auth/signup', () => {
       id: 'race-b',
       handle: 'Race-Name',
     })
-    expect(first).toMatchObject({ id: 'race-a', handle: 'race-name', github_id: null })
+    expect(first).toMatchObject({
+      user: { id: 'race-a', handle: 'race-name', github_id: null },
+    })
     expect(second).toBe('taken')
     const left = await env.DB.prepare(
       "SELECT COUNT(*) AS n FROM password_credentials WHERE user_id = 'race-b'",
@@ -405,6 +413,47 @@ describe('POST /api/auth/signup', () => {
       (await post(new Jar(), '/api/auth/signup', { username: 'limit-f', password: PASSWORD }))
         .status,
     ).toBe(201)
+  })
+
+  it('makes three of a burst of sign-ups at once from one address', async () => {
+    const ip = '203.0.113.70'
+    const all = await Promise.all(
+      Array.from({ length: 8 }, (_, i) =>
+        post(new Jar(ip), '/api/auth/signup', { username: `burst-new-${i}`, password: PASSWORD }),
+      ),
+    )
+    const statuses = all.map((res) => res.status)
+    expect(statuses.filter((status) => status === 201)).toHaveLength(3)
+    expect(statuses.filter((status) => status === 429)).toHaveLength(5)
+    const made = await env.DB.prepare(
+      "SELECT COUNT(*) AS n FROM users WHERE handle LIKE 'burst-new-%'",
+    ).first<{ n: number }>()
+    expect(made?.n).toBe(3)
+  })
+
+  it('gives no admin`s handle to a sign-up', async () => {
+    const vars: Env = { ...MAIL, ADMIN_HANDLES: 'pedram, The-Boss' }
+    const res = await post(
+      new Jar(),
+      '/api/auth/signup',
+      { username: 'the-boss', password: PASSWORD },
+      { vars },
+    )
+    expect(await errorOf(res)).toEqual({
+      status: 400,
+      code: 'bad_request',
+      message: 'the-boss is reserved',
+    })
+  })
+
+  it('mails one address three verification links an hour, whichever accounts name it', async () => {
+    for (const name of ['flood-a', 'flood-b', 'flood-c']) {
+      await signUp(name, { email: 'flooded@example.com' })
+      expect(await mailTo('flooded@example.com')).not.toBeNull()
+    }
+    const fourth = await signUp('flood-d', { email: 'flooded@example.com' })
+    expect(await mailTo('flooded@example.com')).toBeNull()
+    expect((await credentialsOf(fourth)).email).toBe('flooded@example.com')
   })
 
   it('closes with PASSWORD_AUTH: `login` keeps sign-in, `off` ends it', async () => {
@@ -515,6 +564,63 @@ describe('POST /api/auth/login', () => {
     }
   })
 
+  it('lets a burst of sign-ins at once through only as far as the count goes', async () => {
+    await signUp('burst-target')
+    const ip = '203.0.113.60'
+    const all = await Promise.all(
+      Array.from({ length: 24 }, () => logIn(new Jar(ip), 'burst-target', OTHER)),
+    )
+    const statuses = all.map((res) => res.status)
+    expect(statuses.filter((status) => status === 401)).toHaveLength(10)
+    expect(statuses.filter((status) => status === 429)).toHaveLength(14)
+  })
+
+  it('does not hold a browser the account knows by the username`s count, and counts its own', async () => {
+    const owner = await signUp('known-owner')
+    expect(owner.cookies.has('known_browser')).toBe(true)
+    for (let i = 0; i < 30; i++) {
+      expect((await logIn(new Jar(), 'known-owner', OTHER)).status).toBe(401)
+    }
+    // Anyone else is stopped now, the right password or not; the owner`s browser is not.
+    expect((await logIn(new Jar(), 'known-owner', PASSWORD)).status).toBe(429)
+    const known = () => {
+      const jar = new Jar()
+      jar.cookies.set('known_browser', owner.cookies.get('known_browser') ?? '')
+      return jar
+    }
+    expect((await logIn(known(), 'known-owner', PASSWORD)).status).toBe(200)
+    // The cookie is for its account only, and a forged one is nobody`s.
+    await signUp('known-other')
+    for (let i = 0; i < 30; i++) await logIn(new Jar(), 'known-other', OTHER)
+    expect((await logIn(known(), 'known-other', PASSWORD)).status).toBe(429)
+    const forged = new Jar()
+    forged.cookies.set('known_browser', 'someone.else.signature')
+    expect((await logIn(forged, 'known-owner', PASSWORD)).status).toBe(429)
+    // The browser has a count of its own: ten wrong passwords an hour.
+    for (let i = 0; i < 10; i++)
+      expect((await logIn(known(), 'known-owner', OTHER)).status).toBe(401)
+    expect((await logIn(known(), 'known-owner', PASSWORD)).status).toBe(429)
+  })
+
+  it('counts an IPv6 client by its /64, so a new address is not a new count', async () => {
+    const at = (ip: string) =>
+      clientNet(new Request('https://x.test', { headers: { 'CF-Connecting-IP': ip } }))
+    expect(at('203.0.113.9')).toBe('203.0.113.9')
+    expect(at('2001:db8:1:2:aaaa:bbbb:cccc:dddd')).toBe('2001:db8:1:2::/64')
+    expect(at('2001:0DB8:0001:0002::1')).toBe('2001:db8:1:2::/64')
+    expect(at('2001:db8::1')).toBe('2001:db8:0:0::/64')
+    expect(at('::1')).toBe('0:0:0:0::/64')
+    expect(at('2001:db8:1:3::1')).not.toBe(at('2001:db8:1:2::1'))
+
+    await signUp('v6-target')
+    for (let i = 0; i < 10; i++) {
+      const res = await logIn(new Jar(`2001:db8:7:7::${(i + 1).toString(16)}`), 'v6-nobody', OTHER)
+      expect(res.status).toBe(401)
+    }
+    expect((await logIn(new Jar('2001:db8:7:7:ffff::1'), 'v6-target', PASSWORD)).status).toBe(429)
+    expect((await logIn(new Jar('2001:db8:7:8::1'), 'v6-target', PASSWORD)).status).toBe(200)
+  })
+
   it('hashes a password again when its hash was made at another cost', async () => {
     await signUp('old-cost')
     const salt = btoa('0123456789abcdef')
@@ -549,6 +655,27 @@ describe('POST /api/auth/login', () => {
     expect(row?.password_hash).toMatch(/^pbkdf2-sha256\$6x100000\$/)
     expect((await logIn(new Jar(), 'old-cost', PASSWORD)).status).toBe(200)
   })
+
+  it('keeps a password set since over a hash made again for the one before', async () => {
+    await signUp('rehash-race')
+    const id = (
+      await env.DB.prepare("SELECT id FROM users WHERE handle = 'rehash-race'").first<{
+        id: string
+      }>()
+    )?.id as string
+    const read = async () =>
+      (
+        await env.DB.prepare('SELECT password_hash FROM password_credentials WHERE user_id = ?')
+          .bind(id)
+          .first<{ password_hash: string }>()
+      )?.password_hash
+    const now = await read()
+    await rehashPassword(env.DB, id, 'the hash that was checked, since replaced', 'a stale hash')
+    expect(await read()).toBe(now)
+    await rehashPassword(env.DB, id, now ?? '', await hashPassword(PASSWORD))
+    expect(await read()).not.toBe(now)
+    expect((await logIn(new Jar(), 'rehash-race', PASSWORD)).status).toBe(200)
+  })
 })
 
 describe('email verification', () => {
@@ -563,7 +690,7 @@ describe('email verification', () => {
     const mail = await mailTo('verify.me@example.com')
     expect(mail?.subject).toBe('ASM Bots: verify your email')
     expect(mail?.text).toContain('account verify-me')
-    const token = tokenIn(mail, 'verify-email')
+    const token = tokenIn(mail, 'verify')
     // Only the hash is kept.
     const kept = await env.DB.prepare('SELECT hash FROM auth_tokens').all<{ hash: string }>()
     expect(kept.results.map((r) => r.hash)).not.toContain(token)
@@ -583,9 +710,9 @@ describe('email verification', () => {
 
   it('sends the link again when asked, and only the newest one works', async () => {
     const jar = await signUp('verify-again', { email: 'again@example.com' })
-    const first = tokenIn(await mailTo('again@example.com'), 'verify-email')
+    const first = tokenIn(await mailTo('again@example.com'), 'verify')
     expect((await post(jar, '/api/me/email/verify', undefined)).status).toBe(202)
-    const second = tokenIn(await mailTo('again@example.com'), 'verify-email')
+    const second = tokenIn(await mailTo('again@example.com'), 'verify')
     expect(second).not.toBe(first)
     expect((await post(new Jar(), '/api/auth/verify-email', { token: first })).status).toBe(400)
     expect((await post(new Jar(), '/api/auth/verify-email', { token: second })).status).toBe(204)
@@ -596,7 +723,7 @@ describe('email verification', () => {
 
   it('refuses a link past its day, and a reset link as a verification', async () => {
     await signUp('verify-late', { email: 'late@example.com' })
-    const token = tokenIn(await mailTo('late@example.com'), 'verify-email')
+    const token = tokenIn(await mailTo('late@example.com'), 'verify')
     expect((await post(new Jar(), '/api/auth/reset', { token, password: OTHER })).status).toBe(400)
     await env.DB.prepare(
       "UPDATE auth_tokens SET expires_at = '2020-01-01T00:00:00.000Z' WHERE email = 'late@example.com'",
@@ -606,9 +733,9 @@ describe('email verification', () => {
 
   it('verifies one address on one account: the second to open its link is refused', async () => {
     const a = await signUp('shared-a', { email: 'shared@example.com' })
-    const tokenA = tokenIn(await mailTo('shared@example.com'), 'verify-email')
+    const tokenA = tokenIn(await mailTo('shared@example.com'), 'verify')
     const b = await signUp('shared-b', { email: 'shared@example.com' })
-    const tokenB = tokenIn(await mailTo('shared@example.com'), 'verify-email')
+    const tokenB = tokenIn(await mailTo('shared@example.com'), 'verify')
     expect((await post(new Jar(), '/api/auth/verify-email', { token: tokenB })).status).toBe(204)
     expect(
       await errorOf(await post(new Jar(), '/api/auth/verify-email', { token: tokenA })),
@@ -656,7 +783,7 @@ describe('account recovery', () => {
     expect(await mailTo('nobody@example.com')).toBeNull()
     const mail = await mailTo('rec-ok@example.com')
     expect(mail?.subject).toBe('ASM Bots: reset your password')
-    tokenIn(mail, 'reset-password')
+    tokenIn(mail, 'reset')
     // No reset link was kept for anyone else.
     const kept = await env.DB.prepare(
       "SELECT COUNT(*) AS n FROM auth_tokens WHERE kind = 'reset_password'",
@@ -669,7 +796,7 @@ describe('account recovery', () => {
     const elsewhere = new Jar()
     await logIn(elsewhere, 'reset-me', PASSWORD)
     await ask('RESET.me@example.com')
-    const token = tokenIn(await mailTo('reset.me@example.com'), 'reset-password')
+    const token = tokenIn(await mailTo('reset.me@example.com'), 'reset')
 
     // A password the API refuses leaves the link good.
     expect(
@@ -704,7 +831,7 @@ describe('account recovery', () => {
   it('lets one of two requests with one link through', async () => {
     await verified('reset-race', 'race@example.com')
     await ask('reset-race')
-    const token = tokenIn(await mailTo('race@example.com'), 'reset-password')
+    const token = tokenIn(await mailTo('race@example.com'), 'reset')
     const both = await Promise.all([
       post(new Jar(), '/api/auth/reset', { token, password: OTHER }),
       post(new Jar(), '/api/auth/reset', { token, password: `${OTHER} two` }),
@@ -712,29 +839,64 @@ describe('account recovery', () => {
     expect(both.map((r) => r.status).sort()).toEqual([204, 400])
   })
 
-  it('refuses a link past its half hour, an older link, and a verification link', async () => {
+  it('keeps each link of the half hour good until one is used, and none past its time', async () => {
     await verified('reset-late', 'reset-late@example.com')
     await ask('reset-late')
-    const first = tokenIn(await mailTo('reset-late@example.com'), 'reset-password')
+    const first = tokenIn(await mailTo('reset-late@example.com'), 'reset')
     await ask('reset-late')
-    const second = tokenIn(await mailTo('reset-late@example.com'), 'reset-password')
+    const second = tokenIn(await mailTo('reset-late@example.com'), 'reset')
+    expect((await post(new Jar(), '/api/auth/verify-email', { token: second })).status).toBe(400)
+    // The older link works too: whoever asks for links in an owner's name cannot void theirs.
     expect(
       (await post(new Jar(), '/api/auth/reset', { token: first, password: OTHER })).status,
+    ).toBe(204)
+    await mailTo('reset-late@example.com')
+    // One used, the rest are void.
+    expect(
+      (await post(new Jar(), '/api/auth/reset', { token: second, password: PASSWORD })).status,
     ).toBe(400)
-    expect((await post(new Jar(), '/api/auth/verify-email', { token: second })).status).toBe(400)
+
+    await ask('reset-late')
+    const third = tokenIn(await mailTo('reset-late@example.com'), 'reset')
     await env.DB.prepare(
       "UPDATE auth_tokens SET expires_at = '2020-01-01T00:00:00.000Z' WHERE email = 'reset-late@example.com'",
     ).run()
     expect(
-      (await post(new Jar(), '/api/auth/reset', { token: second, password: OTHER })).status,
+      (await post(new Jar(), '/api/auth/reset', { token: third, password: PASSWORD })).status,
     ).toBe(400)
-    expect((await logIn(new Jar(), 'reset-late', PASSWORD)).status).toBe(200)
+    expect((await logIn(new Jar(), 'reset-late', OTHER)).status).toBe(200)
+  })
+
+  it('ends the account`s API tokens with a reset, and a session a list of sessions missed', async () => {
+    const jar = await verified('reset-all', 'reset-all@example.com')
+    const made = await post(jar, '/api/me/tokens', { name: 'ci' })
+    const { secret } = (await made.json()) as { secret: string }
+    const bearer = { headers: { Authorization: `Bearer ${secret}` }, origin: null }
+    expect((await call(new Jar(), '/api/me', bearer)).status).toBe(200)
+    // A session of the old password, as KV holds it.
+    const id = decodeURIComponent(jar.cookies.get('__Host-session') ?? '').split('.')[0] ?? ''
+    const kept = await env.KV.get(`sess:${id}`)
+    expect(kept).toContain('"pw"')
+
+    await ask('reset-all')
+    const token = tokenIn(await mailTo('reset-all@example.com'), 'reset')
+    expect((await post(new Jar(), '/api/auth/reset', { token, password: OTHER })).status).toBe(204)
+    expect((await call(new Jar(), '/api/me', bearer)).status).toBe(401)
+    // The session comes back, as one would that the list of sessions missed or that a sign-in
+    // with the old password wrote beside the reset: it is of a password since replaced.
+    await env.KV.put(`sess:${id}`, kept ?? '')
+    expect(await whoAmI(jar)).toBeNull()
+    expect(await env.KV.get(`sess:${id}`)).toBeNull()
+    // A session of the new password stands.
+    const back = new Jar()
+    await logIn(back, 'reset-all', OTHER)
+    expect((await whoAmI(back))?.user.handle).toBe('reset-all')
   })
 
   it('voids a reset link when the account email changes after it was mailed', async () => {
     const jar = await verified('reset-moved', 'moved-old@example.com')
     await ask('reset-moved')
-    const token = tokenIn(await mailTo('moved-old@example.com'), 'reset-password')
+    const token = tokenIn(await mailTo('moved-old@example.com'), 'reset')
     const moved = await post(jar, '/api/me/email', {
       email: 'moved-new@example.com',
       password: PASSWORD,
@@ -751,7 +913,7 @@ describe('account recovery', () => {
     )
   })
 
-  it('mails one account three links an hour, and an IP asks five times', async () => {
+  it('mails one account three links in half an hour, and an IP asks five times an hour', async () => {
     await verified('rec-budget', 'rec-budget@example.com')
     for (let i = 0; i < 3; i++) {
       await ask('rec-budget')
@@ -803,7 +965,7 @@ describe('account recovery', () => {
     expect(message.from).toEqual({ name: 'ASM Bots', email: 'accounts@asmbots.example' })
     expect(message.to).toBe('prod@example.com')
     expect(message.html).toBeUndefined()
-    expect(message.text).toMatch(new RegExp(`^${env.SITE_URL}/verify-email#[0-9a-f]{64}$`, 'm'))
+    expect(message.text).toMatch(new RegExp(`^${env.SITE_URL}/auth/verify#[0-9a-f]{64}$`, 'm'))
     expect(message.text).not.toContain('attacker')
     // The test transport never runs off localhost, so no link is in KV or the log there.
     expect(await env.KV.get(testMailKey('prod@example.com'))).toBeNull()
@@ -853,7 +1015,7 @@ describe('a password account and a GitHub account', () => {
     expect(twinId).not.toBe(octoId)
 
     await post(new Jar(), '/api/auth/recover', { login: 'both@example.com' })
-    const token = tokenIn(await mailTo('both@example.com'), 'reset-password')
+    const token = tokenIn(await mailTo('both@example.com'), 'reset')
     expect((await post(new Jar(), '/api/auth/reset', { token, password: OTHER })).status).toBe(204)
     // The reset was the password account's: the GitHub account kept its session and has no password.
     expect((await whoAmI(octo))?.user.id).toBe(octoId)
@@ -947,7 +1109,7 @@ describe('the account`s password and email', () => {
       emailVerified: false,
       mail: true,
     })
-    const token = tokenIn(await mailTo('first@example.com'), 'verify-email')
+    const token = tokenIn(await mailTo('first@example.com'), 'verify')
     expect((await post(new Jar(), '/api/auth/verify-email', { token })).status).toBe(204)
     expect((await credentialsOf(jar)).emailVerified).toBe(true)
 
@@ -964,7 +1126,7 @@ describe('the account`s password and email', () => {
     expect((await mailTo('first@example.com'))?.subject).toBe(
       'ASM Bots: your account email changed',
     )
-    const stale = tokenIn(await mailTo('second@example.com'), 'verify-email')
+    const stale = tokenIn(await mailTo('second@example.com'), 'verify')
 
     expect((await set(null)).status).toBe(200)
     expect(await credentialsOf(jar)).toMatchObject({ email: null, emailVerified: false })
@@ -973,6 +1135,25 @@ describe('the account`s password and email', () => {
       status: 400,
     })
     expect((await audit(jar)).filter((a) => a === 'email.change')).toHaveLength(3)
+  })
+
+  it('sets five new addresses an hour, each one mailed a link', async () => {
+    const jar = await signUp('mail-cannon')
+    for (let i = 0; i < 5; i++) {
+      const res = await post(jar, '/api/me/email', {
+        email: `victim-${i}@example.com`,
+        password: PASSWORD,
+      })
+      expect(res.status).toBe(200)
+    }
+    const sixth = await post(jar, '/api/me/email', {
+      email: 'victim-6@example.com',
+      password: PASSWORD,
+    })
+    expect(await errorOf(sixth)).toMatchObject({ status: 429, code: 'rate_limited' })
+    expect(await mailTo('victim-6@example.com')).toBeNull()
+    // Removing the email mails nobody: it is not counted.
+    expect((await post(jar, '/api/me/email', { email: null, password: PASSWORD })).status).toBe(200)
   })
 
   it('refuses an API token and a signed-out reader', async () => {

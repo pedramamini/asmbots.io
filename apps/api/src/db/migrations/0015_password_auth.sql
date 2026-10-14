@@ -29,3 +29,14 @@ CREATE TABLE auth_tokens (
 );
 CREATE INDEX auth_tokens_user ON auth_tokens (user_id, kind);
 CREATE INDEX auth_tokens_expires ON auth_tokens (expires_at);
+
+-- Counts that must hold under a burst of requests at once (`takeBudget` in `rate-limit.ts`): wrong
+-- passwords by IP and by username, accounts made, reset links mailed. KV has no atomic increment,
+-- so a hundred requests at once would each read the same count; one D1 statement adds and reads
+-- back in one step. `key` is `<scope>:<client>:<window>`, a row a window, gone after `expires_at`.
+CREATE TABLE auth_budgets (
+  key         TEXT PRIMARY KEY,
+  n           INTEGER NOT NULL,
+  expires_at  TEXT NOT NULL
+);
+CREATE INDEX auth_budgets_expires ON auth_budgets (expires_at);

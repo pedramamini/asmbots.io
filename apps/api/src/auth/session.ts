@@ -43,6 +43,11 @@ export interface Session {
   createdAt: string
   /** The User-Agent that signed in, for a future "your sessions" list. */
   ua: string
+  /**
+   * A password sign-in's: the account's `password_set_at` as it signed in. A password set since
+   * ends the session (`passwordSetKey`), whatever `endAllSessions` listed.
+   */
+  pw?: string
 }
 
 /**
@@ -67,6 +72,26 @@ export function sessionKey(id: string): string {
  */
 function userSessionKey(userId: string, id: string): string {
   return `usess:${userId}:${id}`
+}
+
+/**
+ * When `userId`'s password was last set, kept from that moment for as long as a session lasts. A
+ * session that signed in with an earlier password is no session (`loadSession`): the one way a
+ * new password ends them all for sure, since a KV list (`endAllSessions`) can miss a session
+ * started in the last minute, and a sign-in with the old password can land beside the change.
+ */
+export function passwordSetKey(userId: string): string {
+  return `pwset:${userId}`
+}
+
+/** Records that `userId`'s password was set at `setAt`: every session from before it ends. */
+export async function endPasswordSessions(
+  kv: KVNamespace,
+  userId: string,
+  setAt: string,
+): Promise<void> {
+  await kv.put(passwordSetKey(userId), setAt, { expirationTtl: SESSION_TTL_SECONDS })
+  await endAllSessions(kv, userId)
 }
 
 /** Deletes session `id` of `userId` from KV: the session and its entry in the user's list. */
@@ -131,8 +156,15 @@ export function cookieOptions(maxAge: number, path = '/'): CookieOptions {
   return { httpOnly: true, secure: true, sameSite: 'Lax', path, maxAge }
 }
 
-/** Starts a session for `userId` and sets its cookie on the response. */
-export async function startSession(c: Context<AppEnv>, userId: string): Promise<ActiveSession> {
+/**
+ * Starts a session for `userId` and sets its cookie on the response. `pw`: a password sign-in's
+ * `password_set_at`, so a later password ends it.
+ */
+export async function startSession(
+  c: Context<AppEnv>,
+  userId: string,
+  pw?: string,
+): Promise<ActiveSession> {
   const secret = c.env.SESSION_SECRET
   if (!secret) throw new Error('SESSION_SECRET is not set')
   const id = randomHex(32)
@@ -140,6 +172,7 @@ export async function startSession(c: Context<AppEnv>, userId: string): Promise<
     userId,
     createdAt: new Date().toISOString(),
     ua: (c.req.header('User-Agent') ?? '').slice(0, 256),
+    ...(pw !== undefined && { pw }),
   }
   await Promise.all([
     c.env.KV.put(sessionKey(id), JSON.stringify(session), { expirationTtl: SESSION_TTL_SECONDS }),
@@ -180,9 +213,16 @@ export const sameOrigin: MiddlewareHandler<AppEnv> = async (c, next) => {
   await next()
 }
 
+/** Whether `session` signed in with a password its account has since replaced. */
+async function outlived(kv: KVNamespace, session: Session): Promise<boolean> {
+  if (session.pw === undefined) return false
+  const setAt = await kv.get(passwordSetKey(session.userId))
+  return setAt !== null && setAt !== session.pw
+}
+
 /**
- * Sets `session` from the cookie. A bad signature, an expired session, or a write with no `Origin`
- * leaves it null. With no cookie session, an `Authorization: Bearer` API token signs its user in
+ * Sets `session` from the cookie. A bad signature, an expired session, a password session whose
+ * password has changed since, or a write with no `Origin` leaves it null. With no cookie session, an `Authorization: Bearer` API token signs its user in
  * (`tokenSession`); a token that is not one, or was revoked, is 401 then and there, not a
  * request from nobody, so a script with a bad token hears so.
  */
@@ -194,7 +234,11 @@ export const loadSession: MiddlewareHandler<AppEnv> = async (c, next) => {
     const id = await getSignedCookie(c, secret, SESSION_COOKIE, SESSION_PREFIX)
     if (id) {
       const session = await c.env.KV.get<Session>(sessionKey(id), 'json')
-      if (session) c.set('session', { id, ...session, via: 'cookie' })
+      if (session && (await outlived(c.env.KV, session))) {
+        await dropSession(c.env.KV, session.userId, id)
+      } else if (session) {
+        c.set('session', { id, ...session, via: 'cookie' })
+      }
     }
   }
   const token = c.get('session') === null ? bearerToken(c.req.header('Authorization')) : null

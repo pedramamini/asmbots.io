@@ -20,8 +20,6 @@ import {
   RECOVER_LIMIT,
   REPLAYS_LIMIT,
   rateLimit,
-  SIGNUP_DAY_LIMIT,
-  SIGNUP_LIMIT,
   SUBMIT_LIMIT,
   TOURNAMENT_LIMIT,
   VERIFY_MAIL_LIMIT,
@@ -62,9 +60,13 @@ app.use('/api/*', loadSession)
 app.use('/api/auth/*', refuseToken)
 app.use('/api/admin/*', refuseToken)
 app.on(['POST', 'PUT', 'PATCH', 'DELETE'], '/api/*', rateLimit(WRITE_LIMIT))
-app.use('/api/auth/*', rateLimit(AUTH_LIMIT))
-// Accounts made, by IP: an hour's and a day's. Then reset and verification links asked for.
-app.post('/api/auth/signup', rateLimit(SIGNUP_DAY_LIMIT), rateLimit(SIGNUP_LIMIT))
+// Not `/methods`, which the sign-in page reads before anyone signs in: it changes nothing.
+const authLimit = rateLimit(AUTH_LIMIT)
+app.use('/api/auth/*', (c, next) =>
+  c.req.path === '/api/auth/methods' ? next() : authLimit(c, next),
+)
+// Reset and verification links asked for. (Accounts made and wrong passwords are counted in the
+// routes, in D1: `takeBudget`.)
 app.post('/api/auth/recover', rateLimit(RECOVER_LIMIT))
 app.post('/api/me/email/verify', rateLimit(VERIFY_MAIL_LIMIT))
 app.post('/api/ai/*', rateLimit(AI_LIMIT))
