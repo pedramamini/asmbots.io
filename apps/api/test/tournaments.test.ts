@@ -700,6 +700,9 @@ describe('the cron', () => {
   })
 
   it('cancels a championship due with fewer than 2 bots, and makes the next', async () => {
+    // The clock is the cron's: next week's championships take entries until 2026-10-15.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(friday + 2 * week)
     await cron(friday + 2 * week)
     const byId = new Map((await championships()).map((c) => [c.id, c.status]))
     expect(byId.get('weekly-2026-10-09-middleweight')).toBe('cancelled')
