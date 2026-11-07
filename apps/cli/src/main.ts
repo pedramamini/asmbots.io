@@ -1,11 +1,12 @@
 #!/usr/bin/env bun
 
+import { setDefaultResultOrder } from 'dns'
 import { readFileSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
 import { assemble, disassemble, type AssembleOptions, type DisassembleOptions, formatDiag } from '@asmbots/asm'
 import { Battle, type LoadedBot, type BattleConfigInput, type Result, DEFAULT_CONFIG } from '@asmbots/engine'
 import { fighter } from '@asmbots/bots'
-import { buildReplay, parseReplay, ProtocolError, type Replay } from '@asmbots/protocol'
+import { buildReplay, fromBase64, parseReplay, ProtocolError, type Replay, toBase64 } from '@asmbots/protocol'
 import type { EventSink } from '@asmbots/engine'
 import { REMOTE_COMMANDS, REMOTE_ENV_HELP, REMOTE_HELP, runRemote } from './remote'
 import { NullSink } from '@asmbots/engine'
@@ -597,7 +598,8 @@ async function cmdHill(inputs: string[], flags: Record<string, string | boolean>
     }
 
     const hillPath = resolve(inputs[1]!)
-    const botPath = resolve(inputs[2]!)
+    // `loadBot` resolves a path itself, and takes `roster:<slug>` too.
+    const botPath = inputs[2]!
 
     let hillState: any = { entries: [], matches: [], config: { size: 10, rounds: 1, battle: DEFAULT_CONFIG } }
     try {
@@ -606,12 +608,20 @@ async function cmdHill(inputs: string[], flags: Record<string, string | boolean>
     } catch {
       // New hill
     }
+    // The hill file keeps each entry's machine code (base64) by its id, so a later challenger
+    // fights the entry's real code.
+    const { bots: kept = {}, ...state } = hillState as { bots?: Record<string, string> }
+    hillState = state
 
     const bot = await loadBot(botPath)
     const challenger = { id: `bot-${Date.now()}`, bot, rating: undefined }
 
     const hillMatchRunner: HillMatchRunner = (challenger, defender, config) => {
-      return runMatch([challenger.bot, { name: defender.name, bytes: new Uint8Array(8192), meta: {} }], config.battle, config.rounds)
+      const bytes = kept[defender.id]
+      if (bytes === undefined) {
+        throw new Error(`${hillPath} has no machine code for entry ${defender.id} (${defender.name}): start a new hill file`)
+      }
+      return runMatch([challenger.bot, { name: defender.name, bytes: fromBase64(bytes), meta: {} }], config.battle, config.rounds)
     }
 
     let finalResult: any = null
@@ -627,7 +637,11 @@ async function cmdHill(inputs: string[], flags: Record<string, string | boolean>
     }
 
     const outPath = flags.out ? resolve(String(flags.out)) : hillPath
-    writeFileSync(outPath, JSON.stringify(finalResult.state, null, 2))
+    const all: Record<string, string> = { ...kept, [challenger.id]: toBase64(bot.bytes) }
+    const bots = Object.fromEntries(
+      finalResult.state.entries.flatMap((e: { id: string }) => (all[e.id] === undefined ? [] : [[e.id, all[e.id]]])),
+    )
+    writeFileSync(outPath, JSON.stringify({ ...finalResult.state, bots }, null, 2))
 
     if (!!flags.json) {
       console.log(JSON.stringify(finalResult, null, 2))
@@ -903,6 +917,9 @@ Global options:
 }
 
 async function main(): Promise<number> {
+  // IPv4 first: on a dual-stack Mac whose IPv6 route is broken, `fetch` to the API times out
+  // ("fetch failed") trying the AAAA address before it tries the A one.
+  setDefaultResultOrder('ipv4first')
   const argv = process.argv.slice(2)
 
   if (argv.length === 0) {

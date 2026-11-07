@@ -170,7 +170,7 @@ asmbots tourney roundrobin dwarf.asm imp.asm --out results.json
 
 ### `hill submit <hill.json> <bot.asm> [options]`
 
-Submit a bot to a local King of the Hill. Manages offline play with a hill file.
+Submit a bot to a local King of the Hill. Manages offline play with a hill file, which keeps each entry's machine code (`bots`, base64 by entry id) so a later challenger fights it. Local matches place from the file's seed; the server's hills draw a fresh one each submission.
 
 **Options:**
 
