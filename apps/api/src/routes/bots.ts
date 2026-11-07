@@ -337,7 +337,7 @@ async function botDetail(c: Context<AppEnv>, bot: Bot): Promise<BotDetail> {
 /**
  * A bot's activity, for its page's charts: its newest matches with their entrants' labels, its hill
  * events, and its latest version's machine code. A private bot's owner alone gets here
- * (`visibleBot`); its machine code fights in the arena anyway (`GET /api/bots`).
+ * (`visibleBot`), and `GET /api/bots` leaves it out, so its machine code goes to nobody else.
  */
 async function botActivity(c: Context<AppEnv>, bot: Bot): Promise<BotActivity> {
   const [matches, events, latest] = await Promise.all([
@@ -371,10 +371,10 @@ const card = (format: CardFormat) => async (c: Context<AppEnv>) => {
 }
 
 /** Where KV keeps the arena's bots: a new key when the list's shape changes, so none is stale. */
-export const PUBLIC_BOTS_KEY = 'bots:arena'
+export const PUBLIC_BOTS_KEY = 'bots:arena:v2'
 
 /**
- * The players' bots as of `now` (ms), every visibility, each with its latest version's machine code
+ * The players' public and unlisted bots as of `now` (ms), each with its latest version's machine code
  * from R2: from KV while younger than `PUBLIC_BOTS_TTL_SECONDS`. A bot whose bytes R2 does not have
  * is left out.
  */
@@ -441,8 +441,8 @@ async function withBytes(
 const ONE_SOURCE_BODY = 256 * 1024
 
 /**
- * The write routes above, and the reads. `GET /api/bots`: every player's bots, private ones too,
- * with their machine code but no source: the arena's roster of players' bots (`publicBotsOf`); a browser keeps it a minute. `GET /api/bots/:id`: the bot, its owner, its versions (no
+ * The write routes above, and the reads. `GET /api/bots`: every player's public and unlisted bots
+ * (a private one goes to its owner alone, `GET /api/me/bots/arena`), with their machine code but no source: the arena's roster of players' bots (`publicBotsOf`); a browser keeps it a minute. `GET /api/bots/:id`: the bot, its owner, its versions (no
  * sources), and its hill places. `GET /api/bots/:id/versions/:v`: one version, with its source
  * when the bot is public or the reader owns it. An unlisted bot shows to anyone with its link, but
  * not its source. A private or deleted bot is a 404, to its owner too once it is deleted.

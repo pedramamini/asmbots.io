@@ -541,16 +541,17 @@ const BEST_JOIN = `LEFT JOIN (
        ) best ON best.bot_id = v.bot_id`
 
 /**
- * The bots of every player but the house (whose are the roster), every visibility, each at its
- * latest version, the best first (`BEST_FIRST`): at most `limit`, so a cut keeps the best. Every bot
- * fights in the arena; its visibility hides its source, not its machine code.
+ * The bots of every player but the house (whose are the roster), public and unlisted, each at its
+ * latest version, the best first (`BEST_FIRST`): at most `limit`, so a cut keeps the best. A private
+ * bot is not here: its machine code disassembles to its source, so only its owner gets it
+ * (`listOwnBots`), and it fights others on the server only (hills, championships).
  */
 export async function listPublicBots(db: D1Database, limit: number): Promise<PublicBotRow[]> {
   const { results } = await db
     .prepare(
       `SELECT ${LABEL_COLUMNS}, v.strategy, v.bytes_sha256, b.updated_at, b.visibility
        FROM bot_versions v ${LABEL_JOINS} ${BEST_JOIN}
-       WHERE b.deleted_at IS NULL AND u.handle <> ?
+       WHERE b.deleted_at IS NULL AND u.handle <> ? AND b.visibility <> 'private'
          AND ${IS_LATEST_VERSION}
        ${BEST_FIRST} LIMIT ?`,
     )

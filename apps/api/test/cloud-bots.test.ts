@@ -214,9 +214,10 @@ describe('visibility', () => {
 })
 
 describe('GET /api/bots', () => {
-  it('lists every bot, a private one too, with its bytes and visibility, cached a minute', async () => {
+  it('lists public and unlisted bots with their bytes and visibility, never a private one, cached a minute', async () => {
     const { saved: open } = await withBot('lister')
     const { saved: closed } = await withBot('lister-b', HALT, 'private')
+    const { saved: link } = await withBot('lister-c', HALT, 'unlisted')
     const res = await send(new Jar(), '/api/bots')
     expect(res.headers.get('Cache-Control')).toBe('public, max-age=60')
     const { bots: all } = parse(PublicBotList, await res.json(), 'the arena bots')
@@ -230,12 +231,10 @@ describe('GET /api/bots', () => {
       best: null,
       visibility: 'public',
     })
-    // A private bot fights in the arena: its machine code is listed, its source stays hidden.
-    const hidden = bots.find((b) => b.bot.botId === closed.bot.id)
-    expect(hidden?.visibility).toBe('private')
-    expect(hidden?.bytes.length).toBeGreaterThan(0)
-    const version = await send(new Jar(), `/api/bots/${closed.bot.id}/versions/1`)
-    expect(version.status).toBe(404)
+    expect(bots.find((b) => b.bot.botId === link.bot.id)?.visibility).toBe('unlisted')
+    // A private bot's machine code disassembles to its source: it is not listed, to anyone.
+    expect(bots.find((b) => b.bot.botId === closed.bot.id)).toBeUndefined()
+    expect(all.some((b) => b.visibility === 'private')).toBe(false)
     expect(bots).toHaveLength(2)
   })
 })
