@@ -11,13 +11,16 @@ export interface Prices {
   readonly output: number
 }
 
-/** The model the AI mode runs on Workers AI: Qwen3 30B A3B, a mixture of experts, cheap and fast. */
-export const MODEL = '@cf/qwen/qwen3-30b-a3b-fp8'
+/**
+ * The model the AI mode runs on Workers AI: Gemma 4 26B A4B, a mixture of experts, cheap and fast,
+ * with its thinking off (`routes/ai.ts`). Qwen3 30B A3B until Cloudflare retired it on 2026-11-20.
+ */
+export const MODEL = '@cf/google/gemma-4-26b-a4b-it'
 
-/** What `MODEL` costs past Workers AI's free 10,000 neurons a day (its pricing page, 2026-10). */
-export const PRICES: Prices = { input: 0.051, output: 0.335 }
+/** What `MODEL` costs past Workers AI's free 10,000 neurons a day (its model page, 2026-11). */
+export const PRICES: Prices = { input: 0.1, output: 0.3 }
 
-/** The caps when the vars set none, US dollars a day: a turn costs about half a cent. */
+/** The caps when the vars set none, US dollars a day: a turn costs about a tenth of a cent. */
 export const DEFAULT_DAILY_USD = 1
 export const DEFAULT_USER_DAILY_USD = 0.1
 

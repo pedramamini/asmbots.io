@@ -161,7 +161,7 @@ describe('POST /api/ai/chat', () => {
     expect(text).toBe('A dwarf, then.\n\nIt should beat Spin: Spin sits still.')
     expect(events).toContainEqual({ type: 'status', text: 'writing the bot' })
 
-    // One call: Qwen3, the system prompt with the hill's best bots and their source, and the
+    // One call: the model, the system prompt with the hill's best bots and their source, and the
     // editor's source before the user's words.
     expect(ai.calls).toHaveLength(1)
     const [call] = ai.calls

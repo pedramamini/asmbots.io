@@ -1,6 +1,6 @@
 /**
  * `POST /api/ai/chat`: the editor's AI mode (PRODUCT_SPEC §3). The signed-in user says what bot
- * they want; a model on Workers AI (`MODEL`, Qwen3) writes it in one `asm` code block, the Worker
+ * they want; a model on Workers AI (`MODEL`, Gemma 4) writes it in one `asm` code block, the Worker
  * assembles it and, while it has errors, sends them back for the whole bot again, and the model
  * reads the hill's best bots (the competitors block) to say what the bot will beat. A code block,
  * not a tool call: a small open model writes one more reliably. The answer streams as Server-Sent
@@ -98,7 +98,7 @@ export function toMessages(
 
 /**
  * An answer split: its words for the panel, as plain text, and the bot in its last code block that
- * has a `%name`, or null. Qwen3's thinking, when it lands in the text, goes.
+ * has a `%name`, or null. A model's thinking, when it lands in the text, goes.
  */
 export function splitAnswer(content: string): { words: string; source: string | null } {
   const text = content.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/^[\s\S]*<\/think>/, '')
@@ -184,7 +184,13 @@ async function converse(
   const call = async (messages: readonly ChatMessage[]) => {
     const out = (await ai.run(
       MODEL,
-      { messages: [...messages], max_tokens: MAX_TOKENS },
+      // Thinking off: measured 2026-11-06 on the real loop, 3 prompts, every bot assembled with it
+      // off in about 18 s; with it on, one of 3 spent all 8,192 tokens thinking and wrote no bot.
+      {
+        messages: [...messages],
+        max_tokens: MAX_TOKENS,
+        chat_template_kwargs: { enable_thinking: false },
+      },
       { signal },
     )) as Completion
     turn.spent += costOf(out.usage)
