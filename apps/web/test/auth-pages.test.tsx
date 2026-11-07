@@ -85,7 +85,9 @@ describe('/auth/login', () => {
     type('username', 'ada')
     type('password', 'not the password')
     fireEvent.click(button('sign in'))
-    expect((await screen.findByRole('alert')).textContent).toBe('wrong username or password')
+    await waitFor(() =>
+      expect(screen.getByRole('alert').textContent).toBe('wrong username or password'),
+    )
     expect(router.state.location.pathname).toBe('/auth/login')
     expect(button('sign in').disabled).toBe(false)
   })
@@ -205,7 +207,7 @@ describe('/auth/signup', () => {
     type('password', PASSWORD)
     type('password, again', PASSWORD)
     fireEvent.click(button('make the account'))
-    expect((await screen.findByRole('alert')).textContent).toBe('ada is taken')
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('ada is taken'))
   })
 
   it('says new accounts are closed when they are', async () => {
@@ -259,7 +261,7 @@ describe('/auth/reset', () => {
     type('new password', PASSWORD)
     type('new password, again', PASSWORD)
     fireEvent.click(button('set the password'))
-    expect((await screen.findByRole('alert')).textContent).toBe(message)
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toBe(message))
     expect(screen.getByRole('link', { name: 'ask for a new link' }).getAttribute('href')).toBe(
       '/auth/forgot',
     )
@@ -292,7 +294,7 @@ describe('/auth/verify', () => {
     server.use(post('/auth/verify-email', [], 409, refusal('conflict', message)))
     await open('verify', `/auth/verify#${TOKEN}`)
     fireEvent.click(button('verify this email'))
-    expect((await screen.findByRole('alert')).textContent).toBe(message)
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toBe(message))
   })
 
   it('offers nothing to verify without a link', async () => {
