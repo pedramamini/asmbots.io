@@ -1213,6 +1213,19 @@ const SUMMARY_COLUMNS = `t.*,
   (SELECT COUNT(*) FROM tournament_entries e WHERE e.tournament_id = t.id) AS entrants,
   (SELECT COUNT(*) FROM matches m WHERE m.tournament_id = t.id AND m.finished_at IS NOT NULL) AS done`
 
+/**
+ * Whether `t` takes entries at `now` (ms): open entry, scheduled, its deadline ahead. The web's
+ * `takesEntries` (`features/tournaments/entry.ts`) reads a tournament the same way.
+ */
+function takesEntries(t: Tournament, now: number): boolean {
+  return (
+    t.entry === 'open' &&
+    t.status === 'scheduled' &&
+    t.entryClosesAt !== null &&
+    now < Date.parse(t.entryClosesAt)
+  )
+}
+
 /** Summaries of `rows`, with their champions' labels. */
 async function tournamentSummaries(
   db: D1Database,
@@ -1222,6 +1235,7 @@ async function tournamentSummaries(
     db,
     rows.flatMap((row) => (row.champion_id === null ? [] : [row.champion_id])),
   )
+  const now = Date.now()
   return rows.map((row) => {
     const tournament = toTournament(row)
     const thirdPlace = tournament.config.thirdPlace ?? false
@@ -1231,15 +1245,16 @@ async function tournamentSummaries(
       done: row.done,
       of: Math.max(row.done, plannedMatches(row.kind, row.entrants, thirdPlace)),
       champion: row.champion_id === null ? null : (labels.get(row.champion_id) ?? null),
+      entryOpen: takesEntries(tournament, now),
     }
   })
 }
 
 /**
  * Tournaments: running ones first, then by start time, latest first (a week's championships by
- * class, `BY_CLASS`); unscheduled ones last. A
- * draft shows to its owner only; one cancelled with no entries (a championship nobody entered)
- * does not show.
+ * class, `BY_CLASS`); unscheduled ones last. A draft shows to its owner only. One cancelled with
+ * no entries does not show, nor a championship cancelled with fewer than 2 (the cron cancels one
+ * it cannot start): neither played a match.
  */
 export async function listTournaments(
   db: D1Database,
@@ -1250,7 +1265,8 @@ export async function listTournaments(
       `SELECT ${SUMMARY_COLUMNS} FROM tournaments t
        WHERE (t.status != 'draft' OR t.owner_id = ?)
          AND NOT (t.status = 'cancelled'
-           AND NOT EXISTS (SELECT 1 FROM tournament_entries e WHERE e.tournament_id = t.id))
+           AND (SELECT COUNT(*) FROM tournament_entries e WHERE e.tournament_id = t.id)
+             < (CASE WHEN t.owner_id IS NULL THEN 2 ELSE 1 END))
        ORDER BY (t.status = 'running') DESC, t.starts_at IS NULL, t.starts_at DESC, ${BY_CLASS},
          t.created_at DESC
        LIMIT ?`,

@@ -97,7 +97,7 @@ The server assembles every bot itself and runs the same engine as your browser, 
 
 | route | does |
 |---|---|
-| `GET /api/tournaments`, `GET /api/tournaments/:id` | the tournaments, and one with its entrants and matches |
+| `GET /api/tournaments`, `GET /api/tournaments/:id` | the tournaments, and one with its entrants and matches; each listed one says `entryOpen`, whether it takes entries now (`entry` is how: `open` or `invite`) |
 | `POST /api/tournaments/:id/enter` | `{ botVersionId }`: your bot enters an open tournament before its deadline |
 | `GET /api/replays/:key` | a stored replay, in the [replay format](/docs/tools/replay-format) |
 | `POST /api/assemble` | `{ source }` → the bytes, the size, and the diagnostics, assembled on the server |

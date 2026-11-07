@@ -715,19 +715,37 @@ describe('the cron', () => {
     // The clock is the cron's: next week's championships take entries until 2026-10-15.
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(friday + 2 * week)
+    // One bot alone in heavyweight: too few to start.
+    const lone = await botOf(await user('lone'), 'Lone', LOOP)
+    await env.DB.prepare(
+      'INSERT INTO tournament_entries (tournament_id, bot_version_id) VALUES (?, ?)',
+    )
+      .bind('weekly-2026-10-09-heavyweight', lone)
+      .run()
     await cron(friday + 2 * week)
     const byId = new Map((await championships()).map((c) => [c.id, c.status]))
     expect(byId.get('weekly-2026-10-09-middleweight')).toBe('cancelled')
+    expect(byId.get('weekly-2026-10-09-heavyweight')).toBe('cancelled')
     expect(byId.get('weekly-2026-10-16-middleweight')).toBe('scheduled')
-    // The list leaves out a championship nobody entered, once it is cancelled.
-    const list = parse(
-      TournamentList,
-      await (await send(new Jar(), '/api/tournaments')).json(),
-      'it',
-    )
+    // The list leaves out a championship cancelled with fewer than 2 bots, none or one.
+    const listing = async () =>
+      parse(TournamentList, await (await send(new Jar(), '/api/tournaments')).json(), 'it')
+    const list = await listing()
     const listed = list.tournaments.map((s) => s.tournament.id)
     expect(listed).toContain('weekly-2026-10-16-middleweight')
     expect(listed).not.toContain('weekly-2026-10-09-middleweight')
+    expect(listed).not.toContain('weekly-2026-10-09-heavyweight')
+    // `entry` is how it takes entries; `entryOpen` whether it does now, until its deadline.
+    const next = (l: TournamentList) =>
+      l.tournaments.find((s) => s.tournament.id === 'weekly-2026-10-16-middleweight')
+    expect(next(list)).toMatchObject({ tournament: { entry: 'open' }, entryOpen: true })
+    const closesAt = Date.parse(next(list)?.tournament.entryClosesAt ?? '')
+    vi.setSystemTime(closesAt)
+    expect(next(await listing())).toMatchObject({
+      tournament: { entry: 'open', status: 'scheduled' },
+      entryOpen: false,
+    })
+    vi.setSystemTime(friday + 2 * week)
     // A user may not start a championship: the cron does.
     const jar = await user('eager')
     expect(

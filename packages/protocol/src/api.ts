@@ -384,6 +384,12 @@ export const TournamentSummary = z.object({
   done: whole('done', 0, Number.MAX_SAFE_INTEGER),
   of: whole('of', 0, Number.MAX_SAFE_INTEGER),
   champion: z.nullable(BotLabel),
+  /**
+   * Whether it takes entries as the server answers: open entry, scheduled, its deadline ahead.
+   * `tournament.entry` is how it takes them (`open` or `invite`), not whether it does now. The API
+   * always sends it; optional for lists made before it.
+   */
+  entryOpen: z.optional(z.boolean()),
 })
 export type TournamentSummary = z.output<typeof TournamentSummary>
 
