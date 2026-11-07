@@ -6,7 +6,9 @@ on:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest is 26.04 since 2026-11, whose NASM 3.01 lays out jumps unlike NASM
+    # 2.16 (24.04) and 3.02, and fails the NASM and ndisasm cross-checks (packages/asm/test).
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
