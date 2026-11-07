@@ -45,10 +45,10 @@ import type {
   HillSubmissionRow,
   MatchRow,
 } from '../db/queries'
-import { SEED_MATCH_SEED } from '../db/seed'
 import type { Env } from '../env'
 import {
   battleOf,
+  freshSeed,
   type HillOutcome,
   type JobBot,
   JobError,
@@ -244,7 +244,7 @@ export async function setupHill(env: Env, job: HillJob): Promise<JobSetup> {
     tournamentId: null,
     prefix: job.submissionId,
     rounds: hill.rounds,
-    battle: battleOf(config, SEED_MATCH_SEED),
+    battle: battleOf(config, freshSeed()),
     bots,
     queue,
     of: queue.length,

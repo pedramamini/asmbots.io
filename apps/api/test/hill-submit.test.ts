@@ -30,9 +30,10 @@ import {
   rateMatches,
   settleMelee,
 } from '@asmbots/tourney'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { applySeed, buildSeed, SEED_MATCH_SEED, type SeedHill } from '../src/db/seed'
 import { runnerOf } from '../src/do/runner'
+import { seedSource } from '../src/runner/job'
 import { botBytesKey } from '../src/storage'
 import { errorOf, send, signIn } from './fake-auth'
 import { Jar } from './jar'
@@ -167,6 +168,15 @@ async function detail(slug: string, id: string) {
   expect(res.status).toBe(200)
   return parse(SubmissionDetail, await res.json(), 'the submission')
 }
+
+// The Runner draws each job's seed from the CSPRNG; here it is the seed the expected boards play.
+beforeEach(() => {
+  vi.spyOn(seedSource, 'draw').mockReturnValue(SEED_MATCH_SEED)
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 /** The hill's standings as they are: past its 30 s cache, as the web app reads a changed board. */
 async function standings(slug: string): Promise<HillDetail['standings']> {

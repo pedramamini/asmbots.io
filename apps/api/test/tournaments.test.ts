@@ -40,6 +40,7 @@ import { applySeed, buildSeed, SEED_HILLS, type SeedHill, sqlScript } from '../s
 import { runnerOf } from '../src/do/runner'
 import worker from '../src/index'
 import { championshipSchedule } from '../src/routes/championships'
+import { seedSource } from '../src/runner/job'
 import { errorOf, me, send, signIn } from './fake-auth'
 import { Jar } from './jar'
 
@@ -110,6 +111,7 @@ beforeAll(async () => {
 
 afterEach(() => {
   vi.useRealTimers()
+  vi.restoreAllMocks()
 })
 
 /** A signed-in user `as`, with its own IP so no limit counts two users together. */
@@ -169,9 +171,12 @@ async function drain(id: string): Promise<number> {
 }
 
 async function row(id: string) {
-  return env.DB.prepare('SELECT * FROM tournaments WHERE id = ?')
-    .bind(id)
-    .first<{ status: string; starts_at: string | null; champion_id: string | null }>()
+  return env.DB.prepare('SELECT * FROM tournaments WHERE id = ?').bind(id).first<{
+    status: string
+    starts_at: string | null
+    champion_id: string | null
+    config_json: string
+  }>()
 }
 
 /** The seeds of tournament `id`, by bot version, 1 first. */
@@ -448,10 +453,12 @@ describe('POST /api/tournaments/:id/start', () => {
       owner,
       invite(listed, { config: { rounds: 3, seed: 11, battle: CONFIG, thirdPlace: true } }),
     )
+    // The matches place from the seed the Runner draws at the start, not the config's 11.
+    vi.spyOn(seedSource, 'draw').mockReturnValue(29)
     expect((await post(owner, `/api/tournaments/${t.id}/start`)).status).toBe(200)
     // One match an alarm, a final and a third-place match among them, then the end.
     expect(await drain(t.id)).toBe(5)
-    const expected = oracle(listed, 11, 3)
+    const expected = oracle(listed, 29, 3)
     const done = await detail(t.id)
     expect(done.tournament).toMatchObject({
       status: 'finished',
@@ -653,9 +660,14 @@ describe('the cron', () => {
     const bySeed = [...entrants].sort((a, b) => (rating.get(b) ?? 0) - (rating.get(a) ?? 0))
     expect(bySeed.slice(0, 2)).toEqual([imp, loop])
 
+    // The bracket places from the seed the Runner draws at the start, not the config's day seed.
+    const drawn = 0x5eed1234
+    vi.spyOn(seedSource, 'draw').mockReturnValue(drawn)
     await cron(friday + week)
     const status = new Map((await championships()).map((c) => [c.id, c.status]))
     expect(status.get('weekly-2026-10-02-lightweight')).toBe('running')
+    const started = JSON.parse((await row('weekly-2026-10-02-lightweight'))?.config_json ?? '{}')
+    expect(started.seed).toBe(drawn)
     // The classes nobody entered are cancelled; next week's are made, all five.
     expect(status.get('weekly-2026-10-02-open')).toBe('cancelled')
     for (const c of CHAMPIONSHIP_CLASSES) {
@@ -665,7 +677,7 @@ describe('the cron', () => {
 
     await drain('weekly-2026-10-02-lightweight')
     const rules = championshipRules(LIGHTWEIGHT)
-    const expected = oracle(bySeed, 20261002, CHAMPIONSHIP_ROUNDS, rules)
+    const expected = oracle(bySeed, drawn, CHAMPIONSHIP_ROUNDS, rules)
     expect((await row('weekly-2026-10-02-lightweight'))?.champion_id).toBe(expected)
     const feed = parse(
       ChampionshipList,

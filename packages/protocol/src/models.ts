@@ -109,8 +109,9 @@ export const HillScoring = z.enum(['duel', 'melee'])
 export type HillScoring = z.output<typeof HillScoring>
 
 /**
- * The seed of every hill match: a hill's matches all place from it, so a match of two bots under
- * a hill's rules is the same match wherever it runs (the `challenge` in the arena too).
+ * The seed a local hill match places from: the arena's `challenge` and the CLI's hill. The server
+ * plays each submission from a fresh random seed instead (`freshSeed`), so no bot knows its rival's
+ * base beforehand; its matches and replays keep the seed they drew.
  */
 export const HILL_SEED = 1
 

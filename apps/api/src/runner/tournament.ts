@@ -29,7 +29,15 @@ import {
 } from '@asmbots/tourney'
 import { ENTRY_ORDER, type TournamentRow } from '../db/queries'
 import type { Env } from '../env'
-import { battleOf, type JobBot, JobError, type JobSetup, type JobState, loadBots } from './job'
+import {
+  battleOf,
+  freshSeed,
+  type JobBot,
+  JobError,
+  type JobSetup,
+  type JobState,
+  loadBots,
+} from './job'
 
 /** An entrant: its bot version, with its bot's name and its best rating on any hill. */
 interface EntrantRow {
@@ -147,12 +155,16 @@ export async function setupTournament(env: Env, job: TournamentJob): Promise<Job
     queue = roundRobinSchedule(n)
     of = queue.length
   }
+  // The seed the config names is public before the start: the matches place from a fresh one, and
+  // the config records it, as do the match rows and replays.
+  const seed = freshSeed()
   statements.push(
     db
       .prepare(
-        "UPDATE tournaments SET status = 'running', starts_at = COALESCE(starts_at, ?) WHERE id = ?",
+        `UPDATE tournaments SET status = 'running', starts_at = COALESCE(starts_at, ?),
+           config_json = json_set(config_json, '$.seed', ?) WHERE id = ?`,
       )
-      .bind(new Date().toISOString(), id),
+      .bind(new Date().toISOString(), seed, id),
   )
   await db.batch(statements)
   return {
@@ -162,7 +174,7 @@ export async function setupTournament(env: Env, job: TournamentJob): Promise<Job
     tournamentId: id,
     prefix: id,
     rounds: config.rounds,
-    battle: battleOf(config.battle, config.seed),
+    battle: battleOf(config.battle, seed),
     thirdPlace,
     bots,
     queue,

@@ -143,6 +143,21 @@ export function battleOf(config: ReplayConfig, seed: number): BattleConfig {
   return { coreSize, maxCycles, maxProcesses, minSpacing, minBotBytes, maxBotBytes, seed }
 }
 
+/**
+ * A fresh match seed from the CSPRNG, a uint32. A job draws it once, at setup, and the Runner keeps
+ * it with the job's state, so every match of the job places from it, its rows and replays store it,
+ * and a replay plays back the same. Nobody knows it before the job starts, so a bot cannot look up
+ * where its rival sits from its own base (its `sp` at cycle 0), as it could from a fixed seed.
+ */
+export function freshSeed(): number {
+  return seedSource.draw()
+}
+
+/** Where `freshSeed` draws from: the CSPRNG. A test pins it (`vi.spyOn(seedSource, 'draw')`). */
+export const seedSource = {
+  draw: (): number => crypto.getRandomValues(new Uint32Array(1))[0] as number,
+}
+
 /** The D1 `matches` id of a job's match. */
 export function matchId(state: Pick<JobState, 'prefix'>, spec: MatchSpec): string {
   return `${state.prefix}-${spec.id}`

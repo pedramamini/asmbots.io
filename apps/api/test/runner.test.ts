@@ -29,12 +29,12 @@ import {
   type MatchResult,
   runMatch,
 } from '@asmbots/tourney'
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { listHillEntries } from '../src/db/queries'
 import { applySeed, buildSeed, SEED_MATCH_SEED, type SeedHill } from '../src/db/seed'
 import { type Runner, runnerOf } from '../src/do/runner'
 import { writeBoard } from '../src/runner/hill'
-import type { JobState } from '../src/runner/job'
+import { type JobState, seedSource } from '../src/runner/job'
 import { botBytesKey, replayObjectKey } from '../src/storage'
 import { spectate } from './live-socket'
 
@@ -191,7 +191,13 @@ function expectedBoard(result: HillResult) {
 async function jobMatches(prefix: string) {
   const { results } = await env.DB.prepare('SELECT * FROM matches WHERE id LIKE ? ORDER BY id')
     .bind(`${prefix}-%`)
-    .all<{ id: string; participants_json: string; result_json: string; replay_key: string }>()
+    .all<{
+      id: string
+      participants_json: string
+      result_json: string
+      replay_key: string
+      seed: number
+    }>()
   return results
 }
 
@@ -225,6 +231,11 @@ beforeAll(async () => {
   BOTS.set('loop-v1', await addBot('loop', LOOP))
   BOTS.set('pad-v1', await addBot('pad', PAD))
   BOTS.set('pad2-v1', await addBot('pad2', PAD2))
+})
+
+// The Runner draws each job's seed from the CSPRNG; here it is the seed the expected boards play.
+beforeEach(() => {
+  vi.spyOn(seedSource, 'draw').mockReturnValue(SEED_MATCH_SEED)
 })
 
 afterEach(() => {
@@ -610,8 +621,10 @@ describe('writeBoard', () => {
 
 describe('a tournament job', () => {
   const entrants = ['roster-spin-v1', 'roster-dwarf-v1', 'imp-v1']
-  const tournament = async (id: string, kind: 'roundrobin' | 'bracket' | 'melee') => {
-    const config = { rounds: 2, seed: 7, battle: CONFIG }
+  const tournament = async (id: string, kind: 'roundrobin' | 'bracket' | 'melee', drawn = 7) => {
+    // The config's seed is public before the start; the Runner plays the one it draws.
+    vi.spyOn(seedSource, 'draw').mockReturnValue(drawn)
+    const config = { rounds: 2, seed: 99, battle: CONFIG }
     await env.DB.batch([
       env.DB.prepare(
         `INSERT INTO tournaments (id, slug, name, kind, status, config_json, owner_id)
@@ -677,6 +690,29 @@ describe('a tournament job', () => {
     ])
     const standings = run.heard.filter((m) => m.type === 'standings').at(-1)
     expect(standings).toMatchObject({ entries: expect.arrayContaining([expect.anything()]) })
+  })
+
+  it('places its matches from a seed drawn at the start, which its config, rows, and replays keep', async () => {
+    const drawn = 0xdeadbeef
+    const run = await tournament('t-drawn', 'roundrobin', drawn)
+    expect(run.status).toMatchObject({ status: 'finished', done: 3 })
+    const row = await env.DB.prepare('SELECT config_json FROM tournaments WHERE id = ?')
+      .bind('t-drawn')
+      .first<{ config_json: string }>()
+    expect(JSON.parse(row?.config_json ?? '{}')).toMatchObject({ seed: drawn, rounds: 2 })
+    for (const match of run.matches) {
+      expect(match.seed).toBe(drawn)
+      const object = await env.REPLAYS.get(replayObjectKey(match.replay_key))
+      const replay = parseReplay(await object?.json())
+      expect(replay.seed).toBe(drawn)
+      const ids = JSON.parse(match.participants_json) as string[]
+      const again = runMatch(
+        ids.map((v) => BOTS.get(v) as LoadedBot),
+        { ...CONFIG, seed: drawn },
+        2,
+      )
+      expect((JSON.parse(match.result_json) as MatchOutcome).points).toEqual(again.points)
+    }
   })
 
   it('plays a melee as one match of everyone', async () => {

@@ -113,8 +113,9 @@ export interface Championship {
 
 /**
  * Class `c`'s weekly championship that starts at `startsAt`, named for its day in US Central: its
- * id `weekly-2026-10-02-middleweight`, its name `weekly 2026-10-02 · middleweight`. Its matches
- * place from a seed of that day (`20261002`), so each week draws new placements.
+ * id `weekly-2026-10-02-middleweight`, its name `weekly 2026-10-02 · middleweight`. Its config's
+ * seed is that day's (`20261002`), but nobody plays it: the Runner draws a fresh seed at the start
+ * (`setupTournament`), so no entrant knows its placements beforehand.
  */
 export function weeklyChampionship(startsAt: Date, c: WeightClass): Championship {
   const day = zoneWall(startsAt.getTime()).toISOString().slice(0, 10)
