@@ -23,8 +23,27 @@ interface MatchRow {
 }
 
 /** The bots counted: the owner's living ones, and only the public ones for anyone else. */
-const OWNED = (publicOnly: boolean) =>
+export const OWNED = (publicOnly: boolean) =>
   `b.owner_id = ?1 AND b.deleted_at IS NULL${publicOnly ? " AND b.visibility = 'public'" : ''}`
+
+/**
+ * The finished matches of the counted bots' versions, as `countBotFights` finds a bot's: the
+ * duels through their indexed version columns, the rest (melees, and duels whose version was
+ * deleted) through their participants. Do not scan every match's participants: on 2026-11-15 that
+ * read 28 M rows for one profile (dr3, 6.8 k matches) and D1 refused the next queries as
+ * "overloaded".
+ */
+export const MATCHES_SQL = (owned: string) =>
+  `WITH mine AS (SELECT v.id FROM bot_versions v JOIN bots b ON b.id = v.bot_id WHERE ${owned})
+   SELECT m.participants_json, m.result_json, m.finished_at FROM matches m
+   WHERE m.result_json IS NOT NULL AND m.id IN (
+     SELECT id FROM matches WHERE a_version_id IN (SELECT id FROM mine)
+     UNION
+     SELECT id FROM matches WHERE b_version_id IN (SELECT id FROM mine)
+     UNION
+     SELECT id FROM matches WHERE a_version_id IS NULL
+       AND EXISTS (SELECT 1 FROM json_each(participants_json) WHERE value IN (SELECT id FROM mine)))
+   ORDER BY m.finished_at`
 
 /** User `userId`'s numbers, over their public bots when `publicOnly`. */
 export async function readUserStats(
@@ -52,15 +71,7 @@ export async function readUserStats(
          WHERE ${owned}`,
       )
       .bind(userId),
-    db
-      .prepare(
-        `SELECT m.participants_json, m.result_json, m.finished_at FROM matches m
-         WHERE m.result_json IS NOT NULL AND EXISTS (
-           SELECT 1 FROM json_each(m.participants_json) p
-           JOIN bot_versions v ON v.id = p.value JOIN bots b ON b.id = v.bot_id WHERE ${owned})
-         ORDER BY m.finished_at`,
-      )
-      .bind(userId),
+    db.prepare(MATCHES_SQL(owned)).bind(userId),
   ])
   const rows = <T>(result: D1Result<Record<string, unknown>> | undefined) =>
     (result?.results ?? []) as unknown as T[]
