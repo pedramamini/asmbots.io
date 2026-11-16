@@ -5,6 +5,7 @@
  * batch.
  */
 import type { MatchOutcome, UserDay, UserStats } from '@asmbots/protocol'
+import { forEachPage } from './paged'
 
 interface DayRow {
   day: string
@@ -17,6 +18,7 @@ interface VersionRow {
 }
 
 interface MatchRow {
+  _rowid: number
   participants_json: string
   result_json: string
   finished_at: string | null
@@ -31,19 +33,19 @@ export const OWNED = (publicOnly: boolean) =>
  * duels through their indexed version columns, the rest (melees, and duels whose version was
  * deleted) through their participants. Do not scan every match's participants: on 2026-11-15 that
  * read 28 M rows for one profile (dr3, 6.8 k matches) and D1 refused the next queries as
- * "overloaded".
+ * "overloaded". A page after rowid `?2`, `?3` rows (`forEachPage`).
  */
 export const MATCHES_SQL = (owned: string) =>
   `WITH mine AS (SELECT v.id FROM bot_versions v JOIN bots b ON b.id = v.bot_id WHERE ${owned})
-   SELECT m.participants_json, m.result_json, m.finished_at FROM matches m
-   WHERE m.result_json IS NOT NULL AND m.id IN (
+   SELECT m.rowid AS _rowid, m.participants_json, m.result_json, m.finished_at FROM matches m
+   WHERE m.result_json IS NOT NULL AND m.rowid > ?2 AND m.id IN (
      SELECT id FROM matches WHERE a_version_id IN (SELECT id FROM mine)
      UNION
      SELECT id FROM matches WHERE b_version_id IN (SELECT id FROM mine)
      UNION
      SELECT id FROM matches WHERE a_version_id IS NULL
        AND EXISTS (SELECT 1 FROM json_each(participants_json) WHERE value IN (SELECT id FROM mine)))
-   ORDER BY m.finished_at`
+   ORDER BY m.rowid LIMIT ?3`
 
 /** User `userId`'s numbers, over their public bots when `publicOnly`. */
 export async function readUserStats(
@@ -52,7 +54,7 @@ export async function readUserStats(
   publicOnly: boolean,
 ): Promise<UserStats> {
   const owned = OWNED(publicOnly)
-  const [botDays, versionDays, versions, matches] = await db.batch<Record<string, unknown>>([
+  const [botDays, versionDays, versions] = await db.batch<Record<string, unknown>>([
     db
       .prepare(
         `SELECT substr(b.created_at, 1, 10) AS day, COUNT(*) AS n FROM bots b WHERE ${owned}
@@ -71,7 +73,6 @@ export async function readUserStats(
          WHERE ${owned}`,
       )
       .bind(userId),
-    db.prepare(MATCHES_SQL(owned)).bind(userId),
   ])
   const rows = <T>(result: D1Result<Record<string, unknown>> | undefined) =>
     (result?.results ?? []) as unknown as T[]
@@ -95,7 +96,8 @@ export async function readUserStats(
 
   const out = { matches: 0, wins: 0, ties: 0, losses: 0, rounds: 0, survived: 0, cycles: 0 }
   let lastAt: string | null = null
-  for (const m of rows<MatchRow>(matches)) {
+  // A page at a time (`forEachPage`): one user's matches can pass D1's 50 MB result limit too.
+  await forEachPage<MatchRow>(db, MATCHES_SQL(owned), [userId], (m) => {
     const participants = JSON.parse(m.participants_json) as string[]
     const { points, rounds = [] } = JSON.parse(m.result_json) as MatchOutcome
     const top = Math.max(...points)
@@ -119,7 +121,7 @@ export async function readUserStats(
         out.cycles += round.survival[at] ?? 0
       }
     })
-  }
+  })
 
   for (const v of rows<VersionRow>(versions)) {
     if (lastAt === null || v.created_at > lastAt) lastAt = v.created_at

@@ -2,9 +2,13 @@
  * `readUserStats`: the matches it counts (duels by either version column, melees by their
  * participants, each match once, the private bots for the owner only), and a query plan that
  * reaches them through the version indexes, never a scan of every match (dr3's profile, 2026-11-15).
+ * The leaderboard's and the profile's match queries read a page at a time, each match once (dr3's
+ * profile again: the leaderboard's one query passed D1's 50 MB result limit).
  */
 import { env } from 'cloudflare:workers'
 import { beforeAll, describe, expect, it } from 'vitest'
+import { LEADERBOARD_MATCHES_SQL } from '../src/db/leaderboard'
+import { forEachPage } from '../src/db/paged'
 import { MATCHES_SQL, OWNED, readUserStats } from '../src/db/user-stats'
 
 const SHA = 'ef'.repeat(32)
@@ -73,11 +77,48 @@ describe('readUserStats', () => {
 
   it('reaches the matches through the version indexes, never a scan of every match', async () => {
     const { results } = await env.DB.prepare(`EXPLAIN QUERY PLAN ${MATCHES_SQL(OWNED(false))}`)
-      .bind('us-dre')
+      .bind('us-dre', 0, 4000)
       .all<{ detail: string }>()
     const plan = results.map((r) => r.detail)
     expect(plan.some((d) => d.includes('matches_a_version'))).toBe(true)
     expect(plan.some((d) => d.includes('matches_b_version'))).toBe(true)
-    expect(plan.filter((d) => /^SCAN (m|matches)\b/.test(d))).toEqual([])
+    // Nor a walk of every match in rowid order (the page key), which is a scan by another name.
+    expect(plan.filter((d) => /^(SCAN|SEARCH) (m|matches)\b(?!.*USING INDEX)/.test(d))).toEqual([])
+  })
+
+  it('reads each of the user’s matches once, a page at a time', async () => {
+    const ids: string[] = []
+    await forEachPage<{ _rowid: number; finished_at: string }>(
+      env.DB,
+      MATCHES_SQL(OWNED(false)),
+      ['us-dre'],
+      (m) => ids.push(String(m._rowid)),
+      1,
+    )
+    expect(ids).toHaveLength(4)
+    expect(new Set(ids).size).toBe(4)
+  })
+})
+
+describe('the leaderboard’s matches', () => {
+  it('reads every finished match once, a page at a time', async () => {
+    const { n } = (await env.DB.prepare(
+      'SELECT COUNT(*) AS n FROM matches WHERE result_json IS NOT NULL',
+    ).first<{ n: number }>()) as { n: number }
+    const seen = new Set<number>()
+    let rows = 0
+    await forEachPage<{ _rowid: number }>(
+      env.DB,
+      LEADERBOARD_MATCHES_SQL,
+      [],
+      (m) => {
+        rows++
+        seen.add(m._rowid)
+      },
+      2,
+    )
+    expect(n).toBeGreaterThan(2)
+    expect(rows).toBe(n)
+    expect(seen.size).toBe(n)
   })
 })

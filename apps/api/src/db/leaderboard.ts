@@ -14,6 +14,7 @@ import {
   type PlayerFacts,
   weightClassOf,
 } from '@asmbots/protocol'
+import { forEachPage } from './paged'
 import { toUser, type UserRow } from './queries'
 import { SYSTEM_USER } from './seed'
 
@@ -34,10 +35,16 @@ interface VersionRow {
 }
 
 interface MatchRow {
+  _rowid: number
   participants_json: string
   result_json: string
   rounds: number
 }
+
+/** Every finished match, a page after rowid `?1` (`forEachPage`). */
+export const LEADERBOARD_MATCHES_SQL = `SELECT m.rowid AS _rowid, m.participants_json, m.result_json,
+   m.rounds FROM matches m
+   WHERE m.result_json IS NOT NULL AND m.rowid > ?1 ORDER BY m.rowid LIMIT ?2`
 
 interface EntryRow {
   bot_version_id: string
@@ -101,39 +108,37 @@ const most = (a: number | null, b: number) => (a === null ? b : Math.max(a, b))
 
 /** The leaderboard as of `now`. */
 export async function readLeaderboard(db: D1Database, now: Date): Promise<Leaderboard> {
-  const [users, bots, versions, matches, entries, crowns, submissions, tournaments] =
-    await db.batch<Record<string, unknown>>([
-      db.prepare('SELECT * FROM users WHERE handle <> ? ORDER BY created_at').bind(DELETED_HANDLE),
-      db.prepare(
-        `SELECT b.owner_id, b.visibility,
+  const [users, bots, versions, entries, crowns, submissions, tournaments] = await db.batch<
+    Record<string, unknown>
+  >([
+    db.prepare('SELECT * FROM users WHERE handle <> ? ORDER BY created_at').bind(DELETED_HANDLE),
+    db.prepare(
+      `SELECT b.owner_id, b.visibility,
            (SELECT v.size FROM bot_versions v WHERE v.bot_id = b.id ORDER BY v.version DESC LIMIT 1)
              AS size,
            (SELECT COUNT(*) FROM bot_versions v WHERE v.bot_id = b.id) AS versions
          FROM bots b WHERE b.deleted_at IS NULL`,
-      ),
-      db.prepare(
-        `SELECT v.id, v.size, b.owner_id FROM bot_versions v JOIN bots b ON b.id = v.bot_id
+    ),
+    db.prepare(
+      `SELECT v.id, v.size, b.owner_id FROM bot_versions v JOIN bots b ON b.id = v.bot_id
          WHERE b.deleted_at IS NULL`,
-      ),
-      db.prepare(
-        'SELECT participants_json, result_json, rounds FROM matches WHERE result_json IS NOT NULL',
-      ),
-      db.prepare('SELECT bot_version_id, rank, reign FROM hill_entries'),
-      db.prepare(
-        `SELECT bot_version_id FROM hill_history
+    ),
+    db.prepare('SELECT bot_version_id, rank, reign FROM hill_entries'),
+    db.prepare(
+      `SELECT bot_version_id FROM hill_history
          WHERE event = 'entered' AND rank = 1 AND submission_id IS NOT NULL`,
-      ),
-      db.prepare(
-        `SELECT user_id, COUNT(*) AS n FROM hill_submissions WHERE status = 'finished'
+    ),
+    db.prepare(
+      `SELECT user_id, COUNT(*) AS n FROM hill_submissions WHERE status = 'finished'
          GROUP BY user_id`,
-      ),
-      db.prepare(
-        `SELECT e.bot_version_id, e.tournament_id, t.owner_id IS NULL AS championship,
+    ),
+    db.prepare(
+      `SELECT e.bot_version_id, e.tournament_id, t.owner_id IS NULL AS championship,
            t.champion_id
          FROM tournament_entries e JOIN tournaments t ON t.id = e.tournament_id
          WHERE t.status = 'finished'`,
-      ),
-    ])
+    ),
+  ])
   const rows = <T>(result: D1Result<Record<string, unknown>> | undefined) =>
     (result?.results ?? []) as unknown as T[]
   const userRows = rows<UserRow>(users)
@@ -165,7 +170,8 @@ export async function readLeaderboard(db: D1Database, now: Date): Promise<Leader
     t.classes = set.size
   }
 
-  for (const m of rows<MatchRow>(matches)) {
+  // Every finished match, a page at a time: in one query they passed D1's 50 MB result limit.
+  await forEachPage<MatchRow>(db, LEADERBOARD_MATCHES_SQL, [], (m) => {
     const ids = JSON.parse(m.participants_json) as string[]
     const { points, rounds = [] } = JSON.parse(m.result_json) as MatchOutcome
     const top = Math.max(...points)
@@ -201,7 +207,7 @@ export async function readLeaderboard(db: D1Database, now: Date): Promise<Leader
         }
       }
     })
-  }
+  })
 
   for (const e of rows<EntryRow>(entries)) {
     const t = ownerOf(e.bot_version_id)
