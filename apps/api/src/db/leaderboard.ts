@@ -7,6 +7,7 @@
  */
 import {
   awardBadges,
+  type BadgeId,
   DELETED_HANDLE,
   type Leaderboard,
   type LeaderRow,
@@ -32,6 +33,7 @@ interface VersionRow {
   id: string
   size: number
   owner_id: string
+  visibility: string
 }
 
 interface MatchRow {
@@ -39,11 +41,14 @@ interface MatchRow {
   participants_json: string
   result_json: string
   rounds: number
+  replay_key: string | null
+  hill_id: string | null
+  tournament_id: string | null
 }
 
 /** Every finished match, a page after rowid `?1` (`forEachPage`). */
 export const LEADERBOARD_MATCHES_SQL = `SELECT m.rowid AS _rowid, m.participants_json, m.result_json,
-   m.rounds FROM matches m
+   m.rounds, m.replay_key, m.hill_id, m.tournament_id FROM matches m
    WHERE m.result_json IS NOT NULL AND m.rowid > ?1 ORDER BY m.rowid LIMIT ?2`
 
 interface EntryRow {
@@ -61,11 +66,12 @@ interface TournamentEntryRow {
 
 /** A user's running totals, before they are ranked. */
 type Tally = {
-  -readonly [K in keyof PlayerFacts]: PlayerFacts[K]
+  -readonly [K in Exclude<keyof PlayerFacts, 'proof'>]: PlayerFacts[K]
 } & {
   ties: number
   losses: number
   bestRank: number | null
+  proof: Partial<Record<BadgeId, string>>
 }
 
 function emptyTally(joinedAt: string, since: string, at: string): Tally {
@@ -100,6 +106,7 @@ function emptyTally(joinedAt: string, since: string, at: string): Tally {
     joinedAt,
     since,
     at,
+    proof: {},
   }
 }
 
@@ -120,7 +127,7 @@ export async function readLeaderboard(db: D1Database, now: Date): Promise<Leader
          FROM bots b WHERE b.deleted_at IS NULL`,
     ),
     db.prepare(
-      `SELECT v.id, v.size, b.owner_id FROM bot_versions v JOIN bots b ON b.id = v.bot_id
+      `SELECT v.id, v.size, b.owner_id, b.visibility FROM bot_versions v JOIN bots b ON b.id = v.bot_id
          WHERE b.deleted_at IS NULL`,
     ),
     db.prepare('SELECT bot_version_id, rank, reign FROM hill_entries'),
@@ -177,21 +184,42 @@ export async function readLeaderboard(db: D1Database, now: Date): Promise<Leader
     const top = Math.max(...points)
     const tops = points.filter((p) => p === top).length
     const duel = ids.length === 2
+    // The replay a badge links to, if anyone may watch it: a hill's or a tournament's match is
+    // public on its page; any other only when every bot in it is public.
+    const key =
+      m.replay_key !== null &&
+      (m.hill_id !== null ||
+        m.tournament_id !== null ||
+        ids.every((id) => version.get(id)?.visibility === 'public'))
+        ? m.replay_key
+        : null
     ids.forEach((id, at) => {
       const t = ownerOf(id)
       if (t === undefined) return
+      /** Keeps this match as the proof of `badge`, if it has none yet. */
+      const prove = (badge: BadgeId) => {
+        if (key !== null && t.proof[badge] === undefined) t.proof[badge] = key
+      }
       t.matches++
       const p = points[at] ?? 0
       const won = p === top && tops === 1
-      if (won) t.wins++
-      else if (p === top) t.ties++
+      if (won) {
+        t.wins++
+        prove('first-blood')
+      } else if (p === top) t.ties++
       else t.losses++
       if (won && duel) {
         const other = 1 - at
-        if ((points[other] ?? 0) === 0 && m.rounds >= FLAWLESS_ROUNDS) t.flawless++
+        if ((points[other] ?? 0) === 0 && m.rounds >= FLAWLESS_ROUNDS) {
+          t.flawless++
+          prove('flawless')
+        }
         const mine = version.get(id)?.size ?? 0
         const theirs = version.get(ids[other] ?? '')?.size ?? 0
-        if (mine > 0 && theirs >= 2 * mine) t.giantKills++
+        if (mine > 0 && theirs >= 2 * mine) {
+          t.giantKills++
+          prove('giant-killer')
+        }
       }
       for (const round of rounds) {
         t.rounds++
@@ -201,9 +229,16 @@ export async function readLeaderboard(db: D1Database, now: Date): Promise<Leader
         if (!alive || round.survivors.length !== 1) continue
         if (duel) {
           t.kills++
-          t.fastestKill = least(t.fastestKill, round.survival[1 - at] ?? 0)
+          const died = round.survival[1 - at] ?? 0
+          if (t.fastestKill === null || died < t.fastestKill) {
+            // A faster kill: its match is the proof, or none if no one else may watch it.
+            t.fastestKill = died
+            if (key === null) delete t.proof.quickdraw
+            else t.proof.quickdraw = key
+          } else if (died === t.fastestKill) prove('quickdraw')
         } else {
           t.lastStanding++
+          prove('last-standing')
         }
       }
     })

@@ -75,6 +75,27 @@ describe('the badges', () => {
     expect([a, b, c].flatMap(ids)).not.toContain('reaper')
   })
 
+  it("carries each holder's proof, the replay of the match that earned it, and only its own", () => {
+    const key = 'ab'.repeat(32)
+    const [a, b] = awardBadges([
+      player({ kills: 1, fastestKill: 5, wins: 1, proof: { quickdraw: key, 'first-blood': key } }),
+      player({ kills: 1, fastestKill: 5, wins: 1 }),
+    ])
+    expect(a?.find((e) => e.id === 'quickdraw')).toEqual({
+      id: 'quickdraw',
+      value: 5,
+      replayKey: key,
+    })
+    expect(a?.find((e) => e.id === 'first-blood')).toEqual({
+      id: 'first-blood',
+      value: null,
+      replayKey: key,
+    })
+    // Level at the best, b holds the title too, with no match of its own to show.
+    expect(b?.find((e) => e.id === 'quickdraw')).toEqual({ id: 'quickdraw', value: 5 })
+    expect(a?.find((e) => e.id === 'hello-world')).toBeUndefined()
+  })
+
   it('gives the milestones at their lines', () => {
     const [earned] = awardBadges([
       player({

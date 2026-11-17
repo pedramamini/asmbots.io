@@ -51,6 +51,13 @@ export interface PlayerFacts {
   readonly joinedAt: string
   readonly since: string
   readonly at: string
+  /**
+   * The replay key of a match that earned a badge, for the badges one match decides: the fastest
+   * kill's (`quickdraw`), and one won (`first-blood`), flawless, against a giant, or ended last
+   * alive in a melee. Only a match anyone may watch: a hill's or a tournament's, or one of public
+   * bots only. Badges of totals, hills, and championships have none.
+   */
+  readonly proof?: Readonly<Partial<Record<BadgeId, string>>>
 }
 
 /** How a badge's group heads the catalog. */
@@ -271,10 +278,20 @@ export const BADGE_GROUPS: readonly BadgeGroup[] = [
   'time',
 ]
 
-/** A badge a user holds: its id, and for a title the number that won it. */
+/**
+ * A badge a user holds: its id, for a title the number that won it, and the replay of a match
+ * that earned it, when one match decides it and anyone may watch it (`PlayerFacts.proof`).
+ */
 export interface Earned {
   readonly id: BadgeId
   readonly value: number | null
+  readonly replayKey?: string
+}
+
+/** `earned` with the replay of `player`'s match that earned it, if they have one. */
+function withProof(player: PlayerFacts, earned: Earned): Earned {
+  const replayKey = player.proof?.[earned.id]
+  return replayKey === undefined ? earned : { ...earned, replayKey }
 }
 
 /**
@@ -287,7 +304,7 @@ export function awardBadges(players: readonly PlayerFacts[]): Earned[][] {
     const badge: Badge = BADGES[id]
     if (badge.kind === 'milestone') {
       players.forEach((p, i) => {
-        if (badge.earned(p)) earned[i]?.push({ id, value: null })
+        if (badge.earned(p)) earned[i]?.push(withProof(p, { id, value: null }))
       })
       continue
     }
@@ -296,7 +313,7 @@ export function awardBadges(players: readonly PlayerFacts[]): Earned[][] {
     if (known.length === 0) continue
     const best = badge.least ? Math.min(...known) : Math.max(...known)
     values.forEach((v, i) => {
-      if (v === best) earned[i]?.push({ id, value: v })
+      if (v === best) earned[i]?.push(withProof(players[i] as PlayerFacts, { id, value: v }))
     })
   }
   return earned

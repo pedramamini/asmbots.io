@@ -5,7 +5,9 @@
  */
 import { BADGES, type BadgeId, badgeValue, type TitleBadge } from '@asmbots/protocol'
 import { cx } from '@asmbots/ui'
+import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
+import { CELL_LINK } from '../hills/links'
 import { GLYPHS, glyphCells } from './glyphs'
 
 /** The glyph's color class: a title's gold, a milestone's accent, or off. */
@@ -55,18 +57,22 @@ export function heldValue(id: BadgeId, value: number | null): string | null {
 }
 
 /**
- * One badge in a tile: the glyph in a dark well, the name, what it takes, and `note` (who holds
- * it, or the number that won it). A title's tile has a gold stripe; a badge not held is quiet.
+ * One badge in a tile: the glyph in a dark well, the name, what it takes, `note` (who holds it,
+ * or the number that won it), and a link to `replayKey`, the match that earned it. A title's tile
+ * has a gold stripe; a badge not held is quiet.
  */
 export function BadgeTile({
   id,
   held = true,
   note,
+  replayKey,
 }: {
   id: BadgeId
   held?: boolean
   note?: ReactNode
+  replayKey?: string
 }) {
+  const hasNote = note !== undefined && note !== null
   const badge = BADGES[id]
   return (
     <li
@@ -90,8 +96,21 @@ export function BadgeTile({
           )}
         </span>
         <span className="text-data text-muted">{badge.says}</span>
-        {note !== undefined && note !== null && (
-          <span className="truncate-ring text-data text-text">{note}</span>
+        {(hasNote || replayKey !== undefined) && (
+          <span className="truncate-ring text-data text-text">
+            {note}
+            {hasNote && replayKey !== undefined && ' · '}
+            {replayKey !== undefined && (
+              <Link
+                to="/arena/$replayId"
+                params={{ replayId: replayKey }}
+                className={CELL_LINK}
+                aria-label={`watch the match that earned ${badge.name}`}
+              >
+                watch
+              </Link>
+            )}
+          </span>
         )}
       </span>
     </li>

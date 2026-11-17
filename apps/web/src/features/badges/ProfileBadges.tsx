@@ -7,7 +7,8 @@ import { BadgeTile, heldValue } from './Badge'
 
 /**
  * A profile's badges (PRODUCT_SPEC §12): the titles they hold, then their milestones, each with
- * what it takes and a title's number; and a link to every badge on the leaderboard.
+ * what it takes, a title's number, and the match that earned it when one match did; and a link to
+ * every badge on the leaderboard.
  */
 export function ProfileBadges({ data }: { data: UserDetail }) {
   const link = useLinkAction()
@@ -32,7 +33,12 @@ export function ProfileBadges({ data }: { data: UserDetail }) {
       ) : (
         <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {held.map((b) => (
-            <BadgeTile key={b.id} id={b.id} note={heldValue(b.id, b.value)} />
+            <BadgeTile
+              key={b.id}
+              id={b.id}
+              note={heldValue(b.id, b.value)}
+              {...(b.replayKey === undefined ? {} : { replayKey: b.replayKey })}
+            />
           ))}
         </ul>
       )}

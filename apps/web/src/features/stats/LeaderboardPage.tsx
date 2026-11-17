@@ -190,7 +190,9 @@ export function LeaderboardPage() {
 function holders(data: Leaderboard, id: BadgeId) {
   return data.users.flatMap((row) => {
     const held = row.badges.find((b) => b.id === id)
-    return held === undefined ? [] : [{ handle: row.user.handle, value: held.value }]
+    return held === undefined
+      ? []
+      : [{ handle: row.user.handle, value: held.value, replayKey: held.replayKey }]
   })
 }
 
@@ -208,6 +210,13 @@ function holderNote(data: Leaderboard, id: BadgeId) {
       {heldValue(id, first.value)}
     </>
   )
+}
+
+/** A title's link to the match its (first) holder earned it in; a milestone's tile has none. */
+function titleProof(data: Leaderboard, id: BadgeId): { replayKey?: string } {
+  if (BADGES[id].kind !== 'title') return {}
+  const replayKey = holders(data, id)[0]?.replayKey
+  return replayKey === undefined ? {} : { replayKey }
 }
 
 const GROUP_TITLES: Readonly<Record<BadgeGroup, string>> = {
@@ -246,6 +255,7 @@ function Badges({ data }: { data: Leaderboard | undefined }) {
                     id={id}
                     held={held.includes(id)}
                     note={holderNote(data, id)}
+                    {...titleProof(data, id)}
                   />
                 ))}
               </ul>

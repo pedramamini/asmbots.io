@@ -288,10 +288,14 @@ export const UserStats = z.object({
 })
 export type UserStats = z.output<typeof UserStats>
 
-/** A badge a user holds (`badges.ts`): its id, and for a title the number that won it. */
+/**
+ * A badge a user holds (`badges.ts`): its id, for a title the number that won it, and the replay
+ * of a match that earned it (`/arena/$replayKey`), when one match decides it and anyone may watch.
+ */
 export const EarnedBadge = z.object({
   id: z.enum(BADGE_IDS),
   value: z.nullable(z.number()),
+  replayKey: z.optional(matching(SHA256)),
 })
 export type EarnedBadge = z.output<typeof EarnedBadge>
 

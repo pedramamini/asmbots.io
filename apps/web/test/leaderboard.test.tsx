@@ -53,6 +53,7 @@ const BOARD: Leaderboard = {
       badges: [
         { id: 'fleet', value: 40 },
         { id: 'heavy-metal', value: 4096 },
+        { id: 'quickdraw', value: 5, replayKey: 'ef'.repeat(32) },
         { id: 'king', value: null },
       ],
     }),
@@ -110,8 +111,15 @@ describe('the leaderboard page', () => {
     expect(tile('heavy metal').textContent).toContain('ada · 4,096 bytes')
     expect(tile('king of the hill').textContent).toContain('2 builders')
     expect(tile('reaper').textContent).toContain('nobody yet')
+    // A title one match won links that match.
+    expect(tile('quickdraw').textContent).toContain('ada · 5 cycles · watch')
+    expect(
+      within(tile('quickdraw'))
+        .getByRole('link', { name: 'watch the match that earned quickdraw' })
+        .getAttribute('href'),
+    ).toBe(`/arena/${'ef'.repeat(32)}`)
     expect(screen.getByRole('region', { name: 'badges' }).textContent).toContain(
-      `3 of ${BADGE_IDS.length} held`,
+      `4 of ${BADGE_IDS.length} held`,
     )
   })
 

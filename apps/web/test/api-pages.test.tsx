@@ -541,6 +541,28 @@ describe('/u/$handle', () => {
     await waitFor(() => expect(screen.getAllByText('no badges yet.').length).toBeGreaterThan(0))
   })
 
+  it('links a badge to the match that earned it, when one did', async () => {
+    const replayKey = 'ef'.repeat(32)
+    server.use(
+      answer('/users/quick', {
+        ...SYSTEM,
+        badges: [
+          { id: 'quickdraw', value: 5, replayKey },
+          { id: 'hello-world', value: null },
+        ],
+      }),
+    )
+    await renderAt('/u/quick', () => <ProfilePage handle="quick" />)
+    const badges = await screen.findByRole('region', { name: 'badges' })
+    const watch = within(badges).getByRole('link', {
+      name: 'watch the match that earned quickdraw',
+    })
+    expect(watch.getAttribute('href')).toBe(`/arena/${replayKey}`)
+    expect(within(badges).getAllByRole('listitem')[0]?.textContent).toContain('5 cycles · watch')
+    // A badge no one match earned has no link.
+    expect(within(badges).getAllByRole('link', { name: /^watch the match/ })).toHaveLength(1)
+  })
+
   it('shows the github name and login when they show them', async () => {
     server.use(
       answer('/users/system', {
